@@ -11,6 +11,8 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = True
 Attribute VB_PredeclaredId = False
 Attribute VB_Exposed = False
+'[XMLDocument.cls]
+
 ' It's a part of XML Parser by Jason Thorn
 ' see: XmlUtil.bas file for copyrights remark.
 
@@ -111,6 +113,10 @@ End Function
 
 Private Sub Class_Initialize()
     Set m_RootElement = New CXmlElement
+End Sub
+
+Private Sub Class_Terminate()
+    Set m_RootElement = Nothing
 End Sub
 
 Public Property Get NodeByName(ByVal NodeName As String) As CXmlElement

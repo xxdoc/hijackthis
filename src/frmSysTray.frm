@@ -1,13 +1,13 @@
 VERSION 5.00
 Begin VB.Form frmSysTray 
    Caption         =   "Form1"
-   ClientHeight    =   3015
-   ClientLeft      =   225
-   ClientTop       =   855
+   ClientHeight    =   3024
+   ClientLeft      =   192
+   ClientTop       =   816
    ClientWidth     =   4560
    BeginProperty Font 
       Name            =   "Tahoma"
-      Size            =   8.25
+      Size            =   8.4
       Charset         =   204
       Weight          =   400
       Underline       =   0   'False
@@ -15,7 +15,7 @@ Begin VB.Form frmSysTray
       Strikethrough   =   0   'False
    EndProperty
    LinkTopic       =   "Form1"
-   ScaleHeight     =   3015
+   ScaleHeight     =   3024
    ScaleWidth      =   4560
    ShowInTaskbar   =   0   'False
    StartUpPosition =   3  'Windows Default
@@ -34,6 +34,8 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
+'[frmSysTray.frm]
+
 '
 ' AnotherSysTray by Brian Reilly
 '
@@ -91,7 +93,7 @@ Public Property Get Tooltip() As String
 End Property
 
 Public Property Let TrayIcon(Value As Variant)
-   On Error Resume Next
+   'On Error Resume Next
    ' Value can be a picturebox, image, form or string
    Select Case TypeName(Value)
       Case "PictureBox", "Image"
@@ -99,27 +101,30 @@ Public Property Let TrayIcon(Value As Variant)
       Case "String"
         Me.Icon = LoadPicture(Value)
       Case Else
-         ' Is it a form ?
-         Me.Icon = Value.Icon
+        If TypeOf Value Is Form Then
+            Me.Icon = Value.Icon
+            'pvSetFormIcon Me
+        End If
    End Select
    UpdateIcon NIM_MODIFY
 End Property
 
 Private Sub Form_Load()
-    ReloadLanguage
+    SetAllFontCharset Me, g_FontName, g_FontSize, g_bFontBold
+    ReloadLanguage True
     Me.Visible = False
     Tooltip = "HiJackThis v. " & AppVerString
     UpdateIcon NIM_ADD
 End Sub
 
-Private Sub Form_MouseMove(Button As Integer, Shift As Integer, x As Single, y As Single)
+Private Sub Form_MouseMove(Button As Integer, Shift As Integer, X As Single, Y As Single)
    Dim msg As Long
    
    ' The Form_MouseMove is intercepted to give systray mouse events.
    If Me.ScaleMode = vbPixels Then
-      msg = x
+      msg = X
    Else
-      msg = x / Screen.TwipsPerPixelX
+      msg = X / Screen.TwipsPerPixelX
    End If
       
    Select Case msg
@@ -185,7 +190,7 @@ Private Sub UpdateIcon(Value As Long)
       .uID = vbNull
       .uFlags = NIM_DELETE Or NIF_TIP Or NIM_MODIFY
       .uCallbackMessage = WM_MOUSEMOVE
-      .hIcon = Me.Icon
+      .hIcon = Me.Icon.Handle
    End With
    Shell_NotifyIcon Value, nid
 End Sub

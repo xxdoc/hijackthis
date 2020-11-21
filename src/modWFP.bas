@@ -1,4 +1,6 @@
 Attribute VB_Name = "modWFP"
+'[modWFP.bas]
+
 '
 ' WPF Enumerator by Alex Dragokas
 '
@@ -12,7 +14,7 @@ Option Explicit
 Const MAX_PATH As Long = 260&
 
 Type PPROTECTED_FILE_INFO
-    length As Long
+    Length As Long
     FileName As String * MAX_PATH
 End Type
 
@@ -27,7 +29,7 @@ Type PPROTECT_FILE_ENTRY
     InfName As Long         'pointer PWSTR
 End Type
 
-Private Declare Function GetMem4 Lib "msvbvm60" (src As Any, dst As Any) As Long
+Private Declare Function GetMem4 Lib "msvbvm60" (Src As Any, Dst As Any) As Long
 Private Declare Function VirtualProtect Lib "kernel32" (ByVal lpAddress As Long, ByVal dwSize As Long, ByVal flNewProtect As Long, lpflOldProtect As Long) As Long
 Private Declare Sub EbGetExecutingProj Lib "vba6" (hProject As Long)
 Private Declare Function TipGetFunctionId Lib "vba6" (ByVal hProj As Long, ByVal bstrName As Long, ByRef bstrId As Long) As Long
@@ -53,7 +55,7 @@ Dim inIDE           As Boolean
 ' Прототипы функций, вызов которых перенаправляется по адресу Addr
 Private Function BeginFileMapEnumeration(ByVal Addr As Long, ByVal Reserved0 As Long, ByVal Reserved1 As Long, Handle As Long) As Long: End Function
 Private Function CloseFileMapEnumeration(ByVal Addr As Long, ByVal Handle As Long) As Long: End Function
-Private Function GetNextFileMapContent(ByVal Addr As Long, ByVal Reserved As Long, ByVal SfcHandle As Long, ByVal size As Long, ProtectedInfo As PPROTECTED_FILE_INFO, dwNeeded As Long) As Long: End Function
+Private Function GetNextFileMapContent(ByVal Addr As Long, ByVal Reserved As Long, ByVal SfcHandle As Long, ByVal Size As Long, ProtectedInfo As PPROTECTED_FILE_INFO, dwNeeded As Long) As Long: End Function
 Private Function SfcGetNextProtectedFile(ByVal Addr As Long, ByVal RpcHandle As Long, ProtFileData As PROTECTED_FILE_DATA) As Long: End Function
 Private Function SfcGetFiles(ByVal Addr As Long, ProtFileData As PPROTECT_FILE_ENTRY, FileCount As Long) As Long: End Function
 
@@ -122,7 +124,7 @@ Public Function SFCList_XP_0() As String()  ' with SFCFILES.dll
     Dim hSfcFil_Lib             As Long
     Dim SfcGetFilesAddr         As Long
     Dim FileCount               As Long
-    Dim index                   As Long
+    Dim Index                   As Long
     Dim strAdr                  As Long
     Dim strLen                  As Long
     Dim FileName                As String
@@ -150,12 +152,12 @@ Public Function SFCList_XP_0() As String()  ' with SFCFILES.dll
             
     ReDim SFCList(FileCount - 1)
     
-    For index = 0 To FileCount - 1
-        GetMem4 ByVal pfe.SourceFileName + 4 + index * 12, strAdr
+    For Index = 0 To FileCount - 1
+        GetMem4 ByVal pfe.SourceFileName + 4 + Index * 12, strAdr
         strLen = lstrlen(strAdr)
         FileName = Space$(strLen)
         lstrcpyn StrPtr(FileName), strAdr, strLen + 1
-        SFCList(index) = Replace$(FileName, "%systemroot%\", SystemRoot, , , 1)
+        SFCList(Index) = Replace$(FileName, "%systemroot%\", SystemRoot, , , 1)
     Next
     GlobalFree pfe.SourceFileName
 
@@ -217,10 +219,10 @@ Public Function SFCList_Vista() As String()
         
             Case 0
                 If UBound(SFCList) < i Then ReDim Preserve SFCList(i + 100)
-                SFCList(i) = Replace$(Left$(pData.FileName, pData.length \ 2), "\SystemRoot\", SystemRoot, 1, 1, 1)
+                SFCList(i) = Replace$(Left$(pData.FileName, pData.Length \ 2), "\SystemRoot\", SystemRoot, 1, 1, 1)
                 i = i + 1
         
-            Case ERROR_NO_MORE_FILES Or (pData.length = 0)
+            Case ERROR_NO_MORE_FILES Or (pData.Length = 0)
                 Exit Do
         
             Case ERROR_INSUFFICIENT_BUFFER Or (dwNeeded > dwBufferSize)
@@ -228,7 +230,7 @@ Public Function SFCList_Vista() As String()
     
         End Select
 
-        If pData.length = 0 Then Exit Do
+        If pData.Length = 0 Then Exit Do
 
     Loop
     
@@ -248,6 +250,10 @@ Public Function SFCList_Vista() As String()
 ErrorHandler:
     ErrorMsg Err, "modWFP.SFCList_Vista"
     If inIDE Then Stop: Resume Next
+End Function
+
+Public Function IsFileSFC(sFile As String) As Boolean
+    IsFileSFC = SfcIsFileProtected(0&, StrPtr(sFile)) <> 0
 End Function
  
 ' Пропатчивание функции

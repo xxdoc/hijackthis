@@ -8,18 +8,18 @@ Option Explicit
 '' Base64 encoder/decoder by Comintern (vbforums.com) (Fork by Dragokas)
 ''
 
-Private Const MAX_HASH_FILE_SIZE As Currency = 10485760@ '10 MB. (maximum file size to calculate hash)
+Private Const MAX_HASH_FILE_SIZE As Currency = 209715200@ '200 MB. (maximum file size to calculate hash)
 
 Private Const poly As Long = &HEDB88320
 
 Private Declare Function Mul Lib "msvbvm60.dll" Alias "_allmul" (ByVal dw1 As Long, ByVal Reserved As Long, ByVal dw3 As Long, ByVal Reserved As Long) As Long
-Private Declare Function CryptAcquireContext Lib "advapi32.dll" Alias "CryptAcquireContextW" (ByRef phProv As Long, ByVal pszContainer As Long, ByVal pszProvider As Long, ByVal dwProvType As Long, ByVal dwFlags As Long) As Long
-Private Declare Function CryptCreateHash Lib "advapi32.dll" (ByVal hProv As Long, ByVal Algid As Long, ByVal hKey As Long, ByVal dwFlags As Long, ByRef phHash As Long) As Long
-Private Declare Function CryptDestroyHash Lib "advapi32.dll" (ByVal hHash As Long) As Long
-Private Declare Function CryptGetHashParam Lib "advapi32.dll" (ByVal pCryptHash As Long, ByVal dwParam As Long, ByRef pbData As Any, ByRef pcbData As Long, ByVal dwFlags As Long) As Long
-Private Declare Function CryptHashData_Array Lib "advapi32.dll" Alias "CryptHashData" (ByVal hHash As Long, pbData As Any, ByVal dwDataLen As Long, ByVal dwFlags As Long) As Long
+Private Declare Function CryptAcquireContext Lib "Advapi32.dll" Alias "CryptAcquireContextW" (ByRef phProv As Long, ByVal pszContainer As Long, ByVal pszProvider As Long, ByVal dwProvType As Long, ByVal dwFlags As Long) As Long
+Private Declare Function CryptCreateHash Lib "Advapi32.dll" (ByVal hProv As Long, ByVal Algid As Long, ByVal hKey As Long, ByVal dwFlags As Long, ByRef phHash As Long) As Long
+Private Declare Function CryptDestroyHash Lib "Advapi32.dll" (ByVal hHash As Long) As Long
+Private Declare Function CryptGetHashParam Lib "Advapi32.dll" (ByVal pCryptHash As Long, ByVal dwParam As Long, ByRef pbData As Any, ByRef pcbData As Long, ByVal dwFlags As Long) As Long
+Private Declare Function CryptHashData_Array Lib "Advapi32.dll" Alias "CryptHashData" (ByVal hHash As Long, pbData As Any, ByVal dwDataLen As Long, ByVal dwFlags As Long) As Long
 'Private Declare Function CryptHashData_Str Lib "advapi32.dll" Alias "CryptHashData" (ByVal hHash As Long, ByVal pbData As String, ByVal dwDataLen As Long, ByVal dwFlags As Long) As Long
-Private Declare Function CryptReleaseContext Lib "advapi32.dll" (ByVal hProv As Long, ByVal dwFlags As Long) As Long
+Private Declare Function CryptReleaseContext Lib "Advapi32.dll" (ByVal hProv As Long, ByVal dwFlags As Long) As Long
 'Private Declare Function CloseHandle Lib "kernel32.dll" (ByVal hObject As Long) As Long
 'Private Declare Function CryptGetProvParam Lib "advapi32.dll" (ByVal hProv As Long, ByVal dwParam As Long, ByVal pbData As Long, pdwDataLen As Long, ByVal dwFlags As Long) As Long
 
@@ -65,11 +65,19 @@ Private clPowers6(63) As Long
 Private clPowers12(63) As Long
 Private clPowers18(63) As Long
 
+Public Function GetFileCheckSum(sFilename$, Optional lFileSize&, Optional PlainCheckSum As Boolean) As String
+    
+    If g_bUseMD5 Then
+        GetFileCheckSum = GetFileMD5(sFilename, lFileSize, PlainCheckSum)
+    Else
+        GetFileCheckSum = GetFileSHA1(sFilename, lFileSize, PlainCheckSum)
+    End If
+End Function
 
-Public Function GetFileMD5(sFileName$, Optional lFileSize&, Optional JustMD5 As Boolean) As String
+Public Function GetFileMD5(sFilename$, Optional lFileSize&, Optional PlainMD5 As Boolean) As String
     On Error GoTo ErrorHandler:
     
-    AppendErrorLogCustom "GetFileMD5 - Begin", "File: " & sFileName
+    AppendErrorLogCustom "GetFileMD5 - Begin", "File: " & sFilename
     
     Dim ff          As Long
     Dim hCrypt      As Long
@@ -82,19 +90,19 @@ Public Function GetFileMD5(sFileName$, Optional lFileSize&, Optional JustMD5 As 
     Dim OldRedir    As Boolean
     Dim Redirect    As Boolean
     
-    If StrEndWith(sFileName, "(file missing)") Then Exit Function
-    If StrEndWith(sFileName, "(no file)") Then Exit Function
+    If StrEndWith(sFilename, "(file missing)") Then Exit Function
+    If StrEndWith(sFilename, "(no file)") Then Exit Function
 
-    Redirect = ToggleWow64FSRedirection(False, sFileName, OldRedir)
+    Redirect = ToggleWow64FSRedirection(False, sFilename, OldRedir)
     
-    If Not OpenW(sFileName, FOR_READ, ff) Then GoTo Finalize
+    If Not OpenW(sFilename, FOR_READ, ff, g_FileBackupFlag) Then GoTo Finalize
     
     If Redirect Then Call ToggleWow64FSRedirection(OldRedir)
     
     If lFileSize = 0 Then lFileSize = LOFW(ff)
     If lFileSize = 0 Then
         'speed tweak :) 0-byte file always has the same MD5
-        If JustMD5 Then
+        If PlainMD5 Then
             GetFileMD5 = "D41D8CD98F00B204E9800998ECF8427E"
         Else
             GetFileMD5 = " (size: 0 bytes, MD5: D41D8CD98F00B204E9800998ECF8427E)"
@@ -102,7 +110,7 @@ Public Function GetFileMD5(sFileName$, Optional lFileSize&, Optional JustMD5 As 
         GoTo Finalize
     End If
     If lFileSize > MAX_HASH_FILE_SIZE Then
-        If Not JustMD5 Then
+        If Not PlainMD5 Then
             GetFileMD5 = " (size: " & lFileSize & " bytes)"
         End If
         GoTo Finalize
@@ -116,7 +124,7 @@ Public Function GetFileMD5(sFileName$, Optional lFileSize&, Optional JustMD5 As 
     
     If Not bAutoLogSilent Then DoEvents
 
-    frmMain.lblMD5.Caption = "Calculating checksum of " & sFileName & "..."
+    frmMain.lblMD5.Caption = "Calculating checksum of " & sFilename & "..."
     
     ToggleWow64FSRedirection True
     
@@ -144,17 +152,17 @@ Public Function GetFileMD5(sFileName$, Optional lFileSize&, Optional JustMD5 As 
         CryptReleaseContext hCrypt, 0&
         
     Else
-        ErrorMsg Err, "modMD5_GetFileMD5", "File: ", sFileName$, "Handle: ", ff, "Size: ", lFileSize
+        ErrorMsg Err, "GetFileMD5", "File: ", sFilename$, "Handle: ", ff, "Size: ", lFileSize
     End If
     
     If Len(sMD5) <> 0 Then
-        If JustMD5 Then
-            GetFileMD5 = sMD5
+        If PlainMD5 Then
+            GetFileMD5 = UCase$(sMD5)
         Else
             GetFileMD5 = " (size: " & lFileSize & " bytes, MD5: " & sMD5 & ")"
         End If
     Else
-        If Not JustMD5 Then
+        If Not PlainMD5 Then
             GetFileMD5 = " (size: " & lFileSize & " bytes)"
         End If
     End If
@@ -168,16 +176,16 @@ Finalize:
     AppendErrorLogCustom "GetFileMD5 - End"
     Exit Function
 ErrorHandler:
-    ErrorMsg Err, "modMD5_GetFileMD5", "File: ", sFileName$, "Handle: ", ff, "Size: ", lFileSize
+    ErrorMsg Err, "GetFileMD5", "File: ", sFilename$, "Handle: ", ff, "Size: ", lFileSize
     If Redirect Then Call ToggleWow64FSRedirection(OldRedir)
     frmMain.lblMD5.Caption = ""
     If inIDE Then Stop: Resume Next
 End Function
 
-Public Function GetFileSHA1(sFileName$, Optional lFileSize&, Optional JustSHA1 As Boolean) As String
+Public Function GetFileSHA1(sFilename$, Optional lFileSize&, Optional PlainSHA1 As Boolean) As String
     On Error GoTo ErrorHandler:
     
-    AppendErrorLogCustom "GetFileSHA1 - Begin", "File: " & sFileName
+    AppendErrorLogCustom "GetFileSHA1 - Begin", "File: " & sFilename
     
     Dim ff          As Long
     Dim hCrypt      As Long
@@ -190,27 +198,27 @@ Public Function GetFileSHA1(sFileName$, Optional lFileSize&, Optional JustSHA1 A
     Dim OldRedir    As Boolean
     Dim Redirect    As Boolean
     
-    If StrEndWith(sFileName, "(file missing)") Then Exit Function
-    If StrEndWith(sFileName, "(no file)") Then Exit Function
+    If StrEndWith(sFilename, "(file missing)") Then Exit Function
+    If StrEndWith(sFilename, "(no file)") Then Exit Function
 
-    Redirect = ToggleWow64FSRedirection(False, sFileName, OldRedir)
+    Redirect = ToggleWow64FSRedirection(False, sFilename, OldRedir)
     
-    If Not OpenW(sFileName, FOR_READ, ff) Then GoTo Finalize
+    If Not OpenW(sFilename, FOR_READ, ff, g_FileBackupFlag) Then GoTo Finalize
     
     If Redirect Then Call ToggleWow64FSRedirection(OldRedir)
     
     If lFileSize = 0 Then lFileSize = LOFW(ff)
     If lFileSize = 0 Then
         'speed tweak :) 0-byte file always has the same MD5
-        If JustSHA1 Then
+        If PlainSHA1 Then
             GetFileSHA1 = "DA39A3EE5E6B4B0D3255BFEF95601890AFD80709"
         Else
-            GetFileSHA1 = " (size: 0 bytes, MD5: DA39A3EE5E6B4B0D3255BFEF95601890AFD80709)"
+            GetFileSHA1 = " (size: 0 bytes, SHA1: DA39A3EE5E6B4B0D3255BFEF95601890AFD80709)"
         End If
         GoTo Finalize
     End If
     If lFileSize > MAX_HASH_FILE_SIZE Then
-        If Not JustSHA1 Then
+        If Not PlainSHA1 Then
             GetFileSHA1 = " (size: " & lFileSize & " bytes)"
         End If
         GoTo Finalize
@@ -224,7 +232,7 @@ Public Function GetFileSHA1(sFileName$, Optional lFileSize&, Optional JustSHA1 A
     
     If Not bAutoLogSilent Then DoEvents
 
-    frmMain.lblMD5.Caption = "Calculating checksum of " & sFileName & "..."
+    frmMain.lblMD5.Caption = "Calculating checksum of " & sFilename & "..."
     
     ToggleWow64FSRedirection True
     
@@ -250,17 +258,17 @@ Public Function GetFileSHA1(sFileName$, Optional lFileSize&, Optional JustSHA1 A
         CryptReleaseContext hCrypt, 0&
         
     Else
-        ErrorMsg Err, "modMD5_GetFileMD5", "File: ", sFileName$, "Handle: ", ff, "Size: ", lFileSize
+        ErrorMsg Err, "GetFileSHA1", "File: ", sFilename$, "Handle: ", ff, "Size: ", lFileSize
     End If
     
     If Len(sSHA1) <> 0 Then
-        If JustSHA1 Then
-            GetFileSHA1 = sSHA1
+        If PlainSHA1 Then
+            GetFileSHA1 = UCase$(sSHA1)
         Else
             GetFileSHA1 = " (size: " & lFileSize & " bytes, SHA1: " & sSHA1 & ")"
         End If
     Else
-        If Not JustSHA1 Then
+        If Not PlainSHA1 Then
             GetFileSHA1 = " (size: " & lFileSize & " bytes)"
         End If
     End If
@@ -274,7 +282,7 @@ Finalize:
     AppendErrorLogCustom "GetFileSHA1 - End"
     Exit Function
 ErrorHandler:
-    ErrorMsg Err, "modMD5_GetFileSHA1", "File: ", sFileName$, "Handle: ", ff, "Size: ", lFileSize
+    ErrorMsg Err, "GetFileSHA1", "File: ", sFilename$, "Handle: ", ff, "Size: ", lFileSize
     If Redirect Then Call ToggleWow64FSRedirection(OldRedir)
     frmMain.lblMD5.Caption = ""
     If inIDE Then Stop: Resume Next
@@ -317,11 +325,11 @@ Public Function Crypt(sMsg$) As String    'Crypt v2
 
     If bCryptDisable Then Crypt = sMsg: Exit Function
 
-    Dim i As Long, bIn() As Byte, index As Long
+    Dim i As Long, bIn() As Byte, Index As Long
     bIn = sMsg
     For i = 0 To UBound(bIn)
-        index = (index + 1 + Len(sMsg)) And &HFF&
-        bIn(i) = bIn(i) Xor seq(index)
+        Index = (Index + 1 + Len(sMsg)) And &HFF&
+        bIn(i) = bIn(i) Xor seq(Index)
     Next
     Crypt = bIn
     
@@ -718,7 +726,7 @@ Public Function CalcFileCRC(FileName As String) As String '// Added by Dragokas
 
     Redirect = ToggleWow64FSRedirection(False, FileName, bOldStatus)
 
-    If OpenW(FileName, FOR_READ, ff) Then
+    If OpenW(FileName, FOR_READ, ff, g_FileBackupFlag) Then
         If Redirect Then Call ToggleWow64FSRedirection(bOldStatus)
         str = String$(LOFW(ff), vbNullChar)
         GetW ff, 1&, str
@@ -858,7 +866,7 @@ Public Function CalcArrayCRCLong(arr() As Byte, Optional prevValue As Long = -1)
 End Function
 
 Public Function CalcCRCReverse(Stri As String, Optional nextValue As Long = -1) As Long
-    Dim CRC&, i&, M&, prevValueL&, prevValueH&, b3 As Byte
+    Dim CRC&, i&, M&, prevValueL&, prevValueH&, B3 As Byte
 
     'If CRC_32_Tab(1) = 0 Then Make_CRC_32_Table
 
@@ -866,9 +874,9 @@ Public Function CalcCRCReverse(Stri As String, Optional nextValue As Long = -1) 
 
     For i = Len(Stri) To 1 Step -1
         M = Asc(Mid$(Stri, i, 1&))
-        b3 = ((CRC And &HFF000000) \ &H1000000) And &HFF
-        prevValueL = (pTable(b3) Xor M) And &HFF
-        prevValueH = Mul(CRC Xor CRC_32_Tab(pTable(b3)), 0, &H100, 0)  ' << 8
+        B3 = ((CRC And &HFF000000) \ &H1000000) And &HFF
+        prevValueL = (pTable(B3) Xor M) And &HFF
+        prevValueH = Mul(CRC Xor CRC_32_Tab(pTable(B3)), 0, &H100, 0)  ' << 8
         CRC = prevValueH Or prevValueL
     Next
     
@@ -879,7 +887,18 @@ End Function
 Public Sub cryptInit(Optional ByVal seed As Long)
     On Error GoTo ErrorHandler
     Dim i As Long, b() As Byte
+    Dim Salt As String
     ReDim seq(255)
+    
+    CryptVer = Val(RegReadHJT("CryptVer", "1"))
+    
+    If CryptVer <= 2 Then
+        Salt = Reg.GetDword(0, "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion", "InstallDate")
+        If Salt = 0 Then Salt = Reg.GetBinaryToString(0, "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion", "DigitalProductId")
+    ElseIf CryptVer >= 3 Then
+        Salt = Reg.GetData(0, "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion", "DigitalProductId", bUseHexFormatForBinary:=True)
+    End If
+    sProgramVersion = "THOU SHALT NOT STEAL - " & Salt 'don't touch this, please !!!
     If seed = 0 Then
         b() = sProgramVersion
         For i = 0 To UBound(b)
@@ -904,6 +923,8 @@ End Sub
 'fixed bug: Encode64 incorrectly handle 2-bytes strings.
 
 Public Sub Base64_Init()
+
+    On Error GoTo ErrorHandler:
 
     Dim lTemp As Long
 
@@ -948,13 +969,20 @@ Public Sub Base64_Init()
         End Select
     Next lTemp
 
+    Exit Sub
+ErrorHandler:
+    ErrorMsg Err, "Base64_Init"
+    If inIDE Then Stop: Resume Next
 End Sub
 
 Public Function Encode64(sString As String) As String
 
+    On Error GoTo ErrorHandler:
+
     Dim bOut() As Byte, bIn() As Byte, lOutSize As Long
     Dim lChar As Long, lTrip As Long, iPad As Integer, lLen As Long, lTemp As Long, lPos As Long
 
+    If Len(sString) = 0 Then Exit Function
 
     iPad = Len(sString) Mod 3                           'See if the length is divisible by 3
     If iPad Then                                        'If not, figure out the end pad and resize the input.
@@ -1001,10 +1029,16 @@ Public Function Encode64(sString As String) As String
     End If
     
     Encode64 = StrConv(bOut, vbUnicode)                   'Convert back to a string and return it.
-    
+
+    Exit Function
+ErrorHandler:
+    ErrorMsg Err, "Encode64"
+    If inIDE Then Stop: Resume Next
 End Function
 
 Public Function Decode64(sString As String) As String
+
+    On Error GoTo ErrorHandler:
 
     Dim bOut() As Byte, bIn() As Byte, lQuad As Long, iPad As Integer, lChar As Long, lPos As Long, sOut As String
     Dim lTemp As Long
@@ -1042,5 +1076,9 @@ Public Function Decode64(sString As String) As String
     If iPad Then sOut = Left$(sOut, Len(sOut) - iPad)   'Chop off any extra bytes.
     Decode64 = sOut
 
+    Exit Function
+ErrorHandler:
+    ErrorMsg Err, "Decode64"
+    If inIDE Then Stop: Resume Next
 End Function
 

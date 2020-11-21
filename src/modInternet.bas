@@ -1,4 +1,6 @@
 Attribute VB_Name = "modInternet"
+'[modInternet.bas]
+
 '
 ' Internet module by Merijn Bellekom & Alex Dragokas
 '
@@ -50,17 +52,38 @@ Option Explicit
 '    EnableProxy As Long
 '    EnableDns As Long
 'End Type
-Public Enum COMPUTER_NAME_FORMAT
-  ComputerNameNetBIOS
-  ComputerNameDnsHostname
-  ComputerNameDnsDomain
-  ComputerNameDnsFullyQualified
-  ComputerNamePhysicalNetBIOS
-  ComputerNamePhysicalDnsHostname
-  ComputerNamePhysicalDnsDomain
-  ComputerNamePhysicalDnsFullyQualified
-  ComputerNameMax
-End Enum
+'Public Enum COMPUTER_NAME_FORMAT
+'  ComputerNameNetBIOS
+'  ComputerNameDnsHostname
+'  ComputerNameDnsDomain
+'  ComputerNameDnsFullyQualified
+'  ComputerNamePhysicalNetBIOS
+'  ComputerNamePhysicalDnsHostname
+'  ComputerNamePhysicalDnsDomain
+'  ComputerNamePhysicalDnsFullyQualified
+'  ComputerNameMax
+'End Enum
+'Public Enum WinHttpRequestOption
+'  WinHttpRequestOption_UserAgentString
+'  WinHttpRequestOption_URL
+'  WinHttpRequestOption_URLCodePage
+'  WinHttpRequestOption_EscapePercentInURL
+'  WinHttpRequestOption_SslErrorIgnoreFlags
+'  WinHttpRequestOption_SelectCertificate
+'  WinHttpRequestOption_EnableRedirects
+'  WinHttpRequestOption_UrlEscapeDisable
+'  WinHttpRequestOption_UrlEscapeDisableQuery
+'  WinHttpRequestOption_SecureProtocols
+'  WinHttpRequestOption_EnableTracing
+'  WinHttpRequestOption_RevertImpersonationOverSsl
+'  WinHttpRequestOption_EnableHttpsToHttpRedirects
+'  WinHttpRequestOption_EnablePassportAuthentication
+'  WinHttpRequestOption_MaxAutomaticRedirects
+'  WinHttpRequestOption_MaxResponseHeaderSize
+'  WinHttpRequestOption_MaxResponseDrainSize
+'  WinHttpRequestOption_EnableHttp1_1
+'  WinHttpRequestOption_EnableCertificateRevocationCheck
+'End Enum
 '
 'Private Declare Function InternetConnect Lib "wininet.dll" Alias "InternetConnectW" (ByVal InternetSession As Long, ByVal sServerName As Long, ByVal nServerPort As Integer, ByVal sUsername As Long, ByVal sPassword As Long, ByVal lService As Long, ByVal lFlags As Long, ByVal lContext As Long) As Long
 'Private Declare Function InternetCloseHandle Lib "wininet.dll" (ByVal hInet As Long) As Long
@@ -166,40 +189,93 @@ ErrorHandler:
     If inIDE Then Stop: Resume Next
 End Function
 
-Public Sub CheckForUpdate(Optional bSilentIfNoUpdates As Boolean)
+Public Sub CheckForUpdate(bSilentIfNoUpdates As Boolean, bSilentReplace As Boolean, bUseTestVersion As Boolean)
     On Error GoTo ErrorHandler:
     
-    Dim sThisVersion$, sNewVersion$, szUpdateUrl$
+    'bSilentIfNoUpdates - true, to show MsgBoxes. Usually when you press "Update" button in GUI.
+    'bSilentReplace - true, to replace exe file in automatic mode.
+    'bUseTestVersion - true, to use test (nightly) build.
+    
+    Dim sThisVersion$, sNewVersion$, sUpdateUrl$, sUpdVersionURL$, bNoConnection As Boolean
+    
+    RegSaveProxySettings
     
     sThisVersion = AppVerString
-    sNewVersion = GetUrl("https://github.com/dragokas/hijackthis/raw/devel/src/HiJackThis-update.txt")
     
-    If Not IsVersion(sNewVersion) Then
-        'If MsgBoxW("Unable to connect to the Internet." & vbCrLf & "Do you want to open download page?", vbYesNo) = vbNo Then
+    Dim lReturnCode As Long, sErrorMsg As String, bRet As Boolean
+    
+    'sNewVersion = GetUrl("https://github.com/dragokas/hijackthis/raw/devel/src/HiJackThis-update.txt")
+    'sNewVersion = GetUrl("https://raw.githubusercontent.com/dragokas/hijackthis/devel/src/HiJackThis-update.txt")
+    
+    If bUseTestVersion Then
+        bRet = GetUrl2_Str("https://dragokas.com/tools/HiJackThis-update-test.txt", sNewVersion, lReturnCode, sErrorMsg)
+    Else
+        bRet = GetUrl2_Str("https://dragokas.com/tools/HiJackThis-update.txt", sNewVersion, lReturnCode, sErrorMsg)
+    End If
+    
+    If (Not bRet) Or (Not IsVersion(sNewVersion)) Then
+    
+        bNoConnection = True
+        
         If Not bSilentIfNoUpdates Then
-            If MsgBoxW(Translate(1005) & vbCrLf & Translate(1015), vbYesNo, "HiJackThis") = vbNo Then
-                Exit Sub
+            'Unable to connect to the Internet. Do you want to open download page?
+            If MsgBoxW(Translate(1005) & vbCrLf & _
+                "(Code: " & lReturnCode & ", msg: " & sErrorMsg & ")" & vbCrLf & vbCrLf & _
+                Translate(1015), vbYesNo Or vbExclamation, "HiJackThis") = vbNo Then
+                    Exit Sub
             End If
         End If
     Else
         If ConvertVersionToNumber(sThisVersion) >= ConvertVersionToNumber(sNewVersion) Then
             If Not bSilentIfNoUpdates Then
-                'MsgBoxW "You have the most fresh version."
-                MsgBoxW Translate(1013), , "HiJackThis"
+                'You have the most fresh version.
+                MsgBoxW Translate(1013), vbInformation, "HiJackThis"
             End If
             Exit Sub
         Else
-            'If MsgBoxW("Update is available." & vbCrLf & "Do you want to open download page?", vbYesNo) = vbNo Then
-            If MsgBoxW(Translate(1014) & vbCrLf & Translate(1015), vbYesNo, "HiJackThis") = vbNo Then
-                Exit Sub
+            If Not bSilentIfNoUpdates Then
+                If bSilentReplace Then
+                    'Update is available. Do you want to close and update the program?
+                    If MsgBoxW(Translate(1014) & vbCrLf & Translate(1028), vbYesNo Or vbInformation, "HiJackThis") = vbNo Then
+                        Exit Sub
+                    End If
+                Else
+                    'Update is available. Do you want to open download page?
+                    If MsgBoxW(Translate(1014) & vbCrLf & Translate(1015), vbYesNo Or vbInformation, "HiJackThis") = vbNo Then
+                        Exit Sub
+                    End If
+                End If
             End If
         End If
     End If
     
-    'szUpdateUrl = "http://sourceforge.net/projects/hjt/"
-    'szUpdateUrl = "http://dragokas.com/tools/HiJackThis.zip"
-    szUpdateUrl = "https://github.com/dragokas/hijackthis/raw/devel/binary/HiJackThis.exe"
-    OpenURL szUpdateUrl
+    If bUseTestVersion Then
+        sUpdateUrl = "https://dragokas.com/tools/HiJackThis_test.zip"
+    Else
+        sUpdateUrl = "https://dragokas.com/tools/HiJackThis.zip"
+    End If
+    
+    'sUpdateUrl = "http://sourceforge.net/projects/hjt/"
+    'sUpdateUrl = "https://github.com/dragokas/hijackthis/raw/devel/binary/HiJackThis.exe"
+    
+    If bSilentReplace And Not (Not bSilentIfNoUpdates And bNoConnection) Then
+        If Not bNoConnection Then
+        
+            If DownloadAndUpdateSelf(sUpdateUrl, bSilentIfNoUpdates) Then
+            
+                If Not inIDE Then
+            
+                    frmMain.ReleaseMutex
+                    g_NeedTerminate = True
+                
+                    'relaunch new self
+                    Proc.ProcessRun AppPath(True), g_sCommandLine, AppPath(False), 1, True
+                End If
+            End If
+        End If
+    Else
+        OpenURL sUpdateUrl
+    End If
     
     Exit Sub
 ErrorHandler:
@@ -248,30 +324,115 @@ ErrorHandler:
 End Sub
 
 Public Function GetUrl(szUrl As String) As String
+    On Error Resume Next
+    Dim TimeOut As Long
+    TimeOut = 2000  'milliseconds
+    Dim xhr As Object
+    Set xhr = CreateObject("WinHttp.WinHttpRequest.5.1")
+    'https://msdn.microsoft.com/en-us/library/windows/desktop/aa384108(v=vs.85).aspx
+    xhr.Option(WinHttpRequestOption_EnableRedirects) = True                'true by default
+    xhr.Option(WinHttpRequestOption_EnableHttpsToHttpRedirects) = True     'false by default
+    xhr.SetTimeouts TimeOut, TimeOut, TimeOut, TimeOut
+    If xhr Is Nothing Then Set xhr = CreateObject("MSXML2.ServerXMLHTTP")
+    If xhr Is Nothing Then Set xhr = CreateObject("Microsoft.XMLHTTP")
+    If xhr Is Nothing Then Set xhr = CreateObject("WinHttp.WinHttpRequest")
+    xhr.Open "GET", szUrl, False
+    xhr.setRequestHeader "User-Agent", "Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:60.0) Gecko/20100101 Firefox/60.0"
+    xhr.setRequestHeader "Content-Type", "text/css" '"application/x-www-form-urlencoded"
+    'xhr.setRequestHeader "Content-Length", Len(sEntityBody)
     On Error GoTo ErrorHandler:
-    Dim szRequest As String
-    Dim xmlhttp As Object
-    Dim dataLen As Long
-    Set xmlhttp = CreateObject("MSXML2.ServerXMLHTTP")
-
-    dataLen = Len(szRequest)
-    xmlhttp.Open "GET", szUrl, False
-    xmlhttp.setRequestHeader "Content-Type", "application/x-www-form-urlencoded"
-    'xmlhttp.setRequestHeader "User-Agent", "HJT.1.99.2" & "|" & sWinVersion & "|" & sMSIEVersion
-
-    xmlhttp.send "" & szRequest
-    'msgboxW szData
-
-    GetUrl = xmlhttp.responseText
-    'msgboxW szResponse
-
-    Set xmlhttp = Nothing
+    xhr.send 'URLEncode(sEntityBody)
+    GetUrl = xhr.responseText
+    Set xhr = Nothing
     Exit Function
-
 ErrorHandler:
-    'GetUrl = "HJT_NOT_SUPPORTED"
-    'ErrorMsg Err, "GetUrl"
-    'If inIDE Then Stop: Resume Next
+    ErrorMsg Err, "GetUrl", szUrl
+    If inIDE Then Stop: Resume Next
+End Function
+
+Public Function GetUrl2_Str( _
+    ByVal sURL As String, _
+    ByRef s_outRequest As String, _
+    Optional ByRef s_outResultCode As Long, _
+    Optional ByRef s_outErrorMsg As String) As Boolean
+
+    Dim b() As Byte
+
+    GetUrl2_Str = GetUrl2(sURL, s_outRequest, b, False, s_outResultCode, s_outErrorMsg)
+
+End Function
+
+Public Function GetUrl2_Arr( _
+    ByVal sURL As String, _
+    ByRef byte_outRequest() As Byte, _
+    Optional ByRef s_outResultCode As Long, _
+    Optional ByRef s_outErrorMsg As String) As Boolean
+    
+    Dim str As String
+    
+    GetUrl2_Arr = GetUrl2(sURL, str, byte_outRequest, True, s_outResultCode, s_outErrorMsg)
+    
+End Function
+
+Public Function GetUrl2( _
+    ByVal sURL As String, _
+    ByRef s_outRequest As String, _
+    ByRef byte_outRequest() As Byte, _
+    ByVal bUseByteMode As Boolean, _
+    ByRef s_outResultCode As Long, _
+    ByRef s_outErrorMsg As String) As Boolean
+    
+    On Error GoTo ErrorHandler:
+    
+    sURL = NormalizeInetProtocol(sURL)
+    
+    Dim frm As Form
+    Set frm = frmMain
+    
+    Dim cInet As clsHttpHelps
+    Set cInet = New clsHttpHelps
+    
+    With cInet
+        .AutomatiRedirection = True
+        .RequestMethod = cGET
+        .TimeOut = 5000
+        .UseProxy = frm.optProxyManual.Value
+        .UseProxyIE = frm.optProxyIE.Value
+        
+        If .UseProxy Then
+            .ProxyAddress = frm.txtUpdateProxyHost.Text & ":" & frm.txtUpdateProxyPort.Text
+            .UseProxySocks4 = frm.chkSocks4.Value
+        End If
+        If .UseProxy Or .UseProxyIE Then
+            .UseProxyAuthorization = frm.chkUpdateUseProxyAuth.Value
+            
+            If .UseProxyAuthorization Then
+                .ProxyUser = frm.txtUpdateProxyLogin.Text
+                .ProxyPass = frm.txtUpdateProxyPass.Text
+            End If
+        End If
+        .UserAgent = "Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:60.0) Gecko/20100101 Firefox/60.0"
+        .URL = sURL
+        GetUrl2 = .API_Http()
+        
+        If GetUrl2 Then
+            If bUseByteMode Then
+                byte_outRequest = .ReturnBytArry
+            Else
+                s_outRequest = .ReturnString
+            End If
+        Else
+            s_outErrorMsg = .ReturnStatus
+        End If
+        
+        s_outResultCode = .ReturnCode
+    End With
+    
+    Set cInet = Nothing
+    Exit Function
+ErrorHandler:
+    ErrorMsg Err, "GetUrl", sURL
+    If inIDE Then Stop: Resume Next
 End Function
 
 Public Sub ParseHTTPResponse(szResponse As String)
@@ -362,20 +523,20 @@ End Function
 ' ---------------------------------------------------------------------------------------------------
 
 Public Sub AddTriageObj(sName$, sType$, sFile$, Optional sCLSID$, Optional sCodebase$)
-    Dim sFileName$, sFilesize$, sMD5$, sItem$()
+    Dim sFilename$, sFilesize$, sMD5$, sItem$()
     If Not FileExists(sFile) Then Exit Sub
     If InStr(sFile, "\") = 0 Then Exit Sub
     'sPath = Left$(sFile, InStrRev(sFile, "\") - 1)
-    sFileName = Mid$(sFile, InStrRev(sFile, "\") + 1)
+    sFilename = Mid$(sFile, InStrRev(sFile, "\") + 1)
     sFilesize = CStr(FileLen(sFile))
-    sMD5 = GetFileMD5(sFile, , True)
+    sMD5 = GetFileCheckSum(sFile, , True)
     
     ReDim sItem(8)
     sItem(0) = sName     'id to item
-    sItem(1) = sFileName 'name
+    sItem(1) = sFilename 'name
     sItem(2) = sCLSID
     sItem(3) = sFile     'complete path+filename
-    sItem(4) = sFileName 'filename
+    sItem(4) = sFilename 'filename
     sItem(5) = sFilesize
     sItem(6) = sMD5
     sItem(7) = sType
@@ -393,7 +554,7 @@ End Sub
 Public Function GetTriage$()
     Dim hInternet&, hConnect&, sURL$, sUserAgent$, sPost$
     Dim hRequest&, sResponse$, sBuffer$, lBufferLen&, sHeaders$
-    sURL = "http://www.spywareguide.com/report/triage.php"
+    sURL = "https://www.spywareguide.com/report/triage.php"
     sUserAgent = "StartupList v" & App.Major & "." & Format$(App.Minor, "00")
     sPost = Mid$(URLEncode(Join(sTriageObj, "&")), 2)
     If sPost = vbNullString Then Exit Function
@@ -556,13 +717,17 @@ Public Function OpenURL(sEnglishURL As String, Optional sRussianURL As String, O
             szUrl = sEnglishURL
         End If
     
-    ElseIf (IsRussianLangCode(OSver.LangSystemCode) Or IsRussianLangCode(OSver.LangDisplayCode)) And Not bForceEN Then
+    ElseIf (IsRussianLangCode(OSver.LangSystemCode) Or IsRussianLangCode(OSver.LangDisplayCode)) And Not (bForceEN Or bForceFR) Then
         szUrl = sRussianURL
     Else
         szUrl = sEnglishURL
     End If
     
     If szUrl = "" Then szUrl = szDefault
+    
+    If StrBeginWith(szUrl, "https") And OSver.MajorMinor <= 5.2 Then
+        szUrl = Replace$(szUrl, "https", "http", 1, 1, 1)
+    End If
     
     '// TODO: run ShellExecute with non-Elevated privilages
     OpenURL = (32 < ShellExecute(0&, StrPtr("open"), StrPtr(szUrl), 0&, 0&, vbNormalFocus))
@@ -573,25 +738,152 @@ Public Function DownloadUnzipAndRun(ZipURL As String, FileName As String, bSilen
     Dim ExePath As String
     Dim bRun As Boolean
     
-    ArcPath = BuildPath(AppPath(False), GetFileName(Replace$(ZipURL, "/", "\"), True))
+    ArcPath = GetEmptyName(BuildPath(TempCU, GetFileName(Replace$(ZipURL, "/", "\"), True)))
     ExePath = BuildPath(AppPath(False), FileName)
     
     If Not bSilent Then
         'Download the program via Internet?
-        If MsgBoxW(Translate(1024), vbYesNo Or vbQuestion) = vbNo Then Exit Function
+        If MsgBoxW(Translate(1024), vbYesNo Or vbQuestion, GetFileName(FileName)) = vbNo Then Exit Function
     End If
     
     If DownloadFile(ZipURL, ArcPath, True) Or FileExists(ArcPath) Then
         UnpackZIP ArcPath, AppPath(False)
         'Downloading is completed. Run the program?
         If Not bSilent Then
-            bRun = MsgBoxW(Translate(1026), vbYesNo) = vbYes
+            bRun = MsgBoxW(Translate(1026), vbYesNo, GetFileName(FileName)) = vbYes
         End If
         If bRun Or bSilent Then
             DownloadUnzipAndRun = Proc.ProcessRun(ExePath, "", AppPath(False), 1, True)
         End If
     Else
         'Downloading is failed -> trying to open link in default browser
-        ShellExecute frmMain.hwnd, StrPtr("open"), StrPtr(ZipURL), 0&, 0&, 1
+        '// TODO: run ShellExecute with non-Elevated privilages
+        ShellExecute g_HwndMain, StrPtr("open"), StrPtr(ZipURL), 0&, 0&, 1
     End If
 End Function
+
+Private Function DownloadAndUpdateSelf(ZipURL As String, bSilent As Boolean) As Boolean
+    
+    Dim ArcPath     As String
+    Dim ExePath     As String
+    Dim SignResult  As SignResult_TYPE
+    Dim bData()     As Byte
+    Dim bDownloaded As Boolean
+    Dim hFile       As Long
+    
+    ArcPath = GetEmptyName(BuildPath(TempCU, GetFileName(Replace$(ZipURL, "/", "\"), True)))
+    ExePath = BuildPath(TempCU, "HiJackThis.exe")
+    
+    'If DownloadFile(ZipURL, ArcPath, True) Then bDownloaded = True
+    
+    'proxy support
+    If GetUrl2_Arr(ZipURL, bData) Then
+        If AryPtr(bData) Then
+        
+            If OpenW(ArcPath, FOR_OVERWRITE_CREATE, hFile) Then
+                PutW hFile, 1, VarPtr(bData(0)), UBound(bData) + 1, False
+                CloseW hFile
+                bDownloaded = True
+            Else
+                If Not bSilent Then
+                    MsgBoxW "Cannot open file to write: " & ArcPath, vbExclamation, "HiJackThis"
+                End If
+            End If
+        End If
+    End If
+    
+    If bDownloaded Then
+        UnpackZIP ArcPath, GetParentDir(ArcPath)
+        
+        If FileExists(ExePath) Then
+        
+            'checking digital signature
+            SignVerify ExePath, SV_PreferInternalSign, SignResult
+            
+            If IsDragokasSign(SignResult) Then
+                
+                If FileExists(AppPath(True) & ".bak") Then DeleteFileWEx StrPtr(AppPath(True) & ".bak"), , True
+                
+                'replacing ...
+                'move self
+                If 0 = MoveFile(StrPtr(AppPath(True)), StrPtr(AppPath(True) & ".bak")) Then
+                
+                    'if failed, use cmd.exe method
+                    
+                    frmMain.ReleaseMutex
+                    
+                    Proc.ProcessRun _
+                        Environ("ComSpec"), _
+                        "/d /c (cd\& for /L %+ in (1,1,10) do ((timeout /t 1|| ping 127.1 -n 2)& " & _
+                        "move /y """ & AppPath(True) & """" & " " & """" & AppPath(True) & ".bak" & """ && " & _
+                        "move /y """ & ExePath & """ """ & AppPath(True) & """ && " & _
+                        "start """" """ & AppPath(True) & """ " & g_sCommandLine & "&& exit))", _
+                        SysDisk, vbHide, True
+                    
+                    g_NeedTerminate = True
+                Else
+                    'move new
+                    If 0 <> MoveFile(StrPtr(ExePath), StrPtr(AppPath(True))) Then
+                        DownloadAndUpdateSelf = True
+                    Else
+                        If Not bSilent Then
+                            MsgBoxW "Cannot move updated file on self!", vbExclamation, "HiJackThis"
+                        End If
+                        'revert own filename
+                        Call MoveFile(StrPtr(AppPath(True) & ".bak"), StrPtr(AppPath(True)))
+                    End If
+                End If
+            Else
+                If Not bSilent Then
+                    MsgBoxW "Unpacked file is damaged! Try update again.", vbExclamation, "HiJackThis"
+                End If
+            End If
+        Else
+            If Not bSilent Then
+                MsgBoxW "Cannot unpack the update! Try again.", vbExclamation, "HiJackThis"
+            End If
+        End If
+    Else
+        If Not bSilent Then
+            MsgBoxW "Cannot download the update! Try again.", vbExclamation, "HiJackThis"
+        End If
+    End If
+    
+    'clear
+    If FileExists(ArcPath) Then DeleteFileWEx StrPtr(ArcPath)
+    
+End Function
+
+Public Function IsDragokasSign(SignResult As SignResult_TYPE) As Boolean
+
+    If (SignResult.isSelfSigned And StrComp(SignResult.HashRootCert, "05F1F2D5BA84CDD6866B37AB342969515E3D912E", 1) = 0) Then
+        IsDragokasSign = True
+    ElseIf (SignResult.isLegit) Then
+        If Date < #7/24/2023# Then
+            If StrComp(SignResult.HashFinalCert, "1B78EF517E81A07D1C1C4C6ADFA66A2B7C3269C3", 1) = 0 Then
+                IsDragokasSign = True
+            End If
+        Else
+            If InStr(1, SignResult.SubjectName, "Stanislav Polshyn", 1) <> 0 Then
+                IsDragokasSign = True
+            End If
+        End If
+    End If
+End Function
+
+Public Function NormalizeInetProtocol(ByVal sURL As String) As String
+
+    If OSver.MajorMinor >= 6 Then
+        If StrBeginWith(sURL, "http://") Then sURL = Replace$(sURL, "http://", "https://", 1, 1, 1)
+    Else
+        If StrBeginWith(sURL, "https://") Then sURL = Replace$(sURL, "https://", "http://", 1, 1, 1)
+    End If
+    NormalizeInetProtocol = sURL
+End Function
+
+Public Sub RegSaveProxySettings()
+    RegSaveHJT "ProxyServer", frmMain.txtUpdateProxyHost.Text
+    RegSaveHJT "ProxyPort", frmMain.txtUpdateProxyPort.Text
+    RegSaveHJT "ProxyLogin", frmMain.txtUpdateProxyLogin.Text
+    RegSaveHJT "ProxyPass", Crypt(frmMain.txtUpdateProxyPass.Text)
+End Sub

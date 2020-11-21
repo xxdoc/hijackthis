@@ -1,1 +1,0 @@
-Aitotal by Alex1983 (safezone.cc)

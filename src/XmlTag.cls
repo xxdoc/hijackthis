@@ -11,6 +11,8 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = False
 Attribute VB_Exposed = False
+'[CXmlTag.cls]
+
 ' It's a part of XML Parser by Jason Thorn
 ' see: XmlUtil.bas file for copyrights remark.
 
@@ -171,4 +173,8 @@ End Property
 
 Private Sub Class_Initialize()
     Set m_colAttributes = New Collection
+End Sub
+
+Private Sub Class_Terminate()
+    Set m_colAttributes = Nothing
 End Sub

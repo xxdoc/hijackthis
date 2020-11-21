@@ -13,6 +13,8 @@ Attribute VB_PredeclaredId = False
 Attribute VB_Exposed = False
 Attribute VB_Ext_KEY = "SavedWithClassBuilder6" ,"Yes"
 Attribute VB_Ext_KEY = "Top_Level" ,"Yes"
+'[clsProcess.cls]
+
 '
 ' Process Class Module by Alex Dragokas
 '
@@ -72,6 +74,29 @@ Private Type SAFEARRAY
     pvData As Long
 End Type
 
+Private Enum TOKEN_TYPE
+    TokenPrimary = 1
+    TokenImpersonation
+End Enum
+
+Private Type SECURITY_ATTRIBUTES
+    nLength As Long
+    lpSecurityDescriptor As Long
+    bInheritHandle As Long
+End Type
+
+Private Enum SECURITY_IMPERSONATION_LEVEL
+    SecurityAnonymous
+    SecurityIdentification
+    SecurityImpersonation
+    SecurityDelegation
+End Enum
+
+Private Type PIPE
+    hRead As Long
+    hWrite As Long
+End Type
+
 Private Declare Function CreateToolhelp32Snapshot Lib "kernel32.dll" (ByVal lFlags As Long, ByVal lProcessID As Long) As Long
 Private Declare Function Process32First Lib "kernel32.dll" Alias "Process32FirstW" (ByVal hSnapshot As Long, uProcess As PROCESSENTRY32) As Long
 Private Declare Function Process32Next Lib "kernel32.dll" Alias "Process32NextW" (ByVal hSnapshot As Long, uProcess As PROCESSENTRY32) As Long
@@ -87,13 +112,24 @@ Private Declare Function CommandLineToArgvW Lib "shell32.dll" (ByVal lpCmdLine A
 'Private Declare Function lstrcmpi Lib "kernel32.dll" Alias "lstrcmpiW" (ByVal lpString1 As Long, ByVal lpString2 As Long) As Long
 Private Declare Function lstrlen Lib "kernel32.dll" Alias "lstrlenW" (ByVal lpString As Long) As Long
 Private Declare Function lstrcpyn Lib "kernel32.dll" Alias "lstrcpynW" (ByVal lpString1 As Long, ByVal lpString2 As Long, ByVal iMaxLength As Long) As Long
-Private Declare Function memcpy Lib "kernel32.dll" Alias "RtlMoveMemory" (Destination As Any, Source As Any, ByVal length As Long) As Long
+Private Declare Function memcpy Lib "kernel32.dll" Alias "RtlMoveMemory" (Destination As Any, Source As Any, ByVal Length As Long) As Long
 Private Declare Function GetMem2 Lib "msvbvm60.dll" (Src As Any, Dst As Any) As Long
 Private Declare Function GetMem4 Lib "msvbvm60.dll" (Src As Any, Dst As Any) As Long
 Private Declare Function GlobalFree Lib "kernel32.dll" (ByVal hMem As Long) As Long
 'Private Declare Function SetEnvironmentVariable Lib "kernel32.dll" Alias "SetEnvironmentVariableW" (ByVal lpName As Long, ByVal lpValue As Long) As Long
 'Private Declare Function GetEnvironmentVariable Lib "kernel32.dll" Alias "GetEnvironmentVariableW" (ByVal lpName As Long, ByVal lpBuffer As Long, ByVal nSize As Long) As Long
 Private Declare Function GetVersionEx Lib "kernel32.dll" Alias "GetVersionExW" (lpVersionInformation As Any) As Long
+Private Declare Function DuplicateTokenEx Lib "Advapi32.dll" (ByVal hExistingToken As Long, ByVal dwDesiredAccess As Long, ByVal lpTokenAttributes As Long, ByVal ImpersonationLevel As Long, ByVal TokenType As Long, phNewToken As Long) As Long
+Private Declare Function GetShellWindow Lib "user32.dll" () As Long
+Private Declare Function CreateProcessWithTokenW Lib "Advapi32.dll" (ByVal hToken As Long, ByVal dwLogonFlags As Long, ByVal lpApplicationName As Long, ByVal lpCommandLine As Long, ByVal dwCreationFlags As Long, ByVal lpEnvironment As Long, ByVal lpCurrentDirectory As Long, lpStartupInfo As STARTUPINFO, lpProcessInfo As PROCESS_INFORMATION) As Long
+Private Declare Function IUnknown_QueryService Lib "Shlwapi.dll" (ByVal pUnk As IUnknown, ByRef guidService As Any, ByRef riid As Any, ByRef ppvOut As Any) As Long
+Private Declare Function EndTask Lib "user32.dll" (ByVal hwnd As Long, ByVal fShutDown As Long, ByVal fForce As Long) As Long
+Private Declare Function CreatePipe Lib "kernel32" (phReadPipe As Long, phWritePipe As Long, lpPipeAttributes As SECURITY_ATTRIBUTES, ByVal nSize As Long) As Long
+Private Declare Function PeekNamedPipe Lib "kernel32" (ByVal hNamedPipe As Long, lpBuffer As Any, ByVal nBufferSize As Long, lpBytesRead As Long, lpTotalBytesAvail As Long, lpBytesLeftThisMessage As Any) As Long
+Private Declare Function ReadFile Lib "kernel32" (ByVal hFile As Long, lpBuffer As Any, ByVal nNumberOfBytesToRead As Long, lpNumberOfBytesRead As Long, lpOverlapped As Any) As Long
+Private Declare Function WriteFile Lib "kernel32" (ByVal hFile As Long, ByVal lpBuffer As Long, ByVal nNumberOfBytesToWrite As Long, lpNumberOfBytesWritten As Long, ByVal lpOverlapped As Long) As Long
+Private Declare Function MultiByteToWideChar Lib "kernel32.dll" (ByVal CodePage As Long, ByVal dwFlags As Long, ByVal lpMultiByteStr As String, ByVal cchMultiByte As Long, ByVal lpWideCharStr As Long, ByVal cchWideChar As Long) As Long
+Private Declare Function WideCharToMultiByte Lib "kernel32.dll" (ByVal CodePage As Long, ByVal dwFlags As Long, ByVal lpWideCharStr As Long, ByVal cchWideChar As Long, ByVal lpMultiByteStr As String, ByVal cchMultiByte As Long, ByVal lpDefaultChar As Long, ByVal lpUsedDefaultChar As Long) As Long
 
 Private Declare Sub GetStartupInfo Lib "kernel32.dll" Alias "GetStartupInfoW" (lpStartupInfo As STARTUPINFO)
 Private Declare Sub Sleep Lib "kernel32.dll" (ByVal dwMilliseconds As Long)
@@ -112,26 +148,57 @@ Private Const WM_CLOSE                  As Long = 16&
 Private Const WM_QUIT                   As Long = &H12  ' wparam - exitcode
 Private Const PROCESS_TERMINATE         As Long = &H1
 Private Const ERROR_SUCCESS             As Long = 0&
+Private Const SW_SHOWNORMAL             As Long = 1&
+Private Const CREATE_NEW_CONSOLE        As Long = &H10&
+Private Const STARTF_USESHOWWINDOW      As Long = &H1&
+Private Const STARTF_USESTDHANDLES      As Long = &H100&
+Private Const SW_HIDE                   As Long = 0&
 
-Private si    As STARTUPINFO
-Private pi    As PROCESS_INFORMATION
-Private inIDE As Boolean
+Private si      As STARTUPINFO
+Private pi      As PROCESS_INFORMATION
+Private inIDE   As Boolean
+Private PipeIn  As PIPE
+Private PipeOut As PIPE
+Private mIdent  As String
 
-
-Public Property Get GetProcessID() As Long
-    GetProcessID = pi.dwProcessId
+Public Property Get PID() As Long
+    PID = pi.dwProcessId
 End Property
 
-Public Property Get GetThreadId() As Long
-    GetThreadId = pi.dwThreadId
+Public Property Let PID(lPID As Long)
+    pi.dwProcessId = lPID
 End Property
 
-Public Property Get GetProcessHandle() As Long
-    GetProcessHandle = pi.hProcess
+Public Property Get ThreadId() As Long
+    ThreadId = pi.dwThreadId
 End Property
 
-Public Property Get GetThreadHandle() As Long
-    GetThreadHandle = pi.hThread
+Public Property Let ThreadId(lTID As Long)
+    pi.dwThreadId = lTID
+End Property
+
+Public Property Get HandleProc() As Long
+    HandleProc = pi.hProcess
+End Property
+
+Public Property Let HandleProc(hProcess As Long)
+    pi.hProcess = hProcess
+End Property
+
+Public Property Get HandleThread() As Long
+    HandleThread = pi.hThread
+End Property
+
+Public Property Let HandleThread(hThread As Long)
+    pi.hThread = hThread
+End Property
+
+Public Property Get Identifier() As String
+    Identifier = mIdent
+End Property
+
+Public Property Let Identifier(sIdent As String)
+    mIdent = sIdent
 End Property
 
 Function IsRunned(Optional ByRef ProcessName As String, Optional ByRef ProcessID As Long) As Boolean
@@ -148,7 +215,7 @@ Function IsRunned(Optional ByRef ProcessName As String, Optional ByRef ProcessID
     Dim pe      As PROCESSENTRY32
 
     If ProcessName = vbNullString And ProcessID = 0 Then
-        ProcessID = GetProcessID()
+        ProcessID = PID()
     End If
     
     If ProcessName = vbNullString And ProcessID = 0 Then Exit Function
@@ -214,11 +281,11 @@ Function WaitForTerminate( _
     Dim DeadTime    As Single
     Dim bTimeOutON  As Boolean
     
-    Static IsInit As Boolean
+    Static isInit As Boolean
     Static bIsWinVistaOrLater As Boolean
     
-    If Not IsInit Then
-        IsInit = True
+    If Not isInit Then
+        isInit = True
         Dim inf(68) As Long
         inf(0) = 276: GetVersionEx inf(0): bIsWinVistaOrLater = (inf(1) >= 6)
     End If
@@ -234,8 +301,8 @@ Function WaitForTerminate( _
     ElseIf ProcessHandle <> 0 Then
         hProc = ProcessHandle
     Else
-        hProc = GetProcessHandle()
-        hThread = GetThreadHandle()
+        hProc = HandleProc()
+        hThread = HandleThread()
     End If
     
     If hProc = 0 Then Exit Function
@@ -269,6 +336,8 @@ Function WaitForTerminate( _
     If iExit = ERROR_SUCCESS Then
         CloseHandle hThread
         CloseHandle hProc
+        If pi.hProcess = hProc Then pi.hProcess = 0
+        If pi.hThread = hThread Then pi.hThread = 0
     End If
     WaitForTerminate = iExit
     
@@ -279,7 +348,7 @@ ErrorHandler:
     If inIDE Then Stop: Resume Next
 End Function
 
-Private Function GetPIDsByName(ProcessName As String) As Long()
+Private Function GetPIDsByName(ProcessName As Variant) As Long()
     On Error GoTo ErrorHandler:
     Dim pe               As PROCESSENTRY32
     Dim hSnap            As Long
@@ -382,6 +451,9 @@ Public Function ProcessClose( _
         Else
             lr = WaitForTerminate(WindowHandle, , False, 500)
         End If
+        If IsProcedureAvail("EndTask", "user32.dll") Then
+            EndTask WindowHandle, False, True
+        End If
         If IsRunned(, ProcessID) Then
             hProc = OpenProcess(PROCESS_TERMINATE, False, ProcessID)
         End If
@@ -396,9 +468,15 @@ Public Function ProcessClose( _
     End If
     
     If SendCloseMsg Then
-        hThread = GetWindowThreadProcessId(ByVal WindowHandle, ProcessID)
-        lr = PostMessage(WindowHandle, WM_CLOSE, 0, 0)                           ' WM_CLOSE главному окну
-        Call WaitForTerminate(, hProc, False, 1000)
+        If (ProcessID <> 0) Then
+            hThread = GetWindowThreadProcessId(ByVal WindowHandle, ProcessID)
+            If (WindowHandle <> 0) Then
+                lr = PostMessage(WindowHandle, WM_CLOSE, 0, 0)                           ' WM_CLOSE главному окну
+            End If
+            If (hProc <> 0) Then
+                Call WaitForTerminate(, hProc, False, 1000)
+            End If
+        End If
     End If
     
     If hProc <> 0 Then
@@ -408,11 +486,15 @@ Public Function ProcessClose( _
         End If
     End If
     
-    ProcessClose = Not IsRunned(, ProcessID)                           ' Проверю наличие в списке процессов
+    If (ProcessID <> 0) Then
+        ProcessClose = Not IsRunned(, ProcessID)                           ' Проверю наличие в списке процессов
+    End If
     
     If ProcessClose Then
         If hThread <> 0 Then CloseHandle hThread
         If hProc <> 0 Then CloseHandle hProc
+        If pi.hProcess = hProc Then pi.hProcess = 0
+        If pi.hThread = hThread Then pi.hThread = 0
     End If
     
     AppendErrorLogCustom "ProcessClose - End"
@@ -427,9 +509,9 @@ Public Function ProcessRun( _
                             ByVal FileName As String, _
                             Optional ByVal CommandLine As String, _
                             Optional ByVal CurrentDirectory As String = vbNullString, _
-                            Optional WindowStyle As Long = 1&, _
-                            Optional CloseHandles As Boolean = False)
-                            ' По-умолчанию стиль окна - SW_SHOWNORMAL
+                            Optional WindowStyle As SHOWWINDOW_FLAGS = SW_SHOWNORMAL, _
+                            Optional CloseHandles As Boolean = False, _
+                            Optional bReadConsole As Boolean) As Long
     
     On Error GoTo ErrorHandler:
     AppendErrorLogCustom "ProcessRun - Begin", "FileName: " & FileName, "CommandLine: " & CommandLine, "CurDir: " & CurrentDirectory, _
@@ -464,22 +546,55 @@ Public Function ProcessRun( _
     si.dwFlags = STARTF_USESHOWWINDOW
     si.wShowWindow = WindowStyle                        ' Стиль окна
     
-    lr = CreateProcess(ByVal 0&, _
-                       StrPtr(CMDLine), _
-                       ByVal 0&, _
-                       ByVal 0&, _
-                       False, _
-                       NORMAL_PRIORITY_CLASS, _
-                       ByVal 0&, _
-                       StrPtr(CurrentDirectory), _
-                       si, _
-                       pi)
+    If bReadConsole Then
+        Dim Attr As SECURITY_ATTRIBUTES
+        Attr.nLength = Len(Attr)
+        Attr.lpSecurityDescriptor = 0
+        Attr.bInheritHandle = True
+        
+        If CreatePipe(PipeIn.hRead, PipeIn.hWrite, Attr, 0) <> 0 Then
+    
+            If CreatePipe(PipeOut.hRead, PipeOut.hWrite, Attr, 0) <> 0 Then
+      
+                si.hStdInput = PipeIn.hRead
+                si.hStdOutput = PipeOut.hWrite
+                si.hStdError = PipeOut.hWrite
+                si.dwFlags = si.dwFlags Or STARTF_USESTDHANDLES
+            End If
+        End If
+    End If
+    
+    If si.hStdOutput <> 0 Then
+    
+           lr = CreateProcess(ByVal 0&, _
+                   StrPtr(CMDLine), _
+                   ByVal 0&, _
+                   ByVal 0&, _
+                   1&, _
+                   NORMAL_PRIORITY_CLASS Or CREATE_NEW_CONSOLE, _
+                   ByVal 0&, _
+                   StrPtr(CurrentDirectory), _
+                   si, _
+                   pi)
+    Else
 
+        lr = CreateProcess(ByVal 0&, _
+                    StrPtr(CMDLine), _
+                    ByVal 0&, _
+                    ByVal 0&, _
+                    False, _
+                    NORMAL_PRIORITY_CLASS, _
+                    ByVal 0&, _
+                    StrPtr(CurrentDirectory), _
+                    si, _
+                    pi)
+    End If
+    
     ProcessRun = lr    ' not 0 is SUCCESS
     
     If CloseHandles Then
-        CloseHandle pi.hProcess
-        CloseHandle pi.hThread
+        If pi.hProcess <> 0 Then CloseHandle pi.hProcess: pi.hProcess = 0
+        If pi.hThread <> 0 Then CloseHandle pi.hThread: pi.hThread = 0
     End If
     
     AppendErrorLogCustom "ProcessRun - End"
@@ -489,23 +604,223 @@ ErrorHandler:
     If inIDE Then Stop: Resume Next
 End Function
 
+Public Function ProcessRunUnelevated( _
+                            ByVal FileName As String, _
+                            Optional ByVal CommandLine As String, _
+                            Optional ByVal CurrentDirectory As String = vbNullString, _
+                            Optional WindowStyle As SHOWWINDOW_FLAGS = SW_SHOWNORMAL, _
+                            Optional CloseHandles As Boolean = False) As Long
+    
+    On Error GoTo ErrorHandler:
+    AppendErrorLogCustom "ProcessRunUnelevated - Begin", "FileName: " & FileName, "CommandLine: " & CommandLine, "CurDir: " & CurrentDirectory, _
+        "WindowStyle: " & WindowStyle, "CloseHandles? " & CloseHandles
+    
+    'This code launch program via filtered token context; parent process handle is current process
+    
+    Const STARTF_USESHOWWINDOW      As Long = 1&
+    Const TOKEN_QUERY               As Long = 8&
+    Const TOKEN_ASSIGN_PRIMARY      As Long = 1&
+    Const TOKEN_DUPLICATE           As Long = 2&
+    Const TOKEN_ADJUST_DEFAULT      As Long = &H80&
+    Const TOKEN_ADJUST_SESSIONID    As Long = &H100&
+    
+    Const TOKEN_RIGHTS As Long = TOKEN_QUERY Or TOKEN_ASSIGN_PRIMARY Or TOKEN_DUPLICATE Or TOKEN_ADJUST_DEFAULT Or TOKEN_ADJUST_SESSIONID
+    
+    Dim hShellProcessToken As Long
+    Dim hPrimaryToken As Long
+    Dim lShellPID   As Long
+    Dim hWndShell   As Long
+    Dim hProcShell  As Long
+    Dim n           As Long
+    Dim lr          As Long
+    Dim CMDLine     As String
+    Dim argc        As Long
+    Dim argv()      As String
+    
+    CMDLine = """" & FileName & """"                    ' Имя файла в кавычки
+    
+    If CommandLine <> vbNullString Then                 ' Если есть аргументы, их тоже добавляем в кавычках
+    
+        ParseCommandLine CommandLine, argc, argv        ' Разбиваем аргументы командной строки на составляющие
+        For n = 1 To argc
+            CMDLine = CMDLine & " """ & argv(n) & """"
+        Next
+    End If
+    
+    'если командная строка подготовлена для cmd.exe, не трогаем аргументы
+    If StrComp(FileName, Environ("ComSpec"), 1) = 0 Or StrComp(FileName, "schtasks.exe", 1) = 0 Then
+        CMDLine = """" & FileName & """" & " " & CommandLine
+    End If
+    
+    si.cb = Len(si)
+    GetStartupInfo si                                   ' клонируем структуру текущего процесса
+    si.dwFlags = STARTF_USESHOWWINDOW
+    si.wShowWindow = WindowStyle                        ' Стиль окна
+        
+    'SetCurrentProcessPrivileges "SeIncreaseQuotaPrivilege"  'CreateProcessWithTokenW
+    'SetCurrentProcessPrivileges "SeImpersonatePrivilege"    'CreateProcessWithTokenW
+    
+    If Not OSver.IsElevated Then
+        ProcessRunUnelevated = ProcessRun(FileName, CommandLine, CurrentDirectory, WindowStyle, CloseHandles)
+        Exit Function
+    End If
+    
+    If Not ProcessExist("explorer.exe", True) Then
+        Debug.Print "ProcessRunUnelevated. No explorer process found."
+        Exit Function
+    End If
+    
+    hWndShell = GetShellWindow()
+    
+    If hWndShell <> 0 Then
+        GetWindowThreadProcessId hWndShell, lShellPID
+        
+        If lShellPID <> 0 Then
+            
+            hProcShell = OpenProcess(IIf(bIsWinVistaAndNewer, PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_QUERY_INFORMATION), _
+                False, lShellPID)
+            
+            If hProcShell <> 0 Then
+                
+                If OpenProcessToken(hProcShell, TOKEN_DUPLICATE, hShellProcessToken) Then
+                    
+                    If DuplicateTokenEx(hShellProcessToken, TOKEN_RIGHTS, 0&, SecurityImpersonation, TokenPrimary, hPrimaryToken) Then
+                        
+                        lr = CreateProcessWithTokenW(hPrimaryToken, 0&, _
+                            ByVal 0&, _
+                            StrPtr(CMDLine), _
+                            ByVal 0&, _
+                            ByVal 0&, _
+                            StrPtr(CurrentDirectory), _
+                            si, _
+                            pi)
+                            
+                        CloseHandle hPrimaryToken
+                    End If
+                    CloseHandle hShellProcessToken
+                End If
+                CloseHandle hProcShell
+            End If
+        End If
+    End If
+    
+    ProcessRunUnelevated = lr    ' not 0 is SUCCESS
+    
+    If CloseHandles Then
+        If pi.hProcess <> 0 Then CloseHandle pi.hProcess: pi.hProcess = 0
+        If pi.hThread <> 0 Then CloseHandle pi.hThread: pi.hThread = 0
+    End If
+    
+    AppendErrorLogCustom "ProcessRunUnelevated - End"
+    Exit Function
+ErrorHandler:
+    ErrorMsg Err, "clsProcess_ProcessRunUnelevated", "FileName:", FileName, "CommandLine:", CommandLine
+    If inIDE Then Stop: Resume Next
+End Function
+
+Public Function ProcessRunUnelevated2( _
+                            ByVal FileName As String, _
+                            Optional ByVal CommandLine As String, _
+                            Optional ByVal CurrentDirectory As String = vbNullString, _
+                            Optional WindowStyle As SHOWWINDOW_FLAGS = SW_SHOWNORMAL) As Boolean
+    
+    On Error GoTo ErrorHandler:
+    'This code launch program via filtered token context; parent process handle is 'explorer.exe' process
+    'Thanks to Victor Bravo VI (vbforums) for this code
+    
+    AppendErrorLogCustom "ProcessRunUnelevated2 - Begin", "FileName: " & FileName, "CommandLine: " & CommandLine, "CurDir: " & CurrentDirectory, _
+        "WindowStyle: " & WindowStyle
+    
+    Const CC_STDCALL = 4&, QueryActiveShellView_Offset = 15& * 4&, GetItemObject_Offset = 15& * 4&
+    Const NOERROR = 0&, S_OK = 0&, SVGIO_BACKGROUND = 0&, SWC_DESKTOP = 8&, SWFO_NEEDDISPATCH = 1&
+
+    If OSver.MajorMinor <= 5.2 Then
+        ProcessRunUnelevated2 = ProcessRun(FileName, CommandLine, CurrentDirectory, WindowStyle, True)
+        Exit Function
+    End If
+    
+    If Not ProcessExist("explorer.exe", True) Then
+        'ProcessRunUnelevated2 = ProcessRunUnelevated(FileName, CommandLine, CurrentDirectory, WindowStyle, True)
+        ProcessRunUnelevated2 = ProcessRun(FileName, CommandLine, CurrentDirectory, WindowStyle, True)
+        Exit Function
+    End If
+
+    Dim IShellBrowser As IUnknown, IShellView As IUnknown, Obj As Object, ShellFolderView As Object
+    Dim IID_IDispatch(3&) As Long, IID_IShellBrowser(3&) As Long, SID_STopLevelBrowser(3&) As Long
+    Dim hwnd As Long, RV As Variant, v(2&) As Variant, VT(2&) As Integer, pv(2&) As Long
+    
+    Dim vOperation As Variant:          vOperation = "" 'by default - open
+    Dim vCommandLine As Variant:        vCommandLine = CommandLine
+    Dim vCurrentDirectory As Variant:   vCurrentDirectory = CurrentDirectory
+    Dim vWindowStyle As Variant:        vWindowStyle = WindowStyle
+    
+    On Error Resume Next
+    Set Obj = CreateObject("Shell.Application").Windows.FindWindowSW(Empty, Empty, SWC_DESKTOP, hwnd, SWFO_NEEDDISPATCH)
+    On Error GoTo 0
+    If (Obj Is Nothing) Then Exit Function
+    If CLSIDFromString(StrPtr("{4C96BE40-915C-11CF-99D3-00AA004AE837}"), SID_STopLevelBrowser(0&)) <> NOERROR Then Exit Function
+    If CLSIDFromString(StrPtr("{000214E2-0000-0000-C000-000000000046}"), IID_IShellBrowser(0&)) <> NOERROR Then Exit Function
+    If IUnknown_QueryService(Obj, SID_STopLevelBrowser(0&), IID_IShellBrowser(0&), IShellBrowser) <> S_OK Then Exit Function
+    If DispCallFunc(ObjPtr(IShellBrowser), QueryActiveShellView_Offset, CC_STDCALL, vbLong, 1&, vbLong, VarPtr(CVar(VarPtr(IShellView))), RV) <> S_OK Or RV <> S_OK Then Exit Function
+    If CLSIDFromString(StrPtr("{00020400-0000-0000-C000-000000000046}"), IID_IDispatch(0&)) <> NOERROR Then Exit Function
+    
+    v(0&) = SVGIO_BACKGROUND:          VT(0&) = vbLong:  pv(0&) = VarPtr(v(0&))
+    v(1&) = VarPtr(IID_IDispatch(0&)): VT(1&) = vbLong:  pv(1&) = VarPtr(v(1&))
+    v(2&) = VarPtr(ShellFolderView):   VT(2&) = vbLong:  pv(2&) = VarPtr(v(2&))
+    
+    If DispCallFunc(ObjPtr(IShellView), GetItemObject_Offset, CC_STDCALL, vbLong, 3&, VT(0&), pv(0&), RV) <> S_OK Or RV <> S_OK Then Exit Function
+    
+    ShellFolderView.Application.ShellExecute FileName, vCommandLine, vCurrentDirectory, vOperation, vWindowStyle
+    
+    ProcessRunUnelevated2 = True
+    
+    AppendErrorLogCustom "ProcessRunUnelevated - End"
+    Exit Function
+ErrorHandler:
+    ErrorMsg Err, "clsProcess_ProcessRunUnelevated2", "FileName:", FileName, "CommandLine:", CommandLine
+    If inIDE Then Stop: Resume Next
+End Function
+
+Public Function ConsoleWrite(ByVal sData As String) As Boolean
+    Dim lBytesWrote As Long
+ 
+    sData = StrConv(sData, vbFromUnicode)
+ 
+    If WriteFile(PipeIn.hWrite, StrPtr(sData), LenB(sData), lBytesWrote, 0&) Then
+    
+        If lBytesWrote = LenB(sData) Then ConsoleWrite = True
+    End If
+End Function
+ 
+Public Function ConsoleRead() As String
+    Dim buf As String, Count As Long
+    
+    PeekNamedPipe PipeOut.hRead, ByVal 0&, 0&, ByVal 0&, Count, ByVal 0&
+    If Count > 0 Then
+        buf = String$((Count + 1) \ 2, 0&)
+        If ReadFile(PipeOut.hRead, ByVal StrPtr(buf), Count, Count, ByVal 0&) Then
+            ConsoleRead = ConvertCodePage(StrConv(Left$(buf, Count), vbUnicode), DOS, WIN)
+        End If
+    End If
+End Function
+
 Private Sub ParseCommandLine(Line As String, argc As Long, argv() As String)
     On Error GoTo ErrorHandler:
     Dim ptr     As Long
-    Dim index   As Long
+    Dim Index   As Long
     Dim strLen  As Long
     Dim strAdr  As Long
     
     ptr = CommandLineToArgvW(StrPtr(Line), argc)
     ReDim argv(argc)
-    argv(0) = App.Path & "\" & App.EXEName & ".exe"
+    argv(0) = App.Path & "\" & App.ExeName & ".exe"
     If argc = 0 Then Exit Sub
     
-    For index = 1 To argc
-        GetMem4 ByVal ptr + (index - 1) * 4, strAdr
+    For Index = 1 To argc
+        GetMem4 ByVal ptr + (Index - 1) * 4, strAdr
         strLen = lstrlen(strAdr)
-        argv(index) = Space$(strLen)
-        lstrcpyn StrPtr(argv(index)), strAdr, strLen + 1
+        argv(Index) = Space$(strLen)
+        lstrcpyn StrPtr(argv(Index)), strAdr, strLen + 1
     Next
     GlobalFree ptr
     Exit Sub
@@ -514,8 +829,33 @@ ErrorHandler:
     If inIDE Then Stop: Resume Next
 End Sub
 
-Private Function TrimNull(S$) As String
-    TrimNull = Left$(S, lstrlen(StrPtr(S)))
+Private Function ConvertCodePage(Src As String, inPage As idCodePage, outPage As idCodePage) As String
+    On Error GoTo ErrorHandler:
+    Dim buf   As String
+    Dim Dst   As String
+    Dim Size  As Long
+    
+    Size = MultiByteToWideChar(inPage, 0&, Src, Len(Src), 0&, 0&)
+    If Size > 0 Then
+        buf = String$(Size, 0)
+        Size = MultiByteToWideChar(inPage, 0&, Src, Len(Src), StrPtr(buf), Len(Src))
+    
+        Size = WideCharToMultiByte(outPage, 0&, StrPtr(buf), Size, ByVal 0&, 0&, 0&, 0&)
+        If Size > 0 Then
+            Dst = String$(Size, 0)
+            Size = WideCharToMultiByte(outPage, 0&, StrPtr(buf), Size, Dst, LenB(Dst), 0&, 0&)
+            
+            If Size <> 0 Then ConvertCodePage = Left$(Dst, lstrlen(StrPtr(Dst)))
+        End If
+    End If
+    Exit Function
+ErrorHandler:
+    ErrorMsg Err, "ConvertCodePage", "String:", Src, "In:", CStr(inPage), "Out:", CStr(outPage)
+    If inIDE Then Stop: Resume Next
+End Function
+
+Private Function TrimNull(s$) As String
+    TrimNull = Left$(s, lstrlen(StrPtr(s)))
 End Function
 
 Private Sub Class_Initialize()
@@ -529,15 +869,15 @@ End Function
 Public Function GetArrDims(vArray As Variant) As Integer
     Dim ppSA As Long
     Dim pSA As Long
-    Dim vt As Long
+    Dim VT As Long
     Dim sa As SAFEARRAY
     Const vbByRef As Integer = 16384
 
     If IsArray(vArray) Then
         GetMem4 ByVal VarPtr(vArray) + 8, ppSA      ' pV -> ppSA (pSA)
         If ppSA <> 0 Then
-            GetMem2 vArray, vt
-            If vt And vbByRef Then
+            GetMem2 vArray, VT
+            If VT And vbByRef Then
                 GetMem4 ByVal ppSA, pSA                 ' ppSA -> pSA
             Else
                 pSA = ppSA
@@ -551,3 +891,24 @@ Public Function GetArrDims(vArray As Variant) As Integer
         End If
     End If
 End Function
+
+Private Sub Class_Terminate()
+    If PipeIn.hRead <> 0 Then CloseHandle PipeIn.hRead
+    If PipeIn.hWrite <> 0 Then CloseHandle PipeIn.hWrite
+    If PipeOut.hRead <> 0 Then CloseHandle PipeOut.hRead
+    If PipeOut.hWrite <> 0 Then CloseHandle PipeOut.hWrite
+    If pi.hThread <> 0 Then CloseHandle pi.hThread
+    If pi.hProcess <> 0 Then CloseHandle pi.hProcess
+End Sub
+
+Private Function StringFromPtrW(ptr As Long) As String
+    Dim strSize As Long
+    If 0 <> ptr Then
+        strSize = lstrlen(ptr)
+        If 0 <> strSize Then
+            StringFromPtrW = String$(strSize, 0&)
+            lstrcpyn StrPtr(StringFromPtrW), ptr, strSize + 1&
+        End If
+    End If
+End Function
+

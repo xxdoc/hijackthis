@@ -1,13 +1,13 @@
 VERSION 5.00
 Begin VB.Form frmADSspy 
-   Caption         =   "ADS Spy [] - written by Merijn"
-   ClientHeight    =   6765
+   Caption         =   "ADS Spy [] fork - written by Merijn"
+   ClientHeight    =   6768
    ClientLeft      =   60
-   ClientTop       =   345
+   ClientTop       =   348
    ClientWidth     =   8340
    BeginProperty Font 
       Name            =   "Tahoma"
-      Size            =   8.25
+      Size            =   8.4
       Charset         =   204
       Weight          =   400
       Underline       =   0   'False
@@ -15,16 +15,16 @@ Begin VB.Form frmADSspy
       Strikethrough   =   0   'False
    EndProperty
    Icon            =   "frmADSspy.frx":0000
+   KeyPreview      =   -1  'True
    LinkTopic       =   "Form1"
-   ScaleHeight     =   6765
+   ScaleHeight     =   6768
    ScaleWidth      =   8340
-   StartUpPosition =   2  'CenterScreen
    Begin VB.PictureBox picStatus 
       AutoRedraw      =   -1  'True
       Height          =   255
       Left            =   120
-      ScaleHeight     =   195
-      ScaleWidth      =   6675
+      ScaleHeight     =   204
+      ScaleWidth      =   6684
       TabIndex        =   17
       Top             =   6480
       Width           =   6735
@@ -35,11 +35,20 @@ Begin VB.Form frmADSspy
       TabIndex        =   7
       Top             =   1800
       Width           =   8175
+      Begin VB.CommandButton cmdSave 
+         Caption         =   "Save log..."
+         Height          =   375
+         Left            =   2220
+         TabIndex        =   19
+         Tag             =   "1"
+         Top             =   1680
+         Width           =   1695
+      End
       Begin VB.CommandButton cmdExit 
          Cancel          =   -1  'True
          Caption         =   "Exit"
          Height          =   360
-         Left            =   5760
+         Left            =   7080
          TabIndex        =   18
          Top             =   1680
          Width           =   990
@@ -47,7 +56,7 @@ Begin VB.Form frmADSspy
       Begin VB.CommandButton cmdScanFolder 
          Caption         =   "Choose..."
          Height          =   285
-         Left            =   6720
+         Left            =   6840
          TabIndex        =   16
          Top             =   720
          Width           =   1215
@@ -57,7 +66,7 @@ Begin VB.Form frmADSspy
          Left            =   2880
          TabIndex        =   15
          Top             =   720
-         Width           =   3735
+         Width           =   3855
       End
       Begin VB.OptionButton optScanLocation 
          Caption         =   "Scan only this folder:"
@@ -69,7 +78,7 @@ Begin VB.Form frmADSspy
          Width           =   3015
       End
       Begin VB.OptionButton optScanLocation 
-         Caption         =   "Full scan (all NTFS drives)"
+         Caption         =   "Full scan (all NTFS, ReFS drives)"
          Height          =   255
          Index           =   1
          Left            =   120
@@ -92,19 +101,20 @@ Begin VB.Form frmADSspy
          Height          =   375
          Left            =   120
          TabIndex        =   11
+         Tag             =   "1"
          Top             =   1680
-         Width           =   2295
+         Width           =   1815
       End
       Begin VB.CommandButton cmdRemove 
          Caption         =   "Remove selected streams"
          Height          =   375
-         Left            =   2880
+         Left            =   4200
          TabIndex        =   10
          Top             =   1680
          Width           =   2535
       End
       Begin VB.CheckBox chkIgnoreEncryptable 
-         Caption         =   "Ignore safe system info data streams ('encryptable', 'SummaryInformation', etc)"
+         Caption         =   "Ignore safe system info data streams"
          Height          =   255
          Left            =   120
          TabIndex        =   9
@@ -122,7 +132,7 @@ Begin VB.Form frmADSspy
       End
    End
    Begin VB.ListBox lstADSFound 
-      Height          =   2325
+      Height          =   1605
       IntegralHeight  =   0   'False
       Left            =   120
       Sorted          =   -1  'True
@@ -140,49 +150,50 @@ Begin VB.Form frmADSspy
       MultiLine       =   -1  'True
       ScrollBars      =   2  'Vertical
       TabIndex        =   6
-      Text            =   "frmADSspy.frx":27A2
+      Text            =   "frmADSspy.frx":1CFA
       Top             =   120
       Width           =   8055
    End
    Begin VB.CommandButton cmdViewSave 
       Caption         =   "Save to disk..."
-      Height          =   375
+      Height          =   470
       Left            =   1440
       TabIndex        =   3
-      Top             =   6000
+      Top             =   5880
       Visible         =   0   'False
       Width           =   1695
    End
    Begin VB.CommandButton cmdViewBack 
       Caption         =   "Back"
-      Height          =   375
+      Height          =   470
       Left            =   5160
       TabIndex        =   5
-      Top             =   6000
+      Top             =   5880
       Visible         =   0   'False
       Width           =   1215
    End
    Begin VB.CommandButton cmdViewEdit 
       Caption         =   "Edit in Wordpad"
-      Height          =   375
+      Height          =   470
       Left            =   3240
       TabIndex        =   4
-      Top             =   6000
+      Top             =   5880
       Visible         =   0   'False
       Width           =   1815
    End
    Begin VB.CommandButton cmdViewCopy 
       Caption         =   "Copy"
-      Height          =   375
+      Height          =   470
       Left            =   120
       TabIndex        =   2
-      Top             =   6000
+      Top             =   5880
       Visible         =   0   'False
       Width           =   1215
    End
    Begin VB.TextBox txtADSContent 
       BackColor       =   &H8000000F&
       Height          =   1815
+      HideSelection   =   0   'False
       Left            =   120
       Locked          =   -1  'True
       MultiLine       =   -1  'True
@@ -226,10 +237,19 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
+'[frmADSspy.frm]
+
 '
 'ADS Spy by Merijn Bellekom
 '
+
+'Check 'frmMain.frm' to change version number
+
 'Forked by Dragokas
+'
+'v.1.14
+'Added ReFS support
+'Added button "Save log..."
 '
 'v.1.13
 'Partially added unicode support
@@ -321,25 +341,23 @@ Private Declare Function GetLogicalDrives Lib "kernel32.dll" () As Long
 Private Declare Function GetDriveType Lib "kernel32.dll" Alias "GetDriveTypeA" (ByVal nDrive As String) As Long
 
 Private Declare Function CreateFileW Lib "kernel32.dll" (ByVal lpFileName As Long, ByVal dwDesiredAccess As Long, ByVal dwShareMode As Long, ByVal lpSecurityAttributes As Long, ByVal dwCreationDisposition As Long, ByVal dwFlagsAndAttributes As Long, ByVal hTemplateFile As Long) As Long
-Private Declare Function NtQueryInformationFile Lib "NTDLL.DLL" (ByVal FileHandle As Long, IoStatusBlock_Out As IO_STATUS_BLOCK, lpFileInformation_Out As Long, ByVal length As Long, ByVal FileInformationClass As FILE_INFORMATION_CLASS) As Long
-Private Declare Sub CopyMemory Lib "kernel32.dll" Alias "RtlMoveMemory" (Destination As Any, Source As Any, ByVal length As Long)
+Private Declare Function NtQueryInformationFile Lib "ntdll.dll" (ByVal FileHandle As Long, IoStatusBlock_Out As IO_STATUS_BLOCK, lpFileInformation_Out As Long, ByVal Length As Long, ByVal FileInformationClass As FILE_INFORMATION_CLASS) As Long
+Private Declare Sub CopyMemory Lib "kernel32.dll" Alias "RtlMoveMemory" (Destination As Any, Source As Any, ByVal Length As Long)
 Private Declare Function DeleteFile Lib "kernel32.dll" Alias "DeleteFileW" (ByVal lpFileName As Long) As Long
 'Private Declare Function SHFileExists Lib "shell32.dll" Alias "#45" (ByVal szPath As String) As Long
 'Private Declare Sub Sleep Lib "kernel32.dll" (ByVal dwMilliseconds As Long)
 Private Declare Function ShellExecute Lib "shell32.dll" Alias "ShellExecuteA" (ByVal hwnd As Long, ByVal lpOperation As String, ByVal lpFile As String, ByVal lpParameters As String, ByVal lpDirectory As String, ByVal nShowCmd As Long) As Long
 
-Private Declare Function RegCloseKey Lib "advapi32.dll" (ByVal hKey As Long) As Long
-Private Declare Function RegOpenKeyEx Lib "advapi32.dll" Alias "RegOpenKeyExA" (ByVal hKey As Long, ByVal lpSubKey As String, ByVal ulOptions As Long, ByVal samDesired As Long, phkResult As Long) As Long
-Private Declare Function RegQueryValueEx Lib "advapi32.dll" Alias "RegQueryValueExA" (ByVal hKey As Long, ByVal lpValueName As String, ByVal lpReserved As Long, lpType As Long, lpData As Any, lpcbData As Long) As Long
+Private Declare Function RegCloseKey Lib "Advapi32.dll" (ByVal hKey As Long) As Long
+Private Declare Function RegOpenKeyEx Lib "Advapi32.dll" Alias "RegOpenKeyExA" (ByVal hKey As Long, ByVal lpSubKey As String, ByVal ulOptions As Long, ByVal samDesired As Long, phkResult As Long) As Long
+Private Declare Function RegQueryValueEx Lib "Advapi32.dll" Alias "RegQueryValueExA" (ByVal hKey As Long, ByVal lpValueName As String, ByVal lpReserved As Long, lpType As Long, lpData As Any, lpcbData As Long) As Long
 
-Private Declare Function GetSaveFileName Lib "comdlg32.dll" Alias "GetSaveFileNameA" (pOpenfilename As OPENFILENAME) As Long
-
-Private Declare Function CryptAcquireContext Lib "advapi32.dll" Alias "CryptAcquireContextA" (ByRef phProv As Long, ByVal pszContainer As String, ByVal pszProvider As String, ByVal dwProvType As Long, ByVal dwFlags As Long) As Long
-Private Declare Function CryptCreateHash Lib "advapi32.dll" (ByVal hProv As Long, ByVal Algid As Long, ByVal hKey As Long, ByVal dwFlags As Long, ByRef phHash As Long) As Long
-Private Declare Function CryptDestroyHash Lib "advapi32.dll" (ByVal hHash As Long) As Long
-Private Declare Function CryptGetHashParam Lib "advapi32.dll" (ByVal pCryptHash As Long, ByVal dwParam As Long, ByRef pbData As Any, ByRef pcbData As Long, ByVal dwFlags As Long) As Long
-Private Declare Function CryptHashData Lib "advapi32.dll" (ByVal hHash As Long, ByVal pbData As String, ByVal dwDataLen As Long, ByVal dwFlags As Long) As Long
-Private Declare Function CryptReleaseContext Lib "advapi32.dll" (ByVal hProv As Long, ByVal dwFlags As Long) As Long
+Private Declare Function CryptAcquireContext Lib "Advapi32.dll" Alias "CryptAcquireContextA" (ByRef phProv As Long, ByVal pszContainer As String, ByVal pszProvider As String, ByVal dwProvType As Long, ByVal dwFlags As Long) As Long
+Private Declare Function CryptCreateHash Lib "Advapi32.dll" (ByVal hProv As Long, ByVal Algid As Long, ByVal hKey As Long, ByVal dwFlags As Long, ByRef phHash As Long) As Long
+Private Declare Function CryptDestroyHash Lib "Advapi32.dll" (ByVal hHash As Long) As Long
+Private Declare Function CryptGetHashParam Lib "Advapi32.dll" (ByVal pCryptHash As Long, ByVal dwParam As Long, ByRef pbData As Any, ByRef pcbData As Long, ByVal dwFlags As Long) As Long
+Private Declare Function CryptHashData Lib "Advapi32.dll" (ByVal hHash As Long, ByVal pbData As String, ByVal dwDataLen As Long, ByVal dwFlags As Long) As Long
+Private Declare Function CryptReleaseContext Lib "Advapi32.dll" (ByVal hProv As Long, ByVal dwFlags As Long) As Long
 
 Private Declare Sub CoTaskMemFree Lib "ole32.dll" (ByVal hMem As Long)
 'Private Declare Function lstrcat Lib "kernel32.dll" Alias "lstrcatA" (ByVal lpString1 As String, ByVal lpString2 As String) As Long
@@ -428,14 +446,17 @@ Private Const GENERIC_READ = &H80000000
 Private Const FILE_SHARE_READ = &H1
 Private Const FILE_SHARE_WRITE = &H2
 
-Private Const OpenExisting As Long = 3
-
 Private bQuickScan As Boolean, bScanFolder As Boolean, bAbortScanNow As Boolean
-Private bIgnoreEncryptable As Boolean, bCalcMD5 As Boolean
+Private bIgnoreEncryptable As Boolean, bCalcMD5 As Boolean, bQueryUnload As Boolean
 Private sSafeStreams$()
 
 Private Sub cmdExit_Click()
+    bAbortScanNow = True
     Me.Hide
+End Sub
+
+Private Sub cmdSave_Click()
+    mnuPopupSave_Click
 End Sub
 
 Private Sub cmdScanFolder_Click()
@@ -459,10 +480,12 @@ End Sub
 
 Private Sub Form_KeyDown(KeyCode As Integer, Shift As Integer)
     If KeyCode = 27 Then bAbortScanNow = True: Me.Hide
+    ProcessHotkey KeyCode, Me
 End Sub
 
 Private Sub Form_Load()
-    ReloadLanguage
+    SetAllFontCharset Me, g_FontName, g_FontSize, g_bFontBold
+    ReloadLanguage True
 
     'ADS Spy v[] - written by Merijn
     Me.Caption = Replace$(Translate(190), "[]", ADSspyVer)
@@ -481,16 +504,16 @@ Private Sub Form_Load()
     sWinDir = Left$(sWinDir, GetSystemWindowsDirectory(StrPtr(sWinDir), Len(sWinDir)))
     If InStr(Command$, "/debug") > 0 Then
     'If 1 Then
-        Dim i%, S$()
+        Dim i%, s$()
         Me.Show
         'Listing drives...
-        Status Translate(197)
-        S = Split(GetDrives, "|")
+        Status Translate(197), "1"
+        s = Split(GetDrives, "|")
         lstADSFound.Clear
         'Enumerating system drives:
         lstADSFound.AddItem " " & Translate(204) & ":"
-        For i = 0 To UBound(S)
-            lstADSFound.AddItem S(i)
+        For i = 0 To UBound(s)
+            lstADSFound.AddItem s(i)
         Next i
     Else
         CheckIfSystemIsNTFS
@@ -500,34 +523,33 @@ Private Sub Form_Load()
         End If
     End If
     
-    ReDim sSafeStreams(7)
+    ReDim sSafeStreams(8)
     sSafeStreams(0) = ":encryptable:$DATA"
     sSafeStreams(1) = ":SummaryInformation:$DATA"
     sSafeStreams(2) = ":DocumentSummaryInformation:$DATA"
     sSafeStreams(3) = ":{4c8cc155-6c1e-11d1-8e41-00c04fb9386d}:$DATA"
     sSafeStreams(4) = ":Zone.Identifier:$DATA"
     sSafeStreams(5) = ":Q30lsldxJoudresxAaaqpcawXc:$DATA"
-    sSafeStreams(6) = ":Win32App_1:$DATA"
+    sSafeStreams(6) = ":Win32App_1:$DATA" 'Windows 10 "Storage Service"
     sSafeStreams(7) = ":favicon:$DATA"
+    sSafeStreams(8) = ":OECustomProperty:$DATA"
     'Ready.
-    Status Translate(209)
+    Status Translate(209), "2"
     
     Dim OptB As OptionButton
     Dim Btn As CommandButton
-    Dim ctl As Control
+    Dim Ctl As Control
     
-    ReloadLanguage
-    CenterForm Me
-    Me.Icon = frmMain.Icon
+    LoadWindowPos Me, SETTINGS_SECTION_ADSSPY
     
     ' if Win XP -> disable all window styles from option buttons
     If OSver.MajorMinor >= 5.1 And OSver.MajorMinor <= 5.2 Then
-        For Each ctl In Me.Controls
-            If TypeName(ctl) = "OptionButton" Then
-                Set OptB = ctl
+        For Each Ctl In Me.Controls
+            If TypeName(Ctl) = "OptionButton" Then
+                Set OptB = Ctl
                 SetWindowTheme OptB.hwnd, StrPtr(" "), StrPtr(" ")
-            ElseIf TypeName(ctl) = "CommandButton" Then
-                Set Btn = ctl
+            ElseIf TypeName(Ctl) = "CommandButton" Then
+                Set Btn = Ctl
                 SetWindowTheme Btn.hwnd, StrPtr(" "), StrPtr(" ")
             End If
         Next
@@ -538,11 +560,18 @@ End Sub
 Private Sub Form_QueryUnload(Cancel As Integer, UnloadMode As Integer)
     bAbortScanNow = True
     DoEvents
+    SaveWindowPos Me, SETTINGS_SECTION_ADSSPY
     'Unload Me
     Me.Hide
+    If UnloadMode = 0 Then
+        Cancel = True 'user click -> don't unload
+    Else
+        bQueryUnload = True
+    End If
 End Sub
 
 Private Sub Form_Resize()
+    Const BUTTON_BOTTOM_INDENT As Long = 900&
     If Me.WindowState = vbMinimized Then Exit Sub
     On Error Resume Next
     txtUselessBlabber.Width = Me.ScaleWidth - 255
@@ -552,11 +581,11 @@ Private Sub Form_Resize()
     picStatus.Width = Me.ScaleWidth - 255
     
     lstADSFound.Height = Me.ScaleHeight - 3690 - 480
-    txtADSContent.Height = Me.ScaleHeight - 4170 - 480
-    cmdViewCopy.Top = Me.ScaleHeight - 855
-    cmdViewSave.Top = Me.ScaleHeight - 855
-    cmdViewEdit.Top = Me.ScaleHeight - 855
-    cmdViewBack.Top = Me.ScaleHeight - 855
+    txtADSContent.Height = Me.ScaleHeight - 4170 - 880
+    cmdViewCopy.Top = Me.ScaleHeight - BUTTON_BOTTOM_INDENT
+    cmdViewSave.Top = Me.ScaleHeight - BUTTON_BOTTOM_INDENT
+    cmdViewEdit.Top = Me.ScaleHeight - BUTTON_BOTTOM_INDENT
+    cmdViewBack.Top = Me.ScaleHeight - BUTTON_BOTTOM_INDENT
     picStatus.Top = Me.ScaleHeight - 375
 End Sub
 
@@ -569,14 +598,13 @@ Private Sub cmdViewBack_Click()
     lstADSFound.Visible = True
     cmdRemove.Enabled = True
     'Ready.
-    Status Translate(209)
+    Status Translate(209), "2"
 End Sub
 
 Private Sub cmdViewCopy_Click()
-    Clipboard.Clear
-    Clipboard.SetText txtADSContent.Text
+    ClipboardSetText txtADSContent.Text
     'The contents of the currently displayed ADS have been copied to the clipboard.
-    Status Translate(2200)
+    Status Translate(2200), "3"
 End Sub
 
 Private Sub cmdViewEdit_Click()
@@ -600,50 +628,53 @@ Private Sub cmdViewEdit_Click()
     sStream = lstADSFound.List(lstADSFound.ListIndex)
     sStream = Replace$(sStream, " : ", ":")
     sStream = Left$(sStream, InStr(sStream, "  (") - 1)
-    ShellExecute Me.hwnd, "open", sWordpadPath, """" & sStream & """", vbNullString, 1
+    ShellExecute Me.hwnd, "open", sWordpadPath, """" & PathX64(sStream) & """", vbNullString, 1
     'Ready.
-    Status Translate(209)
+    Status Translate(209), "2"
 End Sub
 
 Private Sub cmdViewSave_Click()
-    Dim uOFN As OPENFILENAME, sFileName$, sStream$ ', sStreamName$
+    Dim sFilename$, sStream$  ', sStreamName$
     sStream = lstADSFound.List(lstADSFound.ListIndex)
     sStream = Replace$(sStream, " : ", ":")
     sStream = Left$(sStream, InStr(sStream, "  (") - 1)
+    
     'sStreamName = mid$(sStream, InStrRev(sStream, ":") + 1)
     'If Asc(left$(sStreamName, 1)) = 5 Then sStreamName = mid$(sStreamName, 2)
-    With uOFN
-        .lStructSize = Len(uOFN)
-        .hWndOwner = Me.hwnd
-        .lpstrInitialDir = App.Path
-        'Save stream contents to file...
-        .lpstrTitle = Translate(2202)
-        '.lpstrFile = sStreamName & String$(MAX_PATH - Len(sStreamName), 0)
-        .lpstrFile = String$(MAX_PATH, 0)
-        .lpstrFileTitle = String$(MAX_PATH, 0)
-        .nMaxFile = Len(.lpstrFile)
-        .nMaxFileTitle = Len(.lpstrFileTitle)
-        .lpstrDefExt = "bin"
-        'Binary files
-        'Text files
-        'All files
-        .lpstrFilter = Translate(2203) & " (*.bin)" & Chr$(0) & "*.bin" & Chr$(0) & _
-                       Translate(2204) & " (*.txt)" & Chr$(0) & "*.txt" & Chr$(0) & _
-                       Translate(2205) & " (*.*)" & Chr$(0) & "*.*" & Chr$(0) & Chr$(0)
-        .Flags = OFN_HIDEREADONLY Or OFN_NONETWORKBUTTON Or OFN_OVERWRITEPROMPT Or OFN_PATHMUSTEXIST
-        GetSaveFileName uOFN
-        sFileName = TrimNull(.lpstrFile)
-        If sFileName = vbNullString Then Exit Sub
-        FileCopy sStream, sFileName
-        If FileExists(sFileName) Then
+        
+    'Save stream contents to file...
+    'Filters:
+    'Binary files
+    'Text files
+    'All files
+    sFilename = SaveFileDialog(Translate(2202), AppPath(), GetFileNameAndExt(sStream) & "." & GetStreamName(sStream) & ".bin", _
+        Translate(2203) & " (*.bin)|*.bin|" & _
+        Translate(2204) & " (*.txt)|*.txt|" & _
+        Translate(2205) & " (*.*)|*.*", Me.hwnd)
+    
+    If Len(sFilename) <> 0 Then
+        'Note: FileCopyW is not supported here
+        '// TODO: add anicode support - need to use CreateFile / ReadFile / WriteFile
+    
+        FileCopy sStream, sFilename
+        
+        If FileExists(sFilename) Then
             'Stream contents saved to
-            Status Translate(2206) & " " & TrimNull(.lpstrFileTitle) & " (" & FileLen(sFileName) & " bytes)."
+            Status Translate(2206) & " " & sFilename & " (" & FileLen(sFilename) & " bytes).", "4"
         Else
             'An error occurred saving the stream to disk.
-            Status Translate(2207)
+            Status Translate(2207), "5"
         End If
-    End With
+    End If
 End Sub
+
+Private Function GetStreamName(sPath As String) As String
+    Dim pos As Long
+    pos = InStr(4, sPath, ":")
+    If pos Then
+        GetStreamName = Mid$(sPath, pos + 1)
+    End If
+End Function
 
 Private Sub cmdScan_Click()
     Dim lTicks&, sDrives$(), i&, sScanFolder$
@@ -664,6 +695,7 @@ Private Sub cmdScan_Click()
     
     'Abort scan
     cmdScan.Caption = Translate(2208)
+    cmdScan.Tag = "2"
     If bQuickScan Then
         If InStr(1, GetNTFSDrives, Left$(sWinDir, 2), vbTextCompare) = 0 Then
             '"Unable to scan the Windows folder, because the volume " & _
@@ -684,11 +716,15 @@ Private Sub cmdScan_Click()
                 End If
 
                 EnumADSInFile sDrives(i), True
-                EnumADSInAllFiles sDrives(i)
+                If Not (bAbortScanNow) Then
+                    EnumADSInAllFiles sDrives(i)
+                End If
                 
                 If StrComp(sDrives(i), SysDisk & "\", 1) = 0 Then
                     ToggleWow64FSRedirection True
                 End If
+                
+                If bAbortScanNow Then Exit For
             Next i
         Else
             If sScanFolder <> vbNullString And FolderExists(sScanFolder) Then   'particular folder
@@ -701,25 +737,37 @@ Private Sub cmdScan_Click()
                 End If
             
                 EnumADSInFile sScanFolder, True
-                EnumADSInAllFiles sScanFolder
+                If Not (bAbortScanNow) Then
+                    EnumADSInAllFiles sScanFolder
+                End If
                 
                 ToggleWow64FSRedirection True
             End If
         End If
     End If
+    
+    If bQueryUnload Then Exit Sub
+    
     'Scan the system for alternate data streams
     cmdScan.Caption = Translate(2210)
+    cmdScan.Tag = "1"
     lTicks = GetTickCount() - lTicks
     If IsRunningInIDE() Then
-        'Scan complete, found [] alternate data streams (ADS's) in [*] sec.
-        Status Replace$(Replace$(Translate(2211), "[]", lstADSFound.ListCount), "[*]", Format$(lTicks / 1000, "##0.00#"))
-        'Scan ABORTED, found [] alternate data streams (ADS's) in [*] sec.
-        If bAbortScanNow Then Status Replace$(Replace$(Translate(2212), "[]", lstADSFound.ListCount), "[*]", Format$(lTicks / 1000, "##0.00#"))
+        If bAbortScanNow Then
+            'Scan ABORTED, found [] alternate data streams (ADS's) in [*] sec.
+            Status Replace$(Replace$(Translate(2212), "[]", lstADSFound.ListCount), "[*]", Format$(lTicks / 1000, "##0.00#")), "6"
+        Else
+            'Scan complete, found [] alternate data streams (ADS's) in [*] sec.
+            Status Replace$(Replace$(Translate(2211), "[]", lstADSFound.ListCount), "[*]", Format$(lTicks / 1000, "##0.00#")), "7"
+        End If
     Else
-        'Scan complete, found [] alternate data streams (ADS's).
-        Status Replace$(Translate(2213), "[]", lstADSFound.ListCount)
-        'Scan ABORTED, found [] alternate data streams (ADS's).
-        If bAbortScanNow Then Status Replace$(Translate(2214), "[]", lstADSFound.ListCount)
+        If bAbortScanNow Then
+            'Scan ABORTED, found [] alternate data streams (ADS's).
+            Status Replace$(Translate(2214), "[]", lstADSFound.ListCount), "8"
+        Else
+            'Scan complete, found [] alternate data streams (ADS's).
+            Status Replace$(Translate(2213), "[]", lstADSFound.ListCount), "9"
+        End If
     End If
     bAbortScanNow = False
 End Sub
@@ -728,13 +776,13 @@ Private Sub cmdRemove_Click()
     If lstADSFound.ListCount = 0 Then Exit Sub
     If lstADSFound.SelCount = 0 Then lstADSFound.Clear: Exit Sub
     
-    Dim i&, j&, K&, sStream$, sLockedStreams$
-    K = lstADSFound.SelCount
+    Dim i&, j&, k&, sStream$, sLockedStreams$
+    k = lstADSFound.SelCount
     'Are you sure you want to remove the selected [] ADS's from your system? They will be deleted permanently!
-    If MsgBoxW(Replace$(Translate(2215), "[]", K), vbQuestion + vbYesNo) = vbNo Then Exit Sub
+    If MsgBoxW(Replace$(Translate(2215), "[]", k), vbQuestion + vbYesNo) = vbNo Then Exit Sub
     'go from bottom of list to prevent .RemoveItem messing up the For loop
     'Removing selected streams...
-    Status Translate(2216)
+    Status Translate(2216), "10"
     
     ToggleWow64FSRedirection False
     
@@ -751,7 +799,7 @@ Private Sub cmdRemove_Click()
             j = j + 1
         End If
         'Removing selected streams...
-        Status Translate(2216) & " " & Int(CLng(j) / K * 100) & " %"
+        Status Translate(2216) & " " & Int(CLng(j) / k * 100) & " %"
     Next i
     
     ToggleWow64FSRedirection True
@@ -762,7 +810,7 @@ Private Sub cmdRemove_Click()
         MsgBoxW Translate(2217) & _
                vbCrLf & vbCrLf & Left$(sLockedStreams, Len(sLockedStreams) - 2), vbExclamation
     End If
-    Status "Ready."
+    Status Translate(209), "2"
 End Sub
 
 Private Function GetDrives$()
@@ -771,7 +819,7 @@ Private Function GetDrives$()
     lDrives = GetLogicalDrives()
     For i = 0 To 26
         If (lDrives And 2 ^ i) Then
-            sDrive = Chr$(Asc("A") + i) & ":\"
+            sDrive = Chr$(65 + i) & ":\"
             lDriveType = GetDriveType(sDrive)
             sVolName = String$(MAX_PATH, 0)
             sVolFileSys = String$(MAX_PATH, 0)
@@ -804,19 +852,19 @@ Private Function GetNTFSDrives$()
     lDrives = GetLogicalDrives()
     For i = 0 To 26
         If (lDrives And 2 ^ i) Then
-            sDrive = Chr$(Asc("A") + i) & ":\"
+            sDrive = Chr$(65 + i) & ":\"
             lDriveType = GetDriveType(sDrive)
             If lDriveType = DRIVE_FIXED Or lDriveType = DRIVE_RAMDISK Or lDriveType = DRIVE_REMOVABLE Then
                 sVolName = String$(MAX_PATH, 0)
                 sVolFileSys = String$(MAX_PATH, 0)
                 lFlags = 0
                 GetVolumeInformation sDrive, sVolName, Len(sVolName), lVolSN, lMaxCompLen, lFlags, sVolFileSys, Len(sVolFileSys)
-                'If (lFlags And FILE_NAMED_STREAMS) = FILE_NAMED_STREAMS Then
-                '    sNTFSDrives = sNTFSDrives & "|" & sDrive
-                'End If
-                If UCase$(TrimNull(sVolFileSys)) = "NTFS" Then
+                If (lFlags And FILE_NAMED_STREAMS) Then
                     sNTFSDrives = sNTFSDrives & "|" & sDrive
                 End If
+'                If UCase$(TrimNull(sVolFileSys)) = "NTFS" Then
+'                    sNTFSDrives = sNTFSDrives & "|" & sDrive
+'                End If
             End If
         End If
     Next i
@@ -833,28 +881,29 @@ Private Sub CheckIfSystemIsNTFS()
 End Sub
 
 Private Sub EnumADSInAllFiles(sFolder$)
-    Dim hFind As Long, uWFD As WIN32_FIND_DATA, sFileName$, lpSTR&, sPath$
+    Dim hFind As Long, uWFD As WIN32_FIND_DATA, sFilename$, lpSTR&, sPath$
     
     hFind = FindFirstFile(StrPtr(BuildPath(sFolder, "*.*")), uWFD)
     If hFind = INVALID_HANDLE_VALUE Then
-        Status "FindFirstFile() failed"
+        Status "FindFirstFile() failed", ""
         Exit Sub
     End If
     
+    picStatus.Tag = ""
     Do
         lpSTR = VarPtr(uWFD.dwReserved1) + 4&
-        sFileName = String$(lstrlen(lpSTR), 0)
-        lstrcpy StrPtr(sFileName), lpSTR
+        sFilename = String$(lstrlen(lpSTR), 0)
+        lstrcpy StrPtr(sFilename), lpSTR
     
         If (uWFD.dwFileAttributes And FILE_ATTRIBUTE_REPARSE_POINT) <> FILE_ATTRIBUTE_REPARSE_POINT Then
     
           If Not ((uWFD.dwFileAttributes And FILE_ATTRIBUTE_DIRECTORY) = 16) Then
-            sPath = BuildPath(sFolder, sFileName)
+            sPath = BuildPath(sFolder, sFilename)
             Status sPath
             EnumADSInFile sPath
           Else
-            If sFileName <> "." And sFileName <> ".." And Not bQuickScan Then
-                sPath = BuildPath(sFolder, sFileName)
+            If sFilename <> "." And sFilename <> ".." And Not bQuickScan Then
+                sPath = BuildPath(sFolder, sFilename)
                 EnumADSInFile sPath, True
                 EnumADSInAllFiles sPath
             End If
@@ -872,9 +921,9 @@ Private Sub EnumADSInFile(sFilePath$, Optional bIsFolder As Boolean = False)
     If bAbortScanNow Then Exit Sub
 
     If bIsFolder = False Then
-        hFile = CreateFileW(StrPtr(sFilePath), GENERIC_READ, FILE_SHARE_READ Or FILE_SHARE_WRITE, 0, OpenExisting, 0, 0)
+        hFile = CreateFileW(StrPtr(sFilePath), GENERIC_READ, FILE_SHARE_READ Or FILE_SHARE_WRITE Or FILE_SHARE_DELETE, ByVal 0, OPEN_EXISTING, 0, 0)
     Else
-        hFile = CreateFileW(StrPtr(sFilePath), GENERIC_READ, FILE_SHARE_READ Or FILE_SHARE_WRITE, 0, OpenExisting, FILE_FLAG_BACKUP_SEMANTICS, 0)
+        hFile = CreateFileW(StrPtr(sFilePath), GENERIC_READ, FILE_SHARE_READ Or FILE_SHARE_WRITE Or FILE_SHARE_DELETE, ByVal 0, OPEN_EXISTING, g_FileBackupFlag, 0)
     End If
     If hFile = -1 Then Exit Sub
     
@@ -894,7 +943,7 @@ Private Sub EnumADSInFile(sFilePath$, Optional bIsFolder As Boolean = False)
                 sStreamName = Mid$(sStreamName, 2)
                 sStreamName = Left$(sStreamName, InStr(sStreamName, ":") - 1)
                 If bCalcMD5 Then
-                    lstADSFound.AddItem sFilePath & " : " & sStreamName & "  (" & uFSI.StreamSize & " bytes, MD5: " & GetFileMD5(sFilePath & ":" & sStreamName, uFSI.StreamSize) & ")"
+                    lstADSFound.AddItem sFilePath & " : " & sStreamName & "  (" & uFSI.StreamSize & " bytes, CheckSum: " & GetFileCheckSum(sFilePath & ":" & sStreamName, uFSI.StreamSize, True) & ")"
                 Else
                     lstADSFound.AddItem sFilePath & " : " & sStreamName & "  (" & uFSI.StreamSize & " bytes)"
                 End If
@@ -915,17 +964,20 @@ End Sub
 '    FileExists = CBool(SHFileExists(StrConv(sFile, vbUnicode)))
 'End Function
 
-Private Sub Status(S$)
-    picStatus.Cls
-    picStatus.Print S
+Private Sub Status(s$, Optional sTag As String)
+    If Not (bQueryUnload) Then
+        picStatus.Cls
+        picStatus.Print " " & s
+        picStatus.Tag = sTag
+    End If
     DoEvents
 End Sub
 
-Private Function TrimNull$(S$)
-    If InStr(S, Chr$(0)) > 0 Then
-        TrimNull = Left$(S, InStr(S, Chr$(0)) - 1)
+Private Function TrimNull$(s$)
+    If InStr(s, Chr$(0)) > 0 Then
+        TrimNull = Left$(s, InStr(s, Chr$(0)) - 1)
     Else
-        TrimNull = S
+        TrimNull = s
     End If
 End Function
 
@@ -937,42 +989,49 @@ Private Sub lstADSFound_KeyDown(KeyCode As Integer, Shift As Integer)
     If KeyCode = 27 Then bAbortScanNow = True: Me.Hide
 End Sub
 
-Private Sub lstADSFound_MouseUp(Button As Integer, Shift As Integer, x As Single, y As Single)
+Private Sub lstADSFound_MouseUp(Button As Integer, Shift As Integer, X As Single, Y As Single)
     If Button = 2 And lstADSFound.ListCount > 0 Then PopupMenu mnuPopup
 End Sub
 
 Private Sub mnuPopupSave_Click()
-    Dim sLog$, i%, uOFN As OPENFILENAME, sFileName$, ff%
     If lstADSFound.ListCount = 0 Then Exit Sub
-    With uOFN
-        .lStructSize = Len(uOFN)
-        .hWndOwner = Me.hwnd
-        .lpstrInitialDir = App.Path
-        'Save stream contents to file...
-        .lpstrTitle = Translate(2202)
-        .lpstrFile = String$(MAX_PATH, 0)
-        .lpstrFileTitle = String$(MAX_PATH, 0)
-        .nMaxFile = Len(.lpstrFile)
-        .nMaxFileTitle = Len(.lpstrFileTitle)
-        .lpstrDefExt = "txt"
-        'Text files
-        'All files
-        .lpstrFilter = Translate(2204) & " (*.txt)" & Chr$(0) & "*.txt" & Chr$(0) & _
-                       Translate(2205) & " (*.*)" & Chr$(0) & "*.*" & Chr$(0) & Chr$(0)
-        .Flags = OFN_HIDEREADONLY Or OFN_NONETWORKBUTTON Or OFN_OVERWRITEPROMPT Or OFN_PATHMUSTEXIST
-        GetSaveFileName uOFN
-        sFileName = TrimNull(.lpstrFile)
-        If sFileName = vbNullString Then Exit Sub
-        For i = 0 To lstADSFound.ListCount - 1
-            sLog = sLog & lstADSFound.List(i) & vbCrLf
-        Next i
-        ff = FreeFile()
-        Open sFileName For Output As #ff
-            Print #ff, sLog
-        Close #ff
-        'Scan results saved to
-        Status Translate(2226) & " " & TrimNull(.lpstrFileTitle) & "."
-    End With
+    
+    Dim sFilename$, i&, hFile As Long
+    Dim sList As clsStringBuilder
+    
+    'Save scan results to disk...
+    sFilename = SaveFileDialog(Translate(203), AppPath(), "Streams.txt", _
+        Translate(2204) & " (*.txt)|*.txt|" & _
+        Translate(2205) & " (*.*)|*.*", Me.hwnd)
+        
+    If Len(sFilename) = 0 Then Exit Sub
+    
+    Set sList = New clsStringBuilder
+    
+    'Header
+    sList.Append ChrW$(-257)
+    sList.AppendLine "Logfile of ADS Spy v." & ADSspyVer & " (HJT Fork v." & AppVerString & ")"
+    sList.AppendLine
+    sList.Append MakeLogHeader()
+    sList.AppendLine
+
+    For i = 0 To lstADSFound.ListCount - 1
+        sList.AppendLine lstADSFound.List(i)
+    Next i
+    
+    sList.Append "--" & vbCrLf & "End of file"
+    
+    If OpenW(sFilename, FOR_OVERWRITE_CREATE, hFile, g_FileBackupFlag) Then
+        PutW hFile, 1, StrPtr(sList.ToString), sList.Length * 2
+        CloseW hFile
+    End If
+        
+    'Scan results saved to
+    Status Translate(2226) & " " & sFilename & ".", "11"
+    
+    OpenLogFile sFilename
+    
+    Set sList = Nothing
 End Sub
 
 Private Sub mnuPopupSelAll_Click()
@@ -1014,7 +1073,7 @@ Private Sub mnuPopupView_Click()
     
     Dim sStream$, lSize&, sStreamContents$, ff%, hFile As Long
     'Reading stream...
-    Status Translate(2227)
+    Status Translate(2227), "12"
     txtADSContent.Text = vbNullString
     sStream = lstADSFound.List(lstADSFound.ListIndex)
     sStream = Replace$(sStream, " : ", ":")
@@ -1025,7 +1084,7 @@ Private Sub mnuPopupView_Click()
         
         ff = FreeFile()
         ToggleWow64FSRedirection False, sStream
-        OpenW sStream, FOR_READ, hFile
+        OpenW sStream, FOR_READ, hFile, g_FileBackupFlag
         If hFile > 0 Then
             sStreamContents = String$(LOFW(hFile), 0)
             GetW hFile, 1, sStreamContents
@@ -1039,8 +1098,8 @@ Private Sub mnuPopupView_Click()
         ToggleWow64FSRedirection True
         txtADSContent.Text = sStreamContents
     End If
-    'Viewing contents of [].
-    Status Replace$(Translate(2229), "[]", sStream)
+    'Contents of [].
+    Status Replace$(Translate(2229), "[]", sStream), "13"
     
     Exit Sub
 ErrorHandler:
@@ -1059,60 +1118,60 @@ Private Sub mnuPopupShowFile_Click()
     End If
 End Sub
 
-Function StrContainsBinary(S$) As Boolean
+Function StrContainsBinary(s$) As Boolean
     Dim i&
     For i = 0 To 31
       If i <> 9 And i <> 10 And i <> 13 Then 'cr,lf,tab
-        If InStr(S, Chr$(i)) <> 0 Then StrContainsBinary = True: Exit For
+        If InStr(s, Chr$(i)) <> 0 Then StrContainsBinary = True: Exit For
       End If
     Next
 End Function
 
-Private Function GetFileMD5$(sFileName$, lFileSize&)
-    On Error GoTo ErrorHandler:
-
-    If Not FileExists(sFileName) Then Exit Function
-    If lFileSize = 0 Then
-        'speed tweak :) 0-byte file always has the same MD5
-        GetFileMD5 = "D41D8CD98F00B204E9800998ECF8427E"
-        Exit Function
-    End If
-    
-    Dim sFileContents$, ff%
-    
-    ff = FreeFile()
-    Open sFileName For Binary Access Read As #ff
-        If Err Then Exit Function
-        sFileContents = Input(lFileSize, #ff)
-    Close #ff
-    
-    Dim hCrypt&, hHash&, uMD5(255) As Byte, lMD5Len&, i%, sMD5$
-    If CryptAcquireContext(hCrypt, vbNullString, MS_ENHANCED_PROV, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT) <> 0 Then
-        If CryptCreateHash(hCrypt, ALG_TYPE_ANY Or ALG_CLASS_HASH Or ALG_SID_MD5, 0, 0, hHash) <> 0 Then
-            If CryptHashData(hHash, sFileContents, Len(sFileContents), 0) <> 0 Then
-                If CryptGetHashParam(hHash, HP_HASHSIZE, uMD5(0), UBound(uMD5) + 1, 0) <> 0 Then
-                    lMD5Len = uMD5(0)
-                    If CryptGetHashParam(hHash, HP_HASHVAL, uMD5(0), UBound(uMD5) + 1, 0) <> 0 Then
-                        For i = 0 To lMD5Len - 1
-                            sMD5 = sMD5 & Right$("0" & Hex$(uMD5(i)), 2)
-                        Next i
-                    End If
-                End If
-            End If
-            CryptDestroyHash hHash
-        End If
-        CryptReleaseContext hCrypt, 0
-    End If
-    
-    If sMD5 <> vbNullString Then
-        GetFileMD5 = sMD5
-    End If
-    
-    Exit Function
-ErrorHandler:
-    ErrorMsg Err, "GetFileMD5"
-    If inIDE Then Stop: Resume Next
-End Function
+'Private Function GetFileCheckSum$(sFilename$, lFileSize&)
+'    On Error GoTo ErrorHandler:
+'
+'    If Not FileExists(sFilename) Then Exit Function
+'    If lFileSize = 0 Then
+'        'speed tweak :) 0-byte file always has the same MD5
+'        GetFileCheckSum = "D41D8CD98F00B204E9800998ECF8427E"
+'        Exit Function
+'    End If
+'
+'    Dim sFileContents$, ff%
+'
+'    ff = FreeFile()
+'    Open sFilename For Binary Access Read As #ff
+'        If Err Then Exit Function
+'        sFileContents = Input(lFileSize, #ff)
+'    Close #ff
+'
+'    Dim hCrypt&, hHash&, uMD5(255) As Byte, lMD5Len&, i%, sMD5$
+'    If CryptAcquireContext(hCrypt, vbNullString, MS_ENHANCED_PROV, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT) <> 0 Then
+'        If CryptCreateHash(hCrypt, ALG_TYPE_ANY Or ALG_CLASS_HASH Or ALG_SID_MD5, 0, 0, hHash) <> 0 Then
+'            If CryptHashData(hHash, sFileContents, Len(sFileContents), 0) <> 0 Then
+'                If CryptGetHashParam(hHash, HP_HASHSIZE, uMD5(0), UBound(uMD5) + 1, 0) <> 0 Then
+'                    lMD5Len = uMD5(0)
+'                    If CryptGetHashParam(hHash, HP_HASHVAL, uMD5(0), UBound(uMD5) + 1, 0) <> 0 Then
+'                        For i = 0 To lMD5Len - 1
+'                            sMD5 = sMD5 & Right$("0" & Hex$(uMD5(i)), 2)
+'                        Next i
+'                    End If
+'                End If
+'            End If
+'            CryptDestroyHash hHash
+'        End If
+'        CryptReleaseContext hCrypt, 0
+'    End If
+'
+'    If sMD5 <> vbNullString Then
+'        GetFileCheckSum = sMD5
+'    End If
+'
+'    Exit Function
+'ErrorHandler:
+'    ErrorMsg Err, "GetFileCheckSum"
+'    If inIDE Then Stop: Resume Next
+'End Function
 
 Private Function IsRunningInIDE() As Boolean
     IsRunningInIDE = (App.LogMode = 0)
