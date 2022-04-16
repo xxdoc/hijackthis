@@ -5,10 +5,13 @@ Option Explicit
 
 '
 ' Authenticode digital signature verifier / Driver's WHQL signature verifier
-' revision 2.17
+' revision 2.18
 '
 ' Copyrights: (ñ) Polshyn Stanislav Viktorovich aka Alex Dragokas
 '
+
+' 07.02.2021
+' Added SV_LightCheckMS flag - skip filling non-essential fields only if it is Microsoft signature (speed optimization)
 
 ' 20.01.2021
 ' Added extended key usage extraction
@@ -86,6 +89,7 @@ Public Type SignResult_TYPE ' out. Digital signature data
     SubjectName       As String  ' signer name
     SubjectEmail      As String  ' signer email
     HashRootCert      As String  ' SHA1 hash of root certificate in the chain
+    isMicrosoftCert   As Boolean ' is root certificate belongs to Microsoft
     HashFinalCert     As String  ' Hash of the last certificate in the chain (signer)
     HashFileCode      As String  ' Authenticode (PE256) hash of file
     DateCertBegin     As Date    ' certificate is valid since ...
@@ -112,10 +116,11 @@ Public Enum FLAGS_SignVerify
     SV_CheckSecondarySignature = &H200& ' (this flag automatically set SV_DisableCatalogVerify flag)
     SV_NoFileSizeLimit = &H400&         ' check file with any size ( default limit = 100 MB. )
     SV_LightCheck = &H800&              ' skip filling non-essential fields (speed optimization)
-    SV_SelfTest = &H1000&               ' more debugging info
-    SV_PreferInternalSign = &H2000&     ' check internal signature first, if present (.exe, .sys, .dll, .ocx files only)
-    SV_NoCatPrediction = &H4000&        ' do not use catalogue path prediction
-    SV_EnableHashPrecache = &H8000&     ' read in advance all tags from security catalogues (it can win speed when you scan a huge number of files)
+    SV_LightCheckMS = &H1000&           ' skip filling non-essential fields only if it is Microsoft signature (speed optimization)
+    SV_SelfTest = &H2000&               ' more debugging info
+    SV_PreferInternalSign = &H4000&     ' check internal signature first, if present (.exe, .sys, .dll, .ocx files only)
+    SV_NoCatPrediction = &H8000&        ' do not use catalogue path prediction
+    SV_EnableHashPrecache = &H10000     ' read in advance all tags from security catalogues (it can win speed when you scan a huge number of files)
 End Enum
 
 Private Type GUID
@@ -608,38 +613,16 @@ Private SC_pos           As Long
 Dim WINTRUST_ACTION_GENERIC_VERIFY_V2   As GUID
 Dim DRIVER_ACTION_VERIFY                As GUID
 
+'clear results of checking
+'
 Public Sub WipeSignResult(SignResult As SignResult_TYPE)
-    With SignResult     'clear results of checking
-        .ReturnCode = TRUST_E_NOSIGNATURE
-        .FullMessage = vbNullString
-        .ShortMessage = "TRUST_E_NOSIGNATURE: Not signed"
-        .Issuer = vbNullString
-        .HashRootCert = vbNullString
-        .HashFileCode = vbNullString
-        .isSigned = False
-        .isLegit = False
-        .isSignedByCert = False
-        .isWHQL = False
-        .isMicrosoftSign = False
-        .CatalogPath = vbNullString
-        .IsEmbedded = False
-        .isSelfSigned = False
-        .AlgorithmCertHash = vbNullString
-        .AlgorithmSignDigest = vbNullString
-        .Issuer = vbNullString
-        .SubjectName = vbNullString
-        .SubjectEmail = vbNullString
-        .DateCertBegin = #12:00:00 AM#
-        .DateCertExpired = #12:00:00 AM#
-        .DateTimeStamp = #12:00:00 AM#
-        .NumberOfSigns = 0
-        .IdxVerifiedSign = 0
-        .FilePathVerified = vbNullString
-    End With
+    Dim SR As SignResult_TYPE
+    SignResult = SR
+    SignResult.ShortMessage = "TRUST_E_NOSIGNATURE: Not signed"
 End Sub
 
 Public Function SignVerify( _
-    sFilePath As String, _
+    ByVal sFilePath As String, _
     ByVal Flags As FLAGS_SignVerify, _
     SignResult As SignResult_TYPE, _
     Optional idxSignature As Long = -1) As Boolean
@@ -730,9 +713,13 @@ Public Function SignVerify( _
     
     AppendErrorLogCustom "SignVerify: " & sFilePath
     
+    If Flags And SV_SelfTest Then Dbg "Flags: " & Flags
+    
     WipeSignResult SignResult
     
     ToggleWow64FSRedirection True, , bOldRedir
+    
+    If InStr(sFilePath, "%") <> 0 Then sFilePath = EnvironW(sFilePath)
     
     If (Flags And SV_CheckSecondarySignature) Then Flags = Flags Or SV_CacheDoNotLoad Or SV_CacheDoNotSave 'Or SV_DisableCatalogVerify
     
@@ -750,9 +737,12 @@ Public Function SignVerify( _
         If oSignIndex.Exists(sFilePath) Then
             SignResult = SignCache(oSignIndex(sFilePath))
             bCacheTaken = True
+            If Flags And SV_SelfTest Then Dbg "Found in sign. cache"
             GoTo Finalize
         End If
     End If
+    
+    If Flags And SV_SelfTest Then Dbg "Stage 1"
     
     If Not CBool(Flags And SV_NoCatPrediction) Then
     
@@ -778,6 +768,7 @@ Public Function SignVerify( _
             
             LoadCatHashes
             
+            ' Don't touch it! Zero names can be used for service actions, like loading the precache.
             If Len(sFilePath) = 0 Then
                 ToggleWow64FSRedirection bOldRedir
                 Exit Function
@@ -850,6 +841,9 @@ Public Function SignVerify( _
     ToggleWow64FSRedirection False, sFilePath, bOldRedir
     'opening the file
     hFile = CreateFile(StrPtr(sFilePath), FILE_READ_ATTRIBUTES Or FILE_READ_DATA Or STANDARD_RIGHTS_READ, FILE_SHARE_READ Or FILE_SHARE_WRITE Or FILE_SHARE_DELETE, ByVal 0&, OPEN_EXISTING, g_FileBackupFlag, ByVal 0&)
+    
+    If Flags And SV_SelfTest Then Dbg "hFile: " & hFile
+    
     If (INVALID_HANDLE_VALUE = hFile) Then GoTo Finalize
     'redir. ON
     ToggleWow64FSRedirection bOldRedir
@@ -1274,6 +1268,7 @@ SkipCatCheck:
     If ReturnVal = TRUST_E_NOSIGNATURE And Len(sCatPredict) <> 0 Then
         'wrong prediction -> should restart context
         bWrongPredict = True
+        If Flags And SV_SelfTest Then Dbg "Wrong cat. prediction"
         GoTo Finalize
     Else
         If Len(sCatPredict) <> 0 Then
@@ -1302,7 +1297,7 @@ SkipCatCheck:
         
         If (Flags And SV_CheckSecondarySignature) And idxSignature = -1 Then ' if index is not specified
         
-            If SignResult.NumberOfSigns < 2 Or Not IsWin8AndNewer Then
+            If SignResult.NumberOfSigns < 2 Or Not IsWin8AndNewer Then ' this flag is only supported on Win8+
                 WipeSignResult SignResult
                 ReturnVal = TRUST_E_NOSIGNATURE
             Else
@@ -1654,6 +1649,39 @@ Finalize:
         Next
     End If
     
+    If Flags And SV_SelfTest Then
+        With SignResult
+            
+            Dbg "isSigned: " & .isSigned
+            Dbg "isLegit: " & .isLegit
+            Dbg "isSignedByCert: " & .isSignedByCert
+            Dbg "isWHQL: " & .isWHQL
+            Dbg "CatalogPath: " & .CatalogPath
+            Dbg "isMicrosoftSign: " & .isMicrosoftSign
+            Dbg "IsEmbedded: " & .IsEmbedded
+            Dbg "isSelfSigned: " & .isSelfSigned
+            Dbg "AlgorithmCertHash: " & .AlgorithmCertHash
+            Dbg "AlgorithmSignDigest: " & .AlgorithmSignDigest
+            Dbg "Issuer: " & .Issuer
+            Dbg "SubjectName: " & .SubjectName
+            Dbg "SubjectEmail: " & .SubjectEmail
+            Dbg "HashRootCert: " & .HashRootCert
+            Dbg "isMicrosoftCert: " & .isMicrosoftCert
+            Dbg "HashFinalCert: " & .HashFinalCert
+            Dbg "HashFileCode: " & .HashFileCode
+            Dbg "DateCertBegin: " & .DateCertBegin
+            Dbg "DateCertExpired: " & .DateCertExpired
+            Dbg "DateTimeStamp: " & .DateTimeStamp
+            Dbg "NumberOfSigns: " & .NumberOfSigns
+            Dbg "IdxVerifiedSign: " & .IdxVerifiedSign
+            Dbg "ShortMessage: " & .ShortMessage
+            Dbg "FullMessage: " & .FullMessage
+            Dbg "ReturnCode: " & .ReturnCode
+            Dbg "FilePathVerified: " & .FilePathVerified
+
+        End With
+    End If
+    
     If bWrongPredict Then
         SignVerify = SignVerify(sFilePath, Flags Or SV_NoCatPrediction Or SV_CacheDoNotLoad, SignResult)
     End If
@@ -1734,7 +1762,6 @@ Private Sub GetSignerInfo(StateData As Long, SignResult As SignResult_TYPE, Flag
     Dim MsgSigner As CMSG_SIGNER_INFO
     Dim AlgoDesc As String
     Dim TimeStamp As Date
-    Dim Stady As Long
     Dim NumCPSigners As Long
     
     'Certificate & Signature hashes:
@@ -1747,21 +1774,11 @@ Private Sub GetSignerInfo(StateData As Long, SignResult As SignResult_TYPE, Flag
     'CPCERT(CPSigner.csCertChain - 1): it's a root cert. - we'll get hash from there to compare
     '  with well known trusted Certification Authorities (this module contains the list of fingerprints of Microsoft root certs.)
     
-    Stady = 1
-    
     If GetSignaturesFromStateData(StateData, SignerCert, NumSigners, CPSigner, NumCPSigners, TimeStamp, Flags) Then
-    
-        Stady = 2
         
         With SignResult
-        
-            Stady = 3
             
-            If Not CBool(Flags And SV_LightCheck) Then
-                .DateTimeStamp = TimeStamp
-            End If
-            
-            Stady = 4
+            .DateTimeStamp = TimeStamp
             
             If NumSigners <> 0 Then
             
@@ -1773,76 +1790,53 @@ Private Sub GetSignerInfo(StateData As Long, SignResult As SignResult_TYPE, Flag
                     '    Next
                     'Next
                     
-                    Stady = 5
-                    
                     'Root cert. index (Issuer)
                     idxRoot = UBound(SignerCert(0).Certificate)
-                    Stady = 6
                     pCertificate = SignerCert(0).Certificate(idxRoot)
-                    
-                    Stady = 7
                     .HashRootCert = ExtractPropertyFromCertificateByID(pCertificate, CERT_HASH_PROP_ID)
+                    .isMicrosoftCert = IsMicrosoftCertHash(.HashRootCert)
                     
                     If Flags And SV_LightCheck Then GoTo Continue
-                    
-                    Stady = 8
+                    If Flags And SV_LightCheckMS And .isMicrosoftCert Then GoTo Continue
+
                     'Cert. index of person who sign (Subject)
                     idxSigner = 0
                     pCertificate = SignerCert(0).Certificate(idxSigner)
-                    
-                    Stady = 9
+
                     If GetCertInfoFromCertificate(pCertificate, CertInfo) Then
                         
                         ' alternate method
                         '.Issuer = GetCertstring(pCertificate, CERT_NAME_SIMPLE_DISPLAY_TYPE, CERT_NAME_ISSUER_FLAG)
-                        Stady = 10
                         .Issuer = GetSignerNameFromBLOB(CertInfo.Issuer)
-                        Stady = 11
                         .SubjectName = GetSignerNameFromBLOB(CertInfo.Subject)
-                        Stady = 12
                         .SubjectEmail = ExtractStringFromCertificate(pCertificate, CERT_NAME_EMAIL_TYPE, CERT_NAME_STR_ENABLE_PUNYCODE_FLAG)
-                        Stady = 13
                         .DateCertBegin = FileTime_To_VT_Date(CertInfo.NotBefore)
-                        Stady = 14
                         .DateCertExpired = FileTime_To_VT_Date(CertInfo.NotAfter)
                         .HashFinalCert = ExtractPropertyFromCertificateByID(pCertificate, CERT_HASH_PROP_ID)
                     End If
-                    
-                    Stady = 15
+
                     ' Get hash algorithm of signature
                     If NumCPSigners <> 0 Then
                         memcpy MsgSigner, ByVal CPSigner(0).psSigner, LenB(MsgSigner)
                     End If
-                    
-                    Stady = 16
+
                     .AlgorithmSignDigest = StringFromPtrA(MsgSigner.HashAlgorithm.pszObjId)
-                    
-                    Stady = 17
+
                     AlgoDesc = GetHashNameByOID(.AlgorithmSignDigest)
-                    'If Len(AlgoDesc) <> 0 Then .AlgorithmSignDigest = .AlgorithmSignDigest & " " & "(" & AlgoDesc & ")"
                     If Len(AlgoDesc) <> 0 Then .AlgorithmSignDigest = AlgoDesc
-                    
-                    Stady = 18
+
                     ' Get hash algorithm of certificate
                     If GetCertInfoFromCertificate(pCertificate, CertInfo) Then
-                        Stady = 19
                         .AlgorithmCertHash = StringFromPtrA(CertInfo.SignatureAlgorithm.pszObjId)
                     End If
-                    
-                    Stady = 20
+
                     AlgoDesc = GetHashNameByOID(.AlgorithmCertHash)
-                    'If Len(AlgoDesc) <> 0 Then .AlgorithmCertHash = .AlgorithmCertHash & " " & "(" & AlgoDesc & ")"
-                    
-                    Stady = 21
                     If Len(AlgoDesc) <> 0 Then .AlgorithmCertHash = AlgoDesc
                 
 Continue:
                     'release
-                    Stady = 22
                     For i = 0 To UBound(SignerCert)
-                        Stady = 23
                         For j = 0 To UBound(SignerCert(i).Certificate)
-                            Stady = 24
                             CertFreeCertificateContext SignerCert(i).Certificate(j)
                         Next
                     Next
@@ -1853,7 +1847,7 @@ Continue:
     
     Exit Sub
 ErrorHandler:
-    ErrorMsg Err, "GetSignerInfo. Stady: " & Stady
+    ErrorMsg Err, "GetSignerInfo"
     If inIDE Then Stop: Resume Next
 End Sub
 
@@ -2029,7 +2023,7 @@ Private Function GetSignaturesFromStateData( _
     '
     '                                            If CryptBlob.pbData <> 0 Then
     '
-    '                                                sTime = string(CryptBlob.cbData - 3, 0)
+    '                                                sTime = String$(CryptBlob.cbData - 3, 0)
     '                                                lstrcpynA StrPtr(sTime), CryptBlob.pbData + 2, Len(sTime) + 1
     '                                                sTime = StrConv(sTime, vbUnicode)
     '
@@ -2209,7 +2203,7 @@ ErrorHandler:
     If inIDE Then Stop: Resume Next
 End Function
 
-Public Function ExtractPropertyFromCertificateByID(pCertContext As Long, ID As Long) As String
+Public Function ExtractPropertyFromCertificateByID(pCertContext As Long, id As Long) As String
     On Error GoTo ErrorHandler
     
     Dim bufSize As Long
@@ -2217,11 +2211,11 @@ Public Function ExtractPropertyFromCertificateByID(pCertContext As Long, ID As L
     Dim i       As Long
     Dim hash    As String
 
-    CertGetCertificateContextProperty pCertContext, ID, 0&, bufSize
+    CertGetCertificateContextProperty pCertContext, id, 0&, bufSize
     If bufSize Then
         ReDim buf(bufSize - 1)
         hash = String$(bufSize * 2, 0&)
-        If CertGetCertificateContextProperty(pCertContext, ID, buf(0), bufSize) Then
+        If CertGetCertificateContextProperty(pCertContext, id, buf(0), bufSize) Then
             For i = 0 To bufSize - 1
                 Mid$(hash, i * 2 + 1) = Right$("0" & Hex$(buf(i)), 2&)
             Next
@@ -2238,7 +2232,7 @@ End Function
 
 ' Note: prefer ExtractStringFromCertificate() over this function
 '
-Public Function ExtractPropertyStrFromCertificateByID(pCertContext As Long, ID As Long) As String
+Public Function ExtractPropertyStrFromCertificateByID(pCertContext As Long, id As Long) As String
     On Error GoTo ErrorHandler
     
     Dim bufSize As Long
@@ -2246,10 +2240,10 @@ Public Function ExtractPropertyStrFromCertificateByID(pCertContext As Long, ID A
     Dim i       As Long
     Dim hash    As String
 
-    CertGetCertificateContextProperty pCertContext, ID, 0&, bufSize
+    CertGetCertificateContextProperty pCertContext, id, 0&, bufSize
     If bufSize Then
         buf = String$(bufSize \ 2 + 1, 0)
-        If CertGetCertificateContextProperty(pCertContext, ID, ByVal StrPtr(buf), bufSize) Then
+        If CertGetCertificateContextProperty(pCertContext, id, ByVal StrPtr(buf), bufSize) Then
             ExtractPropertyStrFromCertificateByID = buf
         End If
     End If
@@ -2437,7 +2431,7 @@ End Sub
 
 Public Function IsMicrosoftCertHash(hash As String) As Boolean
     Static isInit As Boolean
-    Static Hashes(22) As String
+    Static Hashes(28) As String
     Dim i As Long
     
     If Not isInit Then
@@ -2490,6 +2484,18 @@ Public Function IsMicrosoftCertHash(hash As String) As Boolean
         Hashes(21) = "73A5E64A3BFF8316FF0EDCCC618A906E4EAE4D74"
         'Microsoft EV ECC Root Certificate Authority 2017; 6B1937ABFD64E1E40DAF2262A27857C015D6228D; 174347FA325E89B84EF66CE9F54EF0F28F7BA71AB1D510D46852C0414F03034C2875D7CD4FA8699BCE91E37A3162B792; BD0202AC3BAFB63DE0402F2F3A236CCD
         Hashes(22) = "6B1937ABFD64E1E40DAF2262A27857C015D6228D"
+        'Microsoft Assurance Designation Root 2011; AD34FF084A8E0ACB42D83365A3F2EB686BC191C4; C8BBF2350C4014034F63FD198A499D28497728FD3651EF9D6086009A87DC1073; 72844B9095423C5CA285143D8679EA91
+        Hashes(23) = "AD34FF084A8E0ACB42D83365A3F2EB686BC191C4"
+        'Microsoft Code Signing PCA 2011; F252E794FE438E35ACE6E53762C0A234A2C52135; F6F717A43AD9ABDDC8CEFDDE1C505462535E7D1307E630F9544A2D14FE8BF26E; 87E0FFB0415D8AD49500855F8BA368C4
+        Hashes(24) = "F252E794FE438E35ACE6E53762C0A234A2C52135"
+        'Microsoft Code Signing PCA; 3CAF9BA2DB5570CAF76942FF99101B993888E257; 27543A3F7612DE2261C7228321722402F63A07DE; FE24F2EA00130A30CAFACB26837E8A28
+        Hashes(25) = "3CAF9BA2DB5570CAF76942FF99101B993888E257"
+        'Microsoft Time-Stamp PCA 2010; 2AA752FE64C49ABE82913C463529CF10FF2F04EE; 85975B97560B1C3698F6EA90E4423691BFCC76EF2B95971293C079363F4DECD7; AC31B62D01FE1EAF38C0D0E765DCD6B1
+        Hashes(26) = "2AA752FE64C49ABE82913C463529CF10FF2F04EE"
+        'Microsoft Identity Verification Root Certificate Authority 2020; F40042E2E5F7E8EF8189FED15519AECE42C3BFA2; 41CE925678DFE0CCAA8089263C242B897CA582089D14E5EB685FCA967F36DBD334E97E81FD0E64815F851F914ADE1A1E; 9F687581F7EF744ECFC12B9CEE6238F1
+        Hashes(27) = "F40042E2E5F7E8EF8189FED15519AECE42C3BFA2"
+        'Microsoft Intune Root Certification Authority; 12ECCCE41034DB56EC978443531DB185327E70F5; 6AAB6CC62ED96438F2E4CEB96A9DE488E9D6061C0D11250018CEBCC54407E823; 5B4342A039A7B238E44E6A5A0B1DD1F7
+        Hashes(28) = "12ECCCE41034DB56EC978443531DB185327E70F5"
         
         'Root Agency (MD5 digest); FEE449EE0E3965A5246F000E87FDE2A065FD89D4
         
@@ -2546,7 +2552,8 @@ Public Sub FindNewMicrosoftCodeSignCert()
                             
                             If IssuedTo <> "localhost" _
                                 And FriendlyName <> "Microsoft Exchange" _
-                                And FriendlyName <> "Symantec Enterprise Mobile Root for Microsoft" Then
+                                And FriendlyName <> "Symantec Enterprise Mobile Root for Microsoft" _
+                                And FriendlyName <> "Microsoft Certificate Trust List PCA" Then
                                 
                                 sData = vbNullString
                                 
@@ -2559,7 +2566,10 @@ Public Sub FindNewMicrosoftCodeSignCert()
                                     sData = Reg.ExportKeyToVariable(HKCU, "SOFTWARE\Microsoft\SystemCertificates\ROOT\Certificates\" & HashCert, False, True, True)
                                 End If
                                 If Len(sData) <> 0 Then
-                                    AddWarning "New Root certificate is detected! Report to developer, please:" & vbCrLf & Replace(sData, vbCrLf, "\n")
+                                    AddWarning "New Root certificate is detected! Report to developer, please, at https://github.com/dragokas/hijackthis/issues" & vbCrLf & _
+                                    "Name: """ & FriendlyName & """, " & _
+                                    "Valid: """ & FileTime_To_VT_Date(CertInfo.NotBefore) & " - " & FileTime_To_VT_Date(CertInfo.NotAfter) & """" & _
+                                    vbCrLf & Replace(sData, vbCrLf, "\n")
                                 End If
                             End If
                         End If
@@ -2578,19 +2588,46 @@ ErrorHandler:
     If inIDE Then Stop: Resume Next
 End Sub
 
+'ensure EDS subsystem is working correctly
+Public Function isEDS_Work(Optional bGetMsg As Boolean, Optional sReturnMsg As String) As Boolean
+    Static bWork As Boolean
+    Static bInit As Boolean
+    Static sMsg As String
+    
+    If Not bInit Then
+        bInit = True
+        Dim SignResult As SignResult_TYPE
+        SignVerify BuildPath(sWinDir, "system32\ntdll.dll"), SV_LightCheck Or SV_SelfTest, SignResult
+        If IsMicrosoftCertHash(SignResult.HashRootCert) Then
+            bWork = True
+        End If
+        sMsg = SignResult.ShortMessage & " (" & SignResult.FullMessage & ")"
+    End If
+    isEDS_Work = bWork
+    If bGetMsg Then sReturnMsg = sMsg
+End Function
+
 Public Function IsMicrosoftFile( _
     sFile As String, _
     Optional bAllowDamagedSubsystem As Boolean = True, _
     Optional bAllowCheckBySFC As Boolean = False) As Boolean
     
     On Error GoTo ErrorHandler:
-    Dim SignResult As SignResult_TYPE
     
     If FileMissing(sFile) Then Exit Function
     
-    If isEDS_Work() Then
+    Static bInit As Boolean
+    Static bEDS_Work As Boolean
+    
+    If Not bInit Then
+        bInit = True
+        bEDS_Work = isEDS_Work()
+    End If
+    
+    If bEDS_Work Then
         
-        SignVerify sFile, SV_LightCheck Or SV_PreferInternalSign, SignResult
+        Dim SignResult As SignResult_TYPE
+        SignVerify sFile, SV_LightCheck Or SV_PreferInternalSign Or IIf(bDebugMode, SV_SelfTest, 0), SignResult
         
         If SignResult.isMicrosoftSign Then
             If SignResult.ReturnCode = CERT_E_EXPIRED Then
@@ -2619,6 +2656,53 @@ Public Function IsMicrosoftFile( _
     Exit Function
 ErrorHandler:
     ErrorMsg Err, "IsMicrosoftFile. File: " & sFile
+    If inIDE Then Stop: Resume Next
+End Function
+
+Public Function IsMicrosoftFileEx( _
+    sFile As String, _
+    Optional out_Signer) As Boolean
+    
+    On Error GoTo ErrorHandler:
+    
+    out_Signer = vbNullString
+    
+    If FileMissing(sFile) Then Exit Function
+    
+    Static bInit As Boolean
+    Static bEDS_Work As Boolean
+    
+    If Not bInit Then
+        bInit = True
+        bEDS_Work = isEDS_Work()
+    End If
+    
+    If bEDS_Work Then
+        
+        Dim SignResult As SignResult_TYPE
+        
+        SignVerify sFile, SV_LightCheckMS Or SV_PreferInternalSign Or IIf(bDebugMode, SV_SelfTest, 0), SignResult
+        
+        If SignResult.isMicrosoftSign Then
+            If SignResult.ReturnCode = CERT_E_EXPIRED Then
+                IsMicrosoftFileEx = True
+            Else
+                IsMicrosoftFileEx = SignResult.isLegit
+            End If
+            
+            If IsMicrosoftFileEx Then out_Signer = "(Sign: 'Microsoft')"
+        Else
+            If SignResult.isLegit Then
+                out_Signer = "(Sign: '" & SignResult.SubjectName & "')"
+            Else
+                out_Signer = STR_NOT_SIGNED
+            End If
+        End If
+    End If
+    
+    Exit Function
+ErrorHandler:
+    ErrorMsg Err, "IsMicrosoftFileEx. File: " & sFile
     If inIDE Then Stop: Resume Next
 End Function
 

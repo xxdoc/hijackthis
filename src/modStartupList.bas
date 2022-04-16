@@ -59,7 +59,7 @@ Private Type KEYBDINPUT
     wVk As Integer
     wScan As Integer
     dwFlags As Long
-    time As Long
+    Time As Long
     dwExtraInfo As Long
 End Type
 
@@ -246,9 +246,9 @@ Public bShowLargeHosts As Boolean, bShowLargeZones As Boolean
 
 Private Const NUM_OF_SECTIONS As Long = 58
 
-Public Function StartupList_UpdateCaption(frm As Form) As Long
+Public Function StartupList_UpdateCaption(Frm As Form) As Long
 
-    frm.Caption = "StartupList v." & StartupListVer & " fork" & _
+    Frm.Caption = "StartupList v." & StartupListVer & " fork" & _
         Replace$(" - " & Translate(906), "[]", NUM_OF_SECTIONS)
     
     StartupList_UpdateCaption = NUM_OF_SECTIONS
@@ -293,7 +293,7 @@ ErrorHandler:
 End Function
 
 Public Sub ShowFile(sFile$)
-    OpenAndSelectFile PathX64(sFile)
+    OpenAndSelectFile sFile 'PathX64(sFile)
 End Sub
 
 Public Sub SendToNotepad(sFile$)
@@ -572,7 +572,7 @@ Public Sub RunScannerGetMD5(sFile$, sKey$)
     On Error GoTo ErrorHandler:
     Dim sMD5$, sAppVer$, sSection$
     sMD5 = GetFileCheckSum(sFile, , True)
-    sAppVer = "StartupList" & App.Major & "." & Format$(App.Minor, "00") & "." & App.Revision
+    sAppVer = "StartupList" & AppVerString
     sSection = GetRunScannerItem(GetSectionFromKey(sKey), sKey)
     
     'ShellRun
@@ -589,12 +589,12 @@ End Sub
 Public Sub RunScannerGetCLSID(sCLSID$, sKey$)
     On Error GoTo ErrorHandler:
     Dim sAppVer$, sSection$
-    sAppVer = "StartupList" & App.Major & "." & Format$(App.Minor, "00") & "." & App.Revision
+    sAppVer = "StartupList" & AppVerString
     sSection = GetRunScannerItem(GetSectionFromKey(sKey), sKey)
     
     'ShellRun
     OpenURL "https://www.runscanner.net/getGUID.aspx?GUID=" & sCLSID & _
-          "&source=StartupList" & App.Major & "." & Format$(App.Minor, "00") & "." & App.Revision
+          "&source=StartupList" & AppVerString
     Exit Sub
 ErrorHandler:
     ErrorMsg Err, "RunScannerGetCLSID"
@@ -769,7 +769,7 @@ Public Function NodeIsValidFile(objNode As Node) As Boolean
     On Error GoTo ErrorHandler:
     NodeIsValidFile = False
     If objNode.Tag <> vbNullString Then
-        If FileExists(objNode.Tag) And Not IsFolder(objNode.Tag) Then
+        If FileExists(objNode.Tag) And Not FolderExists(objNode.Tag) Then
             NodeIsValidFile = True
         End If
     End If
@@ -817,19 +817,6 @@ Public Function NodeExists(sKey$) As Boolean
     Else
         NodeExists = True
     End If
-End Function
-
-Private Function IsFolder(sFile$) As Boolean
-    On Error GoTo ErrorHandler:
-    If GetFileAttributes(sFile) And FILE_ATTRIBUTE_DIRECTORY Then
-        IsFolder = True
-    Else
-        IsFolder = False
-    End If
-    Exit Function
-ErrorHandler:
-    ErrorMsg Err, "IsFolder"
-    If inIDE Then Stop: Resume Next
 End Function
 
 Public Sub RegEnumIEBands(tvwMain As TreeView)
@@ -924,7 +911,7 @@ Public Sub RegEnumKillBits(tvwMain As TreeView)
                 sFile = ExpandEnvironmentVars(Reg.GetString(HKEY_CLASSES_ROOT, "CLSID\" & sCLSID & "\InprocServer32", vbNullString))
                 sFile = GetLongFilename(sFile)
                 If sFile <> vbNullString Then
-                    If sName = vbNullString Then sName = "(no name)"
+                    If sName = vbNullString Then sName = STR_NO_NAME
                     If Not bShowCLSIDs Then
                         tvwMain.Nodes.Add "Killbits", tvwChild, "Killbits" & i, sName & " - " & sFile, "dll"
                     Else
@@ -1411,7 +1398,7 @@ Public Sub RegEnumDriverFilters(tvwMain As TreeView)
         Do Until RegEnumKeyEx(hKey, i, sKey, Len(sKey), 0, vbNullString, 0, ByVal 0) <> 0
             sKey = TrimNull(sKey)
             sName = Reg.GetString(HKEY_LOCAL_MACHINE, sClassKey & "\" & sKey, vbNullString)
-            If sName = vbNullString Then sName = "(no name)"
+            If sName = vbNullString Then sName = STR_NO_NAME
             sLFilters = Split(Reg.GetString(HKEY_LOCAL_MACHINE, sClassKey & "\" & sKey, "LowerFilters", False), Chr$(0))
             sUFilters = Split(Reg.GetString(HKEY_LOCAL_MACHINE, sClassKey & "\" & sKey, "UpperFilters", False), Chr$(0))
             'root key for device
@@ -1481,7 +1468,7 @@ Public Sub RegEnumDriverFilters(tvwMain As TreeView)
             sSubkeys = Split(Reg.EnumSubKeys(HKEY_LOCAL_MACHINE, sDeviceKey & "\" & sSections(i) & "\" & sDevices(j)), "|")
             For k = 0 To UBound(sSubkeys)
                 sName = Reg.GetString(HKEY_LOCAL_MACHINE, sDeviceKey & "\" & sSections(i) & "\" & sDevices(j) & "\" & sSubkeys(k), "DeviceDesc")
-                If sName = vbNullString Then sName = "(no name)"
+                If sName = vbNullString Then sName = STR_NO_NAME
                 sUFilters = Split(Reg.GetString(HKEY_LOCAL_MACHINE, sDeviceKey & "\" & sSections(i) & "\" & sDevices(j) & "\" & sSubkeys(k), "UpperFilters", False), Chr$(0))
                 sLFilters = Split(Reg.GetString(HKEY_LOCAL_MACHINE, sDeviceKey & "\" & sSections(i) & "\" & sDevices(j) & "\" & sSubkeys(k), "LowerFilters", False), Chr$(0))
                 If UBound(sUFilters) > 0 Or UBound(sLFilters) > 0 Then
@@ -1545,7 +1532,7 @@ Public Sub RegEnumDriverFilters(tvwMain As TreeView)
             Do Until RegEnumKeyEx(hKey, i, sKey, Len(sKey), 0, vbNullString, 0, ByVal 0) <> 0
                 sKey = TrimNull(sKey)
                 sName = Reg.GetString(HKEY_LOCAL_MACHINE, sClassKey & "\" & sKey, vbNullString)
-                If sName = vbNullString Then sName = "(no name)"
+                If sName = vbNullString Then sName = STR_NO_NAME
                 sLFilters = Split(Reg.GetString(HKEY_LOCAL_MACHINE, sClassKey & "\" & sKey, "LowerFilters", False), Chr$(0))
                 sUFilters = Split(Reg.GetString(HKEY_LOCAL_MACHINE, sClassKey & "\" & sKey, "UpperFilters", False), Chr$(0))
                 'root key for device
@@ -1613,7 +1600,7 @@ Public Sub RegEnumDriverFilters(tvwMain As TreeView)
                 sSubkeys = Split(Reg.EnumSubKeys(HKEY_LOCAL_MACHINE, sDeviceKey & "\" & sSections(i) & "\" & sDevices(j)), "|")
                 For k = 0 To UBound(sSubkeys)
                     sName = Reg.GetString(HKEY_LOCAL_MACHINE, sDeviceKey & "\" & sSections(i) & "\" & sDevices(j) & "\" & sSubkeys(k), "DeviceDesc")
-                    If sName = vbNullString Then sName = "(no name)"
+                    If sName = vbNullString Then sName = STR_NO_NAME
                     sUFilters = Split(Reg.GetString(HKEY_LOCAL_MACHINE, sDeviceKey & "\" & sSections(i) & "\" & sDevices(j) & "\" & sSubkeys(k), "UpperFilters", False), Chr$(0))
                     sLFilters = Split(Reg.GetString(HKEY_LOCAL_MACHINE, sDeviceKey & "\" & sSections(i) & "\" & sDevices(j) & "\" & sSubkeys(k), "LowerFilters", False), Chr$(0))
                     If UBound(sUFilters) > 0 Or UBound(sLFilters) > 0 Then

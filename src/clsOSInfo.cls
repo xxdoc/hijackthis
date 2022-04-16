@@ -18,13 +18,14 @@ Attribute VB_Ext_KEY = "Top_Level" ,"Yes"
 Option Explicit
 
 ' OSInfo class by Alex Dragokas
-' ver 1.11
+' ver 1.13
 '
 
 'Tips:
 
 ' Versions:
 
+' 10.0* | Windows 11 (builds 22000+)
 ' 10.0* | Windows Server 2016
 ' 10.0* | Windows 10 (builds 9885+, Insider Preview)
 ' 6.4*  | Windows 10 Technical Preview (builds 9879-)
@@ -48,7 +49,8 @@ Option Explicit
 
 ' Last Service Packs:
 
-' 10     | SP0, ReleaseId=1803+, Build=17134+ (Creators Update)
+' 11     | SP0, ReleaseId=2009+, Build=22000+ (Sun Valley)
+' 10     | SP0, ReleaseId=2009+, Build=19043+ (Vibranium)
 ' 8.1    | SP0, Update 1+, Build=9600
 ' 8      | SP0, Build=9200
 ' 7      | SP1, Build=7601
@@ -60,6 +62,12 @@ Option Explicit
 ' NT 4.0 | SP6a, Build=1381
 ' 98     | Build=2222 A
 ' 95     | Build=950
+
+' Build versions:
+
+' https://en.wikipedia.org/wiki/List_of_Microsoft_Windows_versions
+' https://www.techpowerup.com/forums/threads/windows-os-builds-list.167382/
+' https://docs.microsoft.com/en-Us/windows-server/get-started/windows-server-release-info
 
 Private Enum ePlatformID
     Win32S = 0
@@ -85,19 +93,19 @@ Private Type RTL_OSVERSIONINFOEXW
     wReserved As Byte
 End Type
 
-Private Type OSVERSIONINFOEXW
-    dwOSVersionInfoSize As Long
-    dwMajorVersion As Long
-    dwMinorVersion As Long
-    dwBuildNumber As Long
-    dwPlatformId As Long
-    szCSDVersion(127) As Integer
-    wServicePackMajor As Integer
-    wServicePackMinor As Integer
-    wSuiteMask As Integer
-    wProductType As Byte
-    wReserved As Byte
-End Type
+'Private Type OSVERSIONINFOEXW
+'    dwOSVersionInfoSize As Long
+'    dwMajorVersion As Long
+'    dwMinorVersion As Long
+'    dwBuildNumber As Long
+'    dwPlatformId As Long
+'    szCSDVersion(127) As Integer
+'    wServicePackMajor As Integer
+'    wServicePackMinor As Integer
+'    wSuiteMask As Integer
+'    wProductType As Byte
+'    wReserved As Byte
+'End Type
 
 Private Type SID_IDENTIFIER_AUTHORITY
     Value(0 To 5) As Byte
@@ -113,12 +121,12 @@ Private Type TOKEN_GROUPS
     Groups(20) As SID_AND_ATTRIBUTES
 End Type
 
-Private Type TOKEN_PRIVILEGES
-    PrivilegeCount  As Long
-    LuidLowPart     As Long
-    LuidHighPart    As Long
-    Attributes      As Long
-End Type
+'Private Type TOKEN_PRIVILEGES
+'    PrivilegeCount  As Long
+'    LuidLowPart     As Long
+'    LuidHighPart    As Long
+'    Attributes      As Long
+'End Type
 
 Private Type OBJECT_ATTRIBUTES
     Length                   As Long
@@ -174,15 +182,19 @@ Private Declare Function lstrcpyW Lib "kernel32.dll" (ByVal lpStrDest As Long, B
 Private Declare Function ConvertSidToStringSid Lib "Advapi32.dll" Alias "ConvertSidToStringSidW" (ByVal pSid As Long, StringSid As Long) As Long
 Private Declare Function GetModuleHandle Lib "kernel32.dll" Alias "GetModuleHandleW" (ByVal lpModuleName As Long) As Long
 Private Declare Sub RtlGetNtVersionNumbers Lib "ntdll.dll" (Major As Long, Minor As Long, Build As Long)
-Private Declare Function LookupPrivilegeValue Lib "Advapi32.dll" Alias "LookupPrivilegeValueW" (ByVal lpSystemName As Long, ByVal lpName As Long, lpLuid As Long) As Long
-Private Declare Function AdjustTokenPrivileges Lib "Advapi32.dll" (ByVal TokenHandle As Long, ByVal DisableAllPrivileges As Long, NewState As TOKEN_PRIVILEGES, ByVal BufferLength As Long, ByVal PreviousState As Long, ByVal ReturnLength As Long) As Long
+'Private Declare Function LookupPrivilegeValue Lib "Advapi32.dll" Alias "LookupPrivilegeValueW" (ByVal lpSystemName As Long, ByVal lpName As Long, lpLuid As Long) As Long
+'Private Declare Function AdjustTokenPrivileges Lib "Advapi32.dll" (ByVal TokenHandle As Long, ByVal DisableAllPrivileges As Long, NewState As TOKEN_PRIVILEGES, ByVal BufferLength As Long, ByVal PreviousState As Long, ByVal ReturnLength As Long) As Long
 Private Declare Function OpenThreadToken Lib "Advapi32.dll" (ByVal ThreadHandle As Long, ByVal DesiredAccess As Long, ByVal OpenAsSelf As Long, TokenHandle As Long) As Long
 Private Declare Function GetCurrentThread Lib "kernel32.dll" () As Long
 Private Declare Function NtOpenSymbolicLinkObject Lib "ntdll.dll" (LinkHandle As Long, ByVal DesiredAccess As Long, ObjectAttributes As OBJECT_ATTRIBUTES) As Long
-Private Declare Function NtOpenDirectoryObject Lib "ntdll.dll" (DirectoryHandle As Long, ByVal DesiredAccess As Long, ObjectAttributes As OBJECT_ATTRIBUTES) As Long
+'Private Declare Function NtOpenDirectoryObject Lib "ntdll.dll" (DirectoryHandle As Long, ByVal DesiredAccess As Long, ObjectAttributes As OBJECT_ATTRIBUTES) As Long
 Private Declare Function NtClose Lib "ntdll.dll" (ByVal Handle As Long) As Long
-Private Declare Function IsOS Lib "Shlwapi.dll" Alias "#437" (ByVal dwOS As Long) As Long
+'Private Declare Function IsOS Lib "Shlwapi.dll" Alias "#437" (ByVal dwOS As Long) As Long
+Private Declare Function GetUserName Lib "Advapi32.dll" Alias "GetUserNameW" (ByVal lpBuffer As Long, nSize As Long) As Long
+Private Declare Function GetComputerName Lib "kernel32.dll" Alias "GetComputerNameW" (ByVal lpBuffer As Long, nSize As Long) As Long
+Private Declare Function lstrlen Lib "kernel32.dll" Alias "lstrlenW" (ByVal lpString As Long) As Long
 
+Private Const MAX_PATH                  As Long = 260&
 Private Const SM_SERVERR2               As Long = 89&
 Private Const SM_MEDIACENTER            As Long = 87&
 Private Const SM_STARTER                As Long = 88&
@@ -205,8 +217,8 @@ Private Const VER_SUITE_WH_SERVER       As Long = &H8000&
 Private Const VER_NT_WORKSTATION        As Long = 1&
 Private Const VER_NT_DOMAIN_CONTROLLER  As Long = 2&
 Private Const VER_NT_SERVER             As Long = 3&
-Private Const LOCALE_SYSTEM_DEFAULT     As Long = &H800&
-Private Const LOCALE_USER_DEFAULT       As Long = &H400&
+'Private Const LOCALE_SYSTEM_DEFAULT     As Long = &H800&
+'Private Const LOCALE_USER_DEFAULT       As Long = &H400&
 Private Const LOCALE_SENGLANGUAGE       As Long = &H1001&
 Private Const HKEY_LOCAL_MACHINE        As Long = &H80000002
 Private Const KEY_WOW64_64KEY           As Long = &H100&
@@ -215,11 +227,11 @@ Private Const DIRECTORY_QUERY           As Long = 1&
 Private Const STATUS_SUCCESS            As Long = 0&
 Private Const ERROR_SUCCESS             As Long = 0&
 Private Const TOKEN_QUERY               As Long = &H8&
-Private Const ERROR_NO_TOKEN            As Long = 1008&
+'Private Const ERROR_NO_TOKEN            As Long = 1008&
 Private Const TokenElevation            As Long = 20&
-Private Const TOKEN_ADJUST_PRIVILEGES   As Long = &H20
-Private Const SE_PRIVILEGE_ENABLED      As Long = 2&
-Private Const STATUS_ACCESS_DENIED      As Long = &HC0000022
+'Private Const TOKEN_ADJUST_PRIVILEGES   As Long = &H20
+'Private Const SE_PRIVILEGE_ENABLED      As Long = 2&
+'Private Const STATUS_ACCESS_DENIED      As Long = &HC0000022
 Private Const STATUS_OBJECT_NAME_NOT_FOUND As Long = &HC0000034
 
 
@@ -245,6 +257,7 @@ Dim IsWindows7OrGreater_    As Boolean
 Dim IsWindows8OrGreater_    As Boolean
 Dim IsWindows8Point1OrGreater_ As Boolean
 Dim IsWindows10OrGreater_   As Boolean
+Dim IsWindows11OrGreater_   As Boolean
 Dim LangSystemName_         As String
 Dim LangSystemNameFull_     As String
 Dim LangSystemCode_         As Long
@@ -264,6 +277,7 @@ Dim SID_CurrentProcess_     As String
 Dim SafeBootMode_           As String
 Dim Platform_               As String 'Win9x / WinNT
 Dim ReleaseId_              As Long
+Dim DisplayVersion_         As String
 Dim IsServer_               As Boolean
 Dim IsDomainController_     As Boolean
 Dim inIDE                   As Boolean
@@ -271,7 +285,7 @@ Dim IsWin64_                As Boolean
 Dim SecureBoot_             As Boolean
 Dim PlatformID_             As Long
 Dim IsLocalSystemContext_   As Boolean
-Dim IsAdmin_                As Boolean
+Dim IsAdminGroup_           As Boolean
 Dim IsSystemCaseSensitive_  As Boolean
 Dim IsEmbedded_             As Boolean
 Dim LCID_UserDefault_       As Long
@@ -394,7 +408,17 @@ Private Sub Class_Initialize()
     IsWindows8Point1OrGreater_ = (MajorMinor_ >= 6.3)
     IsWindows10OrGreater_ = (MajorMinor_ >= 6.4)
     
+    If MajorMinor_ >= 10 Then
+        'Get ReleaseId for Windows 10
+        tmp = RegRead_REG_SZ("SOFTWARE\Microsoft\Windows NT\CurrentVersion", "ReleaseId")
+        If IsNumeric(tmp) Then ReleaseId_ = CLng(tmp)
+    End If
+    
+    DisplayVersion_ = RegRead_REG_SZ("SOFTWARE\Microsoft\Windows NT\CurrentVersion", "DisplayVersion")
+    
+    'OS Version List:
     'https://msdn.microsoft.com/en-us/library/windows/desktop/ms724833(v=vs.85).aspx
+    'https://docs.microsoft.com/en-Us/windows-server/get-started/windows-server-release-info
     
     PlatformID_ = osi.dwPlatformId
     
@@ -432,10 +456,26 @@ Private Sub Class_Initialize()
         
         Select Case MajorMinor_
         Case 10
+            Dim bIsWin11Core As Boolean
+            bIsWin11Core = (0 <> GetProcAddress(GetModuleHandle(StrPtr("kernel32.dll")), "GetTempPath2W"))
+            
             If osi.wProductType = VER_NT_WORKSTATION Then
-                OSName_ = "Windows 10"
+                
+                If osi.dwBuildNumber >= 22000 And bIsWin11Core Then
+                    OSName_ = "Windows 11"
+                    IsWindows11OrGreater_ = True
+                Else
+                    OSName_ = "Windows 10"
+                End If
             Else
-                OSName_ = "Windows Server 2016"
+                If ReleaseId_ >= 2009 And bIsWin11Core Then
+                    OSName_ = "Windows Server 2022"
+                    IsWindows11OrGreater_ = True
+                ElseIf ReleaseId_ >= 1803 Then
+                    OSName_ = "Windows Server 2019"
+                Else
+                    OSName_ = "Windows Server 2016"
+                End If
             End If
         Case 6.4
             OSName_ = "Windows 10"
@@ -540,19 +580,13 @@ Private Sub Class_Initialize()
         Platform_ = "Unix"
     End If
     
-    If OSName_ = "" Then
+    If Len(OSName_) = 0 Then
         OSName_ = "Windows Unknown" & "(ver: " & MajorMinor_ & ". PT: " & osi.wProductType & ". Build: " & osi.dwBuildNumber & ")" & " Registry's data: " & _
             RegRead_REG_SZ("SOFTWARE\Microsoft\Windows NT\CurrentVersion", "ProductName")
     End If
     
-    If MajorMinor_ >= 10 Then
-        'Get ReleaseId for Windows 10
-        tmp = RegRead_REG_SZ("SOFTWARE\Microsoft\Windows NT\CurrentVersion", "ReleaseId")
-        If IsNumeric(tmp) Then ReleaseId_ = CLng(tmp)
-    End If
-    
     'Редакция
-    If Edition_ = "" Then
+    If Len(Edition_) = 0 Then
         If MajorMinor_ >= 6 Then
             If GetProductInfo(osi.dwMajorVersion, osi.dwMinorVersion, osi.wServicePackMajor, osi.wServicePackMinor, ProductType) Then
                 Edition_ = GetProductName(ProductType)
@@ -576,7 +610,7 @@ Private Sub Class_Initialize()
     UserType_ = GetUserType()
     UserName_ = GetUserName_()
     ComputerName_ = GetComputerName_()
-    IsAdmin_ = (UserType_ = "Administrator")
+    IsAdminGroup_ = (UserType_ = "Administrators")
     
     GetCodePageInfo
     
@@ -765,7 +799,7 @@ Public Function IsProcessElevated(Optional hProcess As Long) As Boolean
     Dim dwIsElevated     As Long
     
     ' < Win Vista. Устанавливаем true, если пользователь состоит в группе "Администраторы"
-    If osi.dwMajorVersion < 6 Then IsProcessElevated = (GetUserType() = "Administrator"): Exit Function
+    If osi.dwMajorVersion < 6 Then IsProcessElevated = (GetUserType() = "Administrators"): Exit Function
 
     If hProcess = 0 Then hProcess = GetCurrentProcess()
     
@@ -824,6 +858,7 @@ Private Function GetUserType() As String
         GetTokenInformation hProcessToken, ByVal TokenGroups, 0&, 0&, BufferSize
         
         If BufferSize Then
+            Dim InfoBuffer() As Long
             ReDim InfoBuffer((BufferSize \ 4) - 1) As Long  ' Переводим размер byte -> Long
             
             ' Получаем информацию о SID-ах групп, ассоциированных с этим токеном
@@ -845,13 +880,13 @@ Private Function GetUserType() As String
                         If IsValidSid(tpTokens.Groups(i).SID) Then
                             ' Проверяем на соответствие
                             If EqualSid(ByVal tpTokens.Groups(i).SID, ByVal psidAdmin) Then
-                                GetUserType = "Administrator":  Exit For
+                                GetUserType = "Administrators":  Exit For
                             ElseIf EqualSid(ByVal tpTokens.Groups(i).SID, ByVal psidPower) Then
-                                GetUserType = "Power User":     Exit For
+                                GetUserType = "Power Users":     Exit For
                             ElseIf EqualSid(ByVal tpTokens.Groups(i).SID, ByVal psidUser) Then
-                                GetUserType = "Limited User":   Exit For
+                                GetUserType = "Limited Users":   Exit For
                             ElseIf EqualSid(ByVal tpTokens.Groups(i).SID, ByVal psidGuest) Then
-                                GetUserType = "Guest":          Exit For
+                                GetUserType = "Guests":          Exit For
                             End If
                         End If
                     Next
@@ -894,7 +929,7 @@ Private Function GetCurrentProcessSID() As String
         GetTokenInformation hProcessToken, ByVal TokenUser, 0&, 0&, dwSize
         
         If dwSize Then
-            
+            Dim InfoBuffer() As Long
             ReDim InfoBuffer((dwSize \ 4) - 1) As Long
             
             ' Получаем информацию о SID-ах групп, ассоциированных с этим токеном
@@ -938,9 +973,11 @@ Private Function GetIntegrityLevel(Optional hProcess As Long) As String
     Const SECURITY_MANDATORY_LOW_RID                As Long = &H1000&
     Const SECURITY_MANDATORY_MEDIUM_RID             As Long = &H2000&
     Const SECURITY_MANDATORY_UIACCESS_RID           As Long = SECURITY_MANDATORY_MEDIUM_RID + &H10&
+    Const SECURITY_MANDATORY_MEDIUM_PLUS_RID        As Long = &H2100&
     Const SECURITY_MANDATORY_HIGH_RID               As Long = &H3000&
     Const SECURITY_MANDATORY_SYSTEM_RID             As Long = &H4000&
     Const SECURITY_MANDATORY_PROTECTED_PROCESS_RID  As Long = &H5000&
+    Const SECURITY_MANDATORY_SECURE_PROCESS_RID     As Long = &H7000&
     
     Const TokenIntegrityLevel       As Long = 25&
     Const TOKEN_QUERY               As Long = &H8&
@@ -954,11 +991,11 @@ Private Function GetIntegrityLevel(Optional hProcess As Long) As String
     Dim pSidAuthCnt      As Long
     Dim SidAuthCnt       As Long
     Dim pILSid           As Long
-    Dim iLevel           As String
+    Dim sLevel           As String
     
     If osi.dwMajorVersion < 6 Then GetIntegrityLevel = "Not supported": Exit Function ' < Win Vista
     
-    iLevel = "Unknown"
+    sLevel = "Unknown"
     
     If hProcess = 0 Then hProcess = GetCurrentProcess()
     
@@ -990,22 +1027,28 @@ Private Function GetIntegrityLevel(Optional hProcess As Long) As String
                     
                             Select Case dwIntegrityLevel
                             
-                                Case Is < SECURITY_MANDATORY_UNTRUSTED_RID
-                                    iLevel = "Unknown"
                                 Case Is < SECURITY_MANDATORY_LOW_RID
-                                    iLevel = "Untrusted"
+                                    sLevel = "Untrusted"
                                 Case Is < SECURITY_MANDATORY_MEDIUM_RID
-                                    iLevel = "Low"
+                                    sLevel = "Low"
                                 Case SECURITY_MANDATORY_UIACCESS_RID
-                                    iLevel = "Medium (UIAccess)"
+                                    sLevel = "Medium (UIAccess)"
+                                Case SECURITY_MANDATORY_MEDIUM_PLUS_RID
+                                    sLevel = "Medium Plus"
                                 Case Is < SECURITY_MANDATORY_HIGH_RID
-                                    iLevel = "Medium"
+                                    sLevel = "Medium"
                                 Case Is < SECURITY_MANDATORY_SYSTEM_RID
-                                    iLevel = "High"
+                                    sLevel = "High"
                                 Case Is < SECURITY_MANDATORY_PROTECTED_PROCESS_RID
-                                    iLevel = "System"
+                                    sLevel = "System"
                                 Case Else
-                                    iLevel = "ProtectedProcess"
+                                    If dwIntegrityLevel And SECURITY_MANDATORY_PROTECTED_PROCESS_RID Then
+                                        sLevel = "Protected Process"
+                                    ElseIf dwIntegrityLevel And SECURITY_MANDATORY_SECURE_PROCESS_RID Then
+                                        sLevel = "Secure Process"
+                                    Else
+                                        sLevel = "Unknown (Level: 0x" & Hex(dwIntegrityLevel) & ")"
+                                    End If
                             End Select
                         End If
                     End If
@@ -1015,7 +1058,7 @@ Private Function GetIntegrityLevel(Optional hProcess As Long) As String
         End If
         CloseHandle hToken: hToken = 0
     End If
-    GetIntegrityLevel = iLevel
+    GetIntegrityLevel = sLevel
     
     AppendErrorLogCustom "GetIntegrityLevel - End"
     Exit Function
@@ -1161,8 +1204,7 @@ Private Function GetProductName(ProductType As Long) As String
     Case &H92&:        ProductName = "Server Standard (Semi-Annual Channel Core)"
     Case &HA1&:        ProductName = "Pro for Workstations"
     Case &HA2&:        ProductName = "Pro for Workstations N"
-    Case 0:
-        ProductName = "An unknown product"
+    Case &H0&:         ProductName = "An unknown product"
     Case Else
         ProductName = "Unknown Edition (0x" & Hex$(ProductType) & ")"
     End Select
@@ -1617,6 +1659,14 @@ Public Property Get IsWindowsXPOrGreater() As Boolean
     IsWindowsXPOrGreater = IsWindowsXPOrGreater_
 End Property
 
+Public Property Get IsWindowsXP_SP3OrGreater() As Boolean
+    Select Case MajorMinor_
+    Case Is > 5.1: IsWindowsXP_SP3OrGreater = True
+    Case Is < 5.1: IsWindowsXP_SP3OrGreater = False
+    Case Else: If SPver_ = 3 Then IsWindowsXP_SP3OrGreater = True
+    End Select
+End Property
+
 Public Property Get IsWindowsVistaOrGreater() As Boolean
     IsWindowsVistaOrGreater = IsWindowsVistaOrGreater_
 End Property
@@ -1635,6 +1685,10 @@ End Property
 
 Public Property Get IsWindows10OrGreater() As Boolean
     IsWindows10OrGreater = IsWindows10OrGreater_
+End Property
+
+Public Property Get IsWindows11OrGreater() As Boolean
+    IsWindows11OrGreater = IsWindows11OrGreater_
 End Property
 
 Public Property Get CodepageOEM() As String
@@ -1677,6 +1731,10 @@ Public Property Get ReleaseId() As Long
     ReleaseId = ReleaseId_
 End Property
 
+Public Property Get DisplayVersion() As String 'such as 21H1
+    DisplayVersion = DisplayVersion_
+End Property
+
 Public Property Get IsServer() As Boolean
     IsServer = IsServer_
 End Property
@@ -1705,8 +1763,8 @@ Public Property Get IsLocalSystemContext() As Boolean
     IsLocalSystemContext = IsLocalSystemContext_
 End Property
 
-Public Property Get IsAdmin() As Boolean
-    IsAdmin = IsAdmin_
+Public Property Get IsAdminGroup() As Boolean
+    IsAdminGroup = IsAdminGroup_
 End Property
 
 Public Property Get IsSystemCaseSensitive() As Boolean

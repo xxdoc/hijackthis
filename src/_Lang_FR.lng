@@ -90,7 +90,7 @@
 1041=Ne pas inclure dans les rapports les fichiers et le registre liés à Microsoft
 1042=Ignorer TOUTES les listes blanches
 1043=Inclure dans le rapport toutes les entrées indépendamment de la liste blanche
-1044=Calculer CS
+1044=Calculer la somme de contrôle
 1045=Si possible, calculer la somme de contrôle des fichiers
 1046=Calcul de hash
 1050=Zone du scan
@@ -98,6 +98,8 @@
 1052=Correction && Sauvegarde
 1053=Interface
 1070=Ligne de commande
+1080=Taille de l'adresse
+1081=caractères
 ;
 ; ============== EULA ============
 ;
@@ -177,7 +179,7 @@ et enregistrer un rapport
 1205=Gestionnaire de processus
 1206=Gestionnaire de fichiers Hosts
 1207=Suppression de fichier
-1208=Déverrouiller && Supprimer un fichier...
+1208=Déverrouiller fichier / dossier
 1209=Planification de suppression d'un fichier au redémarrage...
 1210=Supprimer un service
 1211=Clé de déverrouillage
@@ -302,6 +304,7 @@ et enregistrer un rapport
        /LangEN 	- force la langue anglaise pour l'interface utilisateur.
        /LangFR 	- force la langue française pour l'interface utilisateur.
        /LangRU 	- force la langue russe pour l'interface utilisateur.
+       /LangSP	 	- force la langue espagnol pour l'interface utilisateur.
        /LangUA 	- force la langue ukrainienne pour l'interface utilisateur.
        /skipErrors	- n'affiche pas les messages d'erreur et empêche les avertissements et les erreurs d'écrire dans le fichier journal.
        /debug 		- mode de traçage. Les noms de fonction seront ajoutés au rapport principal et au fichier HiJackThis_debug.log. Vous pouvez également renommer le fichier HiJackThis_debug.exe.
@@ -365,7 +368,7 @@ HiJackThis est livré avec plusieurs outils, disponibles sous le bouton "Outils 
      Systèmes compatibles
      -------------------------
      
-      * Microsoft™ Windows™ 10 / 8.1 / 8 / 7 / Vista / XP / 2000 et les éditions Serveurs en 32 et 64-bits.
+      * Microsoft™ Windows™ 11 / 10 / 8.1 / 8 / 7 / Vista / XP / 2000 et les éditions Serveurs en 32 et 64-bits.
 
 
      Auteurs et copyrights
@@ -382,7 +385,7 @@ HiJackThis est livré avec plusieurs outils, disponibles sous le bouton "Outils 
      - regist -= VIRUSNET association =- conseils et idées utiles, manuel d'utilisation, mises à jour de la base de données et bêta-testeurs
      - Sandor -= VIRUSNET association =- béta-testeurs, traitement des PC sur GitHub et les forums
      - akok -= VIRUSNET association =- promotion de produits, fournissant une plateforme de tests et de discussions, aide à la résolution des conflits avec antivirus
-     - SafeZone.cc team - promotion et support, traitement des PC sur les forums associés
+     - SafeZone.cc - promotion et support, traitement des PC sur les forums associés
      
      Coordination:
 
@@ -396,6 +399,7 @@ HiJackThis est livré avec plusieurs outils, disponibles sous le bouton "Outils 
      Ukrainien: Dragokas
      Anglais: Dragokas, Tanner Helland
      Français: Colok du site Colok-Traductions.com
+     Espagnol: Andago
 	 
      Développement tiers:
 
@@ -577,8 +581,8 @@ HiJackThis Fork est une modification du programme HiJackThis original de Trend M
 0149=Mot de passe
 0150=Suppression de HJT
 0151=Désinstaller HiJackThis
-0152=Supprimera tous vos paramètres et vos sauvegardes! 
-0153=Cela supprimera les paramètres et les sauvegardes de HiJackThis . Notez que vous devrez supprimer manuellement le fichier HiJackThis.exe.
+0152=Supprimera tous vos paramètres et vos sauvegardes, puis quitte
+0153=Cela supprimera les paramètres et les sauvegardes de HiJackThis. Notez que vous devrez supprimer manuellement le fichier HiJackThis.exe.
      
      Continuer avec la désinstallation?
 0154=Cela supprimera complètement HiJackThis, y compris les paramètres et les sauvegardes. Continuer?
@@ -797,7 +801,7 @@ HiJackThis Fork est une modification du programme HiJackThis original de Trend M
 ;
 ; (1850 - 1899)
 ;
-1850=Authenticode EDS checker - écrit par Stanislav
+1850=Authenticode EDS checker
 1851=Cet outil créera un rapport détaillé sur les signatures numériques des fichiers/dossiers que vous indiquerez ci-dessous :
 1852=Recursivement (inclure les sous-dossiers)
 1853=Inclure les fichiers du dossier de Windows
@@ -824,7 +828,7 @@ HiJackThis Fork est une modification du programme HiJackThis original de Trend M
 ;
 ; (1900 - 1949)
 ;
-1900=Déblocage de la Clé de Registre - écrit par Stanislav
+1900=Déblocage de la Clé de Registre
 1901=Entrer la Clé de registre pour déverrouiller et réinitialiser les droits d'accès:
 1902=Récursivement (inclure les sous-clés)
 1903=Réinitialiser
@@ -835,14 +839,31 @@ HiJackThis Fork est une modification du programme HiJackThis original de Trend M
 1908=[Echec]
 1909=Ouvrir dans le Regedit
 ;
-; ============ Delete on reboot & unlock file staff ========
+; ============= Files Unlocker =========
+;
+; (2400 - 2449)
+;
+2400=Déblocage de la fichier
+2401=Entrer la fichier et des dossiers pour déverrouiller et réinitialiser les droits d'accès:
+2402=Récursivement (inclure les sous-dossiers)
+2403=Réinitialiser
+2404=Fermer
+2405=Vous devez entrer au moins une fichier ou dossier!
+2406=[OK]
+2407=(récursivement)
+2408=[Echec]
+2409=Ouvrir dans le Explorer
+2410=Sélectionner
+2411=Dossiers
+2412=Sélectionner un dossier
+;
+; ============ Delete on reboot ========
 ;
 ; (1950-1999)
 ;
 1950=Entrer le nom du fichier:
 1951=Supprimer au redémarrage
 1952=Entrer le nom du fichier:
-1953=Déverrouiller & Supprimer
 1954=Impossible de supprimer le fichier.
      Il peut être verrouillé par un autre processus.
 1955=Dossier: [] supprimé avec succès.
@@ -1613,7 +1634,7 @@ HiJackThis Fork est une modification du programme HiJackThis original de Trend M
 0946=Entrez un nom de fichier, un mot ou une expression à rechercher:
 0947=Rechercher...
 0948=StartupList
-     Ecrit par Merijn Bellekom - http://www.merijn.org/
+     Ecrit par Merijn Bellekom - http://merijn.nu/
 
      Basé sur StartupList v1, TonyKlein's Collection of Autostart Locations et Andrew Aronoff's SilentRunners
 
@@ -1623,7 +1644,7 @@ HiJackThis Fork est une modification du programme HiJackThis original de Trend M
      Note : StartupList ne modifie rien et ne peut rien modifier sur le système.
 
      Si vous trouvez ce programme utile, faites un don !
-     http://www.merijn.org/donate.php
+     http://merijn.nu/donate.php
 0949=Texte du nœud copié dans le presse-papiers.
 0950=Chemin du nœud et du texte copié dans le presse-papiers.
 0951=Arborescence du nœud copié dans le presse-papiers.
@@ -1758,5 +1779,5 @@ HiJackThis Fork est une modification du programme HiJackThis original de Trend M
 ;
 ; ========= Empty ========
 ;
-; (2400 - ...)
-;                                 
+; (2450 - ...)
+;                                          

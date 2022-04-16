@@ -1,6 +1,6 @@
 # HiJackThis Fork v3
 
-Hi, I am Stanislav Polshyn - a lawyer, security observer and malware researcher from Ukraine ([Chernobyl](https://en.wikipedia.org/wiki/Chernobyl_disaster), [Klitschko](https://en.wikipedia.org/wiki/Wladimir_Klitschko), [Na'Vi](https://en.wikipedia.org/wiki/Natus_Vincere)).
+Hi, I am Stanislav Polshyn - a lawyer, security observer and malware researcher from Ukraine ([Chernobyl](https://en.wikipedia.org/wiki/Chernobyl_disaster), [Na'Vi](https://en.wikipedia.org/wiki/Natus_Vincere), [Щедрик](https://www.youtube.com/watch?v=ZZEMvVcf5-Q), Colony of USA). Yankee go home!
 
 I am happy to present a continuation of Trend Micro HiJackThis development, once a well-known tool.
 
@@ -20,6 +20,9 @@ Therefore, FALSE POSITIVES ARE LIKELY. If you are ever unsure, you should consul
 [Pre-built binary (release version) for Windows](https://dragokas.com/tools/HiJackThis.zip)
 
 [Nightly build (private test version) for Windows](https://dragokas.com/tools/HiJackThis_test.zip)
+
+Files are digitally signed by "Stanislav Polshyn".
+Certificate's thumbprint (SHA256) should be: 1b78ef517e81a07d1c1c4c6adfa66a2b7c3269c3
 
 ![](https://dragokas.com/tools/img/hjt/Scanning2.png)
 
@@ -56,6 +59,7 @@ HiJackThis also comes with several useful tools for manually removing malware fr
  * Delete file / service staff
  * Digital Signature Checker **(\*new\*)**
  * Registry key unlocker **(\*new\*)**
+ * Files unlocker **(\*new\*)**
  * Check Browsers' LNK & ClearLNK (as downloadable components) **(\*new\*)**
 
 ## Log analysis
@@ -75,13 +79,13 @@ If you are not already an expert, we recommend submitting your case to an online
  * [Actual complete User's manual](https://regist.safezone.cc/hijackthis_help/hijackthis.html) (in Russian)
  * [Recent updates by the author](https://safezone.cc/threads/27470/) (in Russian)
  * [Additional instructions on Wiki-pages](https://github.com/dragokas/hijackthis/wiki)
- * Discussion and news are in [this topic](https://safezone.cc/threads/hijackthis-fork-i-voprosy-k-razrabotchikam.28770/) (in Russian) or on [GeeksToGo](https://www.geekstogo.com/forum/topic/361755-hijackthisfork-improvement-development-bug-reports/) (in English; access restricted to experts only) or on our [GitHub page](https://github.com/dragokas/hijackthis/issues/4) (for everybody).
+ * Discussion and news are in [this topic](https://safezone.cc/threads/hijackthis-fork-i-voprosy-k-razrabotchikam.28770/) (in Russian) or on [GeeksToGo](https://www.geekstogo.com/forum/topic/361755-hijackthisfork-improvement-development-bug-reports/) (in English; access restricted to experts only) or on our [GitHub page](https://github.com/dragokas/hijackthis/discussions/137) (for everybody).
  * You can also freely ask questions, report bugs, or propose improvements by [creating an issue on GitHub](https://github.com/dragokas/hijackthis/issues)
 
 ## System Requirements
 
 Operating System
-  * Microsoft™ Windows™ 10 / 8.1 / 8 / 7 / Vista / XP / 2000 (32/64-bit desktop and server)
+  * Microsoft™ Windows™ 11 / 10 / 8.1 / 8 / 7 / Vista / XP / 2000 (32/64-bit desktop and server)
 
 ## Copyrights
 
@@ -96,7 +100,7 @@ Operating System
  * **Fernando Mercês** { [@merces](https://github.com/merces) } (Trend Micro) - coordinator of original HJT, for the tips, suggestions and promotion
  * **Loucif Kharouni** { [@loucifkharouni](https://github.com/loucifkharouni) } (Trend Micro) - coordinator of original HJT, for the tips & suggestions
 
-HiJackThis Fork by Alex Dragokas (my pseudonym) is a continuation of Trend Micro HiJackThis development, based on [v.2.0.6](https://sourceforge.net/p/hjt/code/HEAD/tree/beta/2.0.6/) and 100% rewritten at the moment. It was initially supported by Trend Micro, but they have since refused support and closed the GitHub repository.
+HiJackThis Fork by Alex Dragokas (my pseudonym) is a continuation of Trend Micro HiJackThis development, based on [v.2.0.6](https://sourceforge.net/p/hjt/code/HEAD/tree/beta/2.0.6/) and 100% rewritten at the moment. It was initially supported by Trend Micro, but they have since refused support and closed its GitHub repository.
 HiJackThis Fork is distributed under the [GPLv2 license](https://github.com/dragokas/hijackthis/blob/devel/LICENSE.md). It also includes several tools and plugins available as freeware.
 
 ## Reviews & Mirrors

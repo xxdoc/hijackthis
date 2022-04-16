@@ -114,10 +114,10 @@ Public Function DecodeEscape(Data() As Byte, Start As Long) As String
                 ' Numeric Escape Sequence
                 If Data(Start - (Len(DecodeEscape) + 1)) = Chr$("x") Then
                     ' Hexadecimal
-                    DecodeEscape = Right(DecodeEscape, Len(DecodeEscape) - 2)
+                    DecodeEscape = Right$(DecodeEscape, Len(DecodeEscape) - 2)
                 Else
                     ' Decimal
-                    DecodeEscape = Right(DecodeEscape, Len(DecodeEscape) - 1)
+                    DecodeEscape = Right$(DecodeEscape, Len(DecodeEscape) - 1)
                 End If
             Else
                 ' Custom Entity Reference
@@ -258,7 +258,7 @@ End Function
 '    For i = 0 To UBound(aText)
 '        s = s & " " & aText(i)
 '    Next
-'    Debug.Print "Error: " & Error.Number & " in '" & sFunctionName & "' - " & Error.Description & IIf(Len(s) > 0, " - " & s, "")
+'    Debug.Print "Error: " & Error.Number & " in '" & sFunctionName & "' - " & Error.Description & IIf(Len(s) > 0, " - " & s, vbnullstring)
 'End Function
 '
 'Public Function InIDE() As Boolean

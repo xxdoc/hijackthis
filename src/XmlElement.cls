@@ -139,7 +139,7 @@ Err_Trap:
     If inIDE Then Stop: Resume Next
 End Property
 
-Function InByteArray(Start As Long, bArray() As Byte, str As String, Optional CompareMode As VbCompareMethod, Optional EndPos As Variant) As Long
+Function InByteArray(Start As Long, bArray() As Byte, stri As String, Optional CompareMode As VbCompareMethod, Optional EndPos As Variant) As Long
     On Error GoTo Err_Trap
     Dim i As Long
     Dim pos As Long
@@ -147,14 +147,14 @@ Function InByteArray(Start As Long, bArray() As Byte, str As String, Optional Co
     InByteArray = -1
     pos = Start
     Do
-        If pos + Len(str) - 1 > UBound(bArray) Then Exit Do
-        For i = 1 To Len(str)
+        If pos + Len(stri) - 1 > UBound(bArray) Then Exit Do
+        For i = 1 To Len(stri)
             If CompareMode = vbTextCompare Then
-                If 0 <> StrComp(Chr$(bArray(pos + i - 1)), Mid$(str, i, 1), vbTextCompare) Then Exit For
+                If 0 <> StrComp(Chr$(bArray(pos + i - 1)), Mid$(stri, i, 1), vbTextCompare) Then Exit For
             Else
-                If bArray(pos + i - 1) <> Asc(Mid$(str, i, 1)) Then Exit For
+                If bArray(pos + i - 1) <> Asc(Mid$(stri, i, 1)) Then Exit For
             End If
-            If i = Len(str) Then InByteArray = pos: Exit Do
+            If i = Len(stri) Then InByteArray = pos: Exit Do
         Next
         pos = pos + 1
     Loop
@@ -212,9 +212,9 @@ Friend Sub Parse(Data() As Byte, Optional Start As Long)
                     Do
                         lPos = Len(Body)
                         If lPos = 0 Then Exit Do
-                        Select Case Asc(Right(Body, 1))
+                        Select Case Asc(Right$(Body, 1))
                             Case ascSpace, ascTab, ascCr, ascLf
-                                Body = Left(Body, lPos - 1)
+                                Body = Left$(Body, lPos - 1)
                         End Select
                     Loop Until lPos = Len(Body) 'until we don't change the expression
                 Else
@@ -339,7 +339,7 @@ Public Function Serialize() As String
     ' ToDo ... XML Encode Body Data
     lPos = InStr(Body, "]]>")
     If lPos > 0 Then
-        Body = Left(Body, lPos - 1) & "]]&gt;" & Right(Body, Len(Body) - (lPos - 1) - 3)
+        Body = Left$(Body, lPos - 1) & "]]&gt;" & Right$(Body, Len(Body) - (lPos - 1) - 3)
     End If
     
     If Len(Body) <> 0 Then

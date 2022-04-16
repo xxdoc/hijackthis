@@ -18,9 +18,12 @@ Attribute VB_Exposed = False
 ' // Version 1.3
 ' // Special thanks to Dragokas for debugging.
 
-' Forked by Dragokas (1.4)
-' Added 'mCount = 0' to Class_Terminate(), so enum method will no longer raise error when this method has called before
-'   Class_Terminate() of another class that responsible for releasing hashtable.
+' // Version 1.4 (by Dragokas)
+' // Added 'mCount = 0' to Class_Terminate(), so enum method will no longer raise error when this method has called before
+' //  Class_Terminate() of another class that responsible for releasing hashtable.
+
+' // Version 1.5 (by Dragokas)
+' // Added checking for 'mCount' and class destruction in-progress state to all methods.
 
 Option Explicit
 
@@ -99,7 +102,7 @@ Private Declare Function LCMapString Lib "kernel32" _
                          ByVal cchSrc As Long, _
                          ByRef lpDestStr As Any, _
                          ByVal cchDest As Long) As Long
-Private Declare Function GetUserDefaultLCID Lib "kernel32" () As Long
+'Private Declare Function GetUserDefaultLCID Lib "kernel32" () As Long
 Private Declare Function VarR4FromUI1 Lib "oleaut32" ( _
                          ByRef Value As Any, _
                          ByRef R4 As Any) As Long
@@ -153,6 +156,7 @@ Private lpAsm           As Long
 Private lcid            As Long
 Private decMin          As Variant
 Private decMax          As Variant
+Private bDestructed     As Boolean
 
 ' // Obtain the enumerator
 Public Property Get NewEnum() As IUnknown
@@ -189,6 +193,9 @@ End Property
 ' // Add the new item
 Public Sub Add(Key As Variant, Value As Variant)
 Attribute Add.VB_Description = "Add the new item"
+
+    If bDestructed Then Exit Sub
+
     Dim pt As tPointer
     
     If Not GetFromKey(Key, pt) Then
@@ -211,6 +218,9 @@ End Sub
 Public Property Get Item(Key As Variant) As Variant
 Attribute Item.VB_Description = "Retrieve the value by specified key"
 Attribute Item.VB_UserMemId = 0
+
+    If mCount = 0 Then Exit Property
+
     Dim pt As tPointer
 
     If Not GetFromKey(Key, pt) Then
@@ -225,6 +235,9 @@ End Property
 
 ' // Set the value of the specified item
 Public Property Let Item(Key As Variant, Value As Variant)
+
+    If mCount = 0 Then Exit Property
+
     Dim pt As tPointer
     
     If Not GetFromKey(Key, pt) Then
@@ -246,6 +259,9 @@ End Property
 
 ' // Set the objected-value of the specified item
 Public Property Set Item(Key As Variant, Value As Variant)
+
+    If mCount = 0 Then Exit Property
+
     Dim pt As tPointer
     
     If Not GetFromKey(Key, pt) Then
@@ -268,11 +284,13 @@ End Property
 ' // Update the key
 Public Property Let Key(Key As Variant, NewKey As Variant)
 Attribute Key.VB_Description = "Update the key"
+    If mCount = 0 Then Exit Property
     Key_ Key, NewKey
 End Property
 
 ' // Update the object key
 Public Property Set Key(Key As Variant, NewKey As Variant)
+    If mCount = 0 Then Exit Property
     Key_ Key, NewKey
 End Property
 
@@ -285,6 +303,9 @@ End Property
 ' // Determine whether exists the element with the specified key
 Public Function Exists(Key As Variant) As Boolean
 Attribute Exists.VB_Description = "Determine whether exist the element with the specified key"
+
+    If mCount = 0 Then Exit Function
+
     Dim pt As tPointer
     
     If Not GetFromKey(Key, pt) Then
@@ -298,11 +319,14 @@ End Function
 ' // Remove the item, having the specified key
 Public Sub Remove(Key As Variant)
 Attribute Remove.VB_Description = "Remove the item, having the specified key"
+
+    If mCount = 0 Then Exit Sub
+
     Dim pt  As tPointer
-    Dim ln  As tPointer
-    Dim lp  As tPointer
-    Dim p   As tPointer
-    Dim L   As Long
+    'Dim ln  As tPointer
+    'Dim lp  As tPointer
+    'Dim p   As tPointer
+    'Dim L   As Long
     
     If Not GetFromKey(Key, pt) Then
         Err.Raise 5
@@ -737,7 +761,7 @@ End Function
 Private Function GetEnumInterface() As Long
     Dim sHex    As String
     
-    sHex = Space(&H8)
+    sHex = Space$(&H8)
     
     If GetEnvironmentVariable(StrPtr("TrickHashEnumerationInterface"), StrPtr(sHex), Len(sHex) + 1) = 0 Then
         
@@ -803,7 +827,7 @@ Private Function CreateAsm() As Long
     GetMem4 lpAddr + &HA6, ByVal lpAddr + &HFC  ' // IEnumVariant::Skip
     GetMem4 lpAddr + &HDD, ByVal lpAddr + &H100 ' // IEnumVariant::Reset
     
-    If SetEnvironmentVariable(StrPtr("TrickHashEnumerationInterface"), StrPtr(Hex(lpAddr))) = 0 Then GoTo Clear
+    If SetEnvironmentVariable(StrPtr("TrickHashEnumerationInterface"), StrPtr(Hex$(lpAddr))) = 0 Then GoTo Clear
     
     CreateAsm = lpAddr
     
@@ -834,4 +858,5 @@ End Sub
 Private Sub Class_Terminate()
     Erase List()
     mCount = 0
+    bDestructed = True
 End Sub

@@ -117,6 +117,7 @@ Option Explicit
 #Const SilentAutoLog = False    ' /silentautolog key analogue
 #Const DoCrash = False          ' crash the program (test reason)
 #Const CryptDisable = False     ' disable encryption of ignore list and several other settings
+#Const NoSelfSignTest = False   ' whether I should disable the checking of own signature
 
 Private Const ICC_STANDARD_CLASSES As Long = &H4000&
 
@@ -124,6 +125,8 @@ Private ControlsEvent As clsEvents
 
 Private Sub Form_Initialize()
     On Error GoTo ErrorHandler:
+    
+    MAX_PATH_W_BUF = String$(MAX_PATH_W, 0&)
     
     Dim argc As Long
     g_sCommandLine = Command$()
@@ -136,7 +139,6 @@ Private Sub Form_Initialize()
     Dim sTime       As String
     Dim sCMDLine    As String
     Dim sPath       As String
-    Dim sFile       As String
     Dim ExeName     As String
     
     ' Code launched from IDE ?
@@ -300,7 +302,7 @@ Private Sub Form_Initialize()
     If Len(sPath) <> 0 Then
         If Not FolderExists(sPath, , True) Then
             If Not MkDirW(sPath, StrEndWith(sPath, ".log")) Then
-                sPath = ""
+                sPath = vbNullString
             End If
         End If
     End If
@@ -313,7 +315,7 @@ Private Sub Form_Initialize()
             g_sDebugLogFile = BuildPath(sPath, "HiJackThis_debug.log")
         End If
         'check write access
-        If Not CheckAccessWrite(g_sLogFile, True) Then sPath = ""
+        If Not CheckAccessWrite(g_sLogFile, True) Then sPath = vbNullString
     End If
     If Len(sPath) = 0 Then
         g_sLogFile = BuildPath(AppPath(), "HiJackThis.log")
@@ -369,6 +371,7 @@ Private Sub Form_Load()
     bForceEN = InStr(1, AppExeName(), "_EN", 1) Or HasCommandLineKey("langEN")  '/langEN
     bForceUA = InStr(1, AppExeName(), "_UA", 1) Or HasCommandLineKey("langUA")  '/langUA
     bForceFR = InStr(1, AppExeName(), "_FR", 1) Or HasCommandLineKey("langFR")  '/langUA
+    bForceSP = InStr(1, AppExeName(), "_SP", 1) Or HasCommandLineKey("langSP")  '/langSP
 
     bIsWOW64 = IsWow64()
 
@@ -421,7 +424,6 @@ Sub WatchForProcess()   'waiting for process completion to release unpacked reso
     Const INFINITE                  As Long = -1
     Const SYNCHRONIZE               As Long = &H100000
     Const PROCESS_QUERY_INFORMATION As Long = 1024&
-    Const PROCESS_QUERY_LIMITED_INFORMATION As Long = &H1000
     
     Dim ProcessID As Long
     Dim hProc As Long
@@ -474,6 +476,8 @@ Sub Localize()
         LoadLanguage &H422, True, PreLoadNativeLang:=True
     ElseIf bForceFR Then
         LoadLanguage &H40C, True, PreLoadNativeLang:=True
+    ElseIf bForceSP Then
+        LoadLanguage &H40A, True, PreLoadNativeLang:=True
     Else
         LoadLanguage 0, False, PreLoadNativeLang:=True
     End If

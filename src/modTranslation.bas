@@ -10,14 +10,15 @@ Option Explicit
 Private Const MAX_LOCALE_LINES As Long = 9999
 
 Public Enum idCodePage
-    WIN = 1251
-    DOS = 866
-    KOI = 20866
-    ISO = 28595
-    UTF8 = 65001
+    CP_WIN = 1251
+    CP_DOS = 866
+    CP_KOI = 20866
+    CP_ISO = 28595
+    CP_UTF8 = 65001
+    CP_UTF16LE = 1200
 End Enum
 #If False Then
-    Dim WIN, DOS, KOI, ISO, UTF8
+    Dim CP_WIN, CP_DOS, CP_KOI, CP_ISO, CP_UTF8, CP_UTF16LE
 #End If
 
 'Private Declare Function GetUserDefaultUILanguage Lib "kernel32.dll" () As Long
@@ -25,7 +26,6 @@ End Enum
 'Private Declare Function GetSystemDefaultLCID Lib "kernel32.dll" () As Long
 'Private Declare Function GetUserDefaultLCID Lib "kernel32.dll" () As Long
 'Private Declare Function GetLocaleInfo Lib "kernel32.dll" Alias "GetLocaleInfoW" (ByVal lcid As Long, ByVal LCTYPE As Long, ByVal lpLCData As Long, ByVal cchData As Long) As Long
-'Private Declare Function MultiByteToWideChar Lib "Kernel32.dll" (ByVal CodePage As Long, ByVal dwFlags As Long, ByVal lpMultiByteStr As String, ByVal cchMultiByte As Long, ByVal lpWideCharStr As Long, ByVal cchWideChar As Long) As Long
 
 Private Const LOCALE_SENGLANGUAGE = &H1001&
 
@@ -142,6 +142,8 @@ Public Sub LoadLanguage(lCode As Long, Force As Boolean, Optional PreLoadNativeL
             LangRU
         Case &H40C&, &H80C&, &HC0C&, &H140C&, &H180C&, &H100C&  'French
             LangFR
+        Case &H40A&, &HC0A&  'Spanish
+            LangSP
         Case &H409& 'English
             LoadDefaultLanguage
         Case Else
@@ -168,6 +170,8 @@ Public Sub LoadLanguage(lCode As Long, Force As Boolean, Optional PreLoadNativeL
             End If
         Case &H40C&, &H80C&, &HC0C&, &H140C&, &H180C&, &H100C& 'French
             LangFR
+        Case &H40A&, &HC0A&  'Spanish
+            LangSP
         Case &H409& 'English
             LoadDefaultLanguage
         Case Else
@@ -191,6 +195,8 @@ Public Sub LoadLanguage(lCode As Long, Force As Boolean, Optional PreLoadNativeL
             End If
         Case &H40C&, &H80C&, &HC0C&, &H140C&, &H180C&, &H100C& 'French
             LangFR
+        Case &H40A&, &HC0A&  'Spanish
+            LangSP
         Case &H409& 'English
             LoadDefaultLanguage
         Case Else
@@ -257,29 +263,33 @@ Public Sub LangFR()
     g_VersionHistory = LoadResFile("_ChangeLog_en.txt", 103)
 End Sub
 
+'// Spanish
+Public Sub LangSP()
+    LoadLangFile "_Lang_SP.lng", 205
+    g_VersionHistory = LoadResFile("_ChangeLog_en.txt", 103)
+End Sub
+
 Sub LoadLangFile(sFilename As String, Optional ResID As Long, Optional UseResource As Boolean)
     On Error GoTo ErrorHandler:
 
     AppendErrorLogCustom "LoadLangFile - Begin", "File: " & sFilename, "ResID: " & ResID, "UseResource? " & UseResource
-
-    Dim sPath As String, sText As String, b() As Byte
+    
+    Dim sPath As String, sText As String
     sPath = BuildPath(AppPath(), sFilename)
     
     If 0 = AryItems(Translate) Then ReDim Translate(MAX_LOCALE_LINES)
     If 0 = AryItems(TranslateNative) Then ReDim TranslateNative(MAX_LOCALE_LINES)
     
+    ' read text as raw utf8
     If FileExists(sPath) And Not UseResource Then
-        sText = ReadFileContents(sPath, isUnicode:=False)
+        sText = ReadFileContents(sPath, isUnicode:=True)
     Else
         If ResID <> 0 Then
-            b() = LoadResData(ResID, "CUSTOM")
-            sText = StrConv(b, vbUnicode, OSver.LangNonUnicodeCode)
-            If b(0) = &HEF& And b(1) = &HBB& And b(2) = &HBF& Then      ' - BOM UTF-8
-                sText = Mid$(sText, 4)
-            End If
+            sText = LoadResData(ResID, "CUSTOM")
         End If
     End If
-    sText = ConvertCodePageW(sText, 65001)  ' UTF8
+    
+    sText = ConvertCodePage(StrPtr(sText), CP_UTF8)
     ExtractLanguage sText, sFilename  ' parse sText -> gLines()
     
     AppendErrorLogCustom "LoadLangFile - End"
@@ -296,27 +306,26 @@ Function LoadResFile(sFilename As String, Optional ResID As Long, Optional UseRe
 
     AppendErrorLogCustom "LoadResFile - Begin", "File: " & sFilename, "ResID: " & ResID, "UseResource? " & UseResource
 
-    Dim sPath As String, sText As String, b() As Byte
+    Dim sPath As String, sText As String
     sPath = BuildPath(AppPath(), sFilename)
     
+    'load as row utf8
     If FileExists(sPath) And Not UseResource Then
-        sText = ReadFileContents(sPath, isUnicode:=False)
+        sText = ReadFileContents(sPath, isUnicode:=True)
     Else
         If ResID <> 0 Then
-            b() = LoadResData(ResID, "CUSTOM")
-            sText = StrConv(b, vbUnicode, OSver.LangNonUnicodeCode)
-            If UBound(b) >= 2 Then
-                If b(0) = &HEF& And b(1) = &HBB& And b(2) = &HBF& Then      ' - BOM UTF-8
-                    sText = Mid$(sText, 4)
-                End If
-            End If
+            sText = LoadResData(ResID, "CUSTOM")
         End If
     End If
     
-    LoadResFile = ConvertCodePageW(sText, 65001) ' UTF8
+    LoadResFile = ConvertCodePage(StrPtr(sText), CP_UTF8)
+    
+    If AscW(Left$(LoadResFile, 1)) = -257 Then
+        LoadResFile = Mid$(LoadResFile, 2)
+    End If
     
     AppendErrorLogCustom "LoadResFile - End"
-
+    
     Exit Function
 ErrorHandler:
     ErrorMsg Err, "LoadResFile"
@@ -344,23 +353,23 @@ Public Sub ReloadLanguage(Optional bDontTouchMainForm As Boolean)
     On Error GoTo ErrorHandler:
     AppendErrorLogCustom "ReloadLanguage - Begin"
     
-    Dim i&, Translation$, ID As String, bAnotherForm As Boolean
+    Dim i&, Translation$, id As String, bAnotherForm As Boolean
     Static SecondChance As Boolean
     
     Translate() = gLines()
     
     With frmMain
-        For i = 0 To UBound(gLines)
-            If Len(gLines(i)) <> 0 Then
-                ID = Right$("000" & i, 4)
-                Translation = gLines(i)
+        For i = 0 To UBound(Translate)
+            If Len(Translate(i)) <> 0 Then
+                id = Right$("000" & i, 4)
+                Translation = Translate(i)
                 
                 If bDontTouchMainForm Then
                   bAnotherForm = True
                 Else
                   bAnotherForm = False
                   
-                  Select Case ID
+                  Select Case id
                 
                     '; ================ Start window =================
                     
@@ -435,7 +444,7 @@ Public Sub ReloadLanguage(Optional bDontTouchMainForm As Boolean)
                     Case "1205": .mnuToolsProcMan.Caption = Translation
                     Case "1206": .mnuToolsHosts.Caption = Translation
                     'Case "1207": .mnuToolsDelFile.Caption = Translation
-                    Case "1208": .mnuToolsUnlockAndDelFile.Caption = Translation
+                    Case "1208": .mnuToolsUnlockFiles.Caption = Translation
                     Case "1209": .mnuToolsDelFileOnReboot.Caption = Translation
                     Case "1210": .mnuToolsDelServ.Caption = Translation
                     Case "1211": .mnuToolsRegUnlockKey.Caption = Translation
@@ -615,7 +624,7 @@ Public Sub ReloadLanguage(Optional bDontTouchMainForm As Boolean)
                         
                         If IsFormInit(frmSearch) Then
                             With frmSearch
-                                Select Case ID
+                                Select Case id
                                     Case "2300": .Caption = Translation
                                     Case "2301": .lblWhat.Caption = Translation
                                     Case "2302": .chkMatchCase.Caption = Translation
@@ -642,7 +651,7 @@ Public Sub ReloadLanguage(Optional bDontTouchMainForm As Boolean)
                         If IsFormInit(frmUninstMan) Then
                             With frmUninstMan
                                 
-                                Select Case ID
+                                Select Case id
                                     Case "0210": .Caption = Translation & " v." & UninstManVer
                                     Case "0211": .lblAbout.Caption = Translation
                                     Case "0212": .lblName.Caption = Translation
@@ -675,7 +684,7 @@ Public Sub ReloadLanguage(Optional bDontTouchMainForm As Boolean)
                         If IsFormInit(frmADSspy) Then
                             With frmADSspy
                     
-                                Select Case ID
+                                Select Case id
                                     ' Context menu (ADS Spy)
                                     Case "0199": .mnuPopupSelAll.Caption = Translation
                                     Case "0200": .mnuPopupSelNone.Caption = Translation
@@ -723,7 +732,7 @@ Public Sub ReloadLanguage(Optional bDontTouchMainForm As Boolean)
                         If IsFormInit(frmCheckDigiSign) Then
                             With frmCheckDigiSign
                             
-                                Select Case ID
+                                Select Case id
                                     Case "1850": .Caption = Translation
                                     Case "1851": .lblThisTool.Caption = Translation
                                     Case "1852": .chkRecur.Caption = Translation
@@ -761,7 +770,7 @@ Public Sub ReloadLanguage(Optional bDontTouchMainForm As Boolean)
                     
                         If IsFormInit(frmProcMan) Then
                             With frmProcMan
-                                Select Case ID
+                                Select Case id
                                     ' Context menu (Process manager)
                                     Case "0170": .Caption = Translation
                                     Case "0160": .fraProcessManager.Caption = Translation
@@ -789,7 +798,7 @@ Public Sub ReloadLanguage(Optional bDontTouchMainForm As Boolean)
                     
                         If IsFormInit(frmStartupList2) Then
                             With frmStartupList2
-                                Select Case ID
+                                Select Case id
                                     ' Context menu (StartupList)
                                     Case "0800": .mnuFile.Caption = Translation
                                     Case "0801": .mnuFileSave.Caption = Translation
@@ -916,7 +925,7 @@ Public Sub ReloadLanguage(Optional bDontTouchMainForm As Boolean)
                     
                         If IsFormInit(frmSysTray) Then
                             With frmSysTray
-                                Select Case ID
+                                Select Case id
                                     Case "1180": .mExit.Caption = Translation
                                 End Select
                             End With
@@ -926,16 +935,32 @@ Public Sub ReloadLanguage(Optional bDontTouchMainForm As Boolean)
                     
                         If IsFormInit(frmUnlockRegKey) Then
                             With frmUnlockRegKey
-                                Select Case ID
+                                Select Case id
                                     Case "1900": .Caption = Translation
                                     Case "1901": .lblWhatToDo.Caption = Translation
                                     Case "1902": .chkRecur.Caption = Translation
                                     Case "1903": .cmdGo.Caption = Translation
-                                    Case "1904": .cmdExit.Caption = Translation
+                                    'Case "1904": .cmdExit.Caption = Translation
                                     Case "1909": .cmdJump.Caption = Translation
                                 End Select
                             End With
                         End If
+                        
+                        ' ============ Registry Key Unlocker ===========
+                    
+                        If IsFormInit(frmUnlockFile) Then
+                            With frmUnlockFile
+                                Select Case id
+                                    Case "2400": .Caption = Translation
+                                    Case "2401": .lblWhatToDo.Caption = Translation
+                                    Case "2402": .chkRecur.Caption = Translation
+                                    Case "2403": .cmdGo.Caption = Translation
+                                    'Case "2404": .cmdExit.Caption = Translation
+                                    Case "2409": .cmdJump.Caption = Translation
+                                End Select
+                            End With
+                        End If
+                        
                     End If
                 End If
             End If
@@ -947,12 +972,12 @@ Public Sub ReloadLanguage(Optional bDontTouchMainForm As Boolean)
     Exit Sub
 ErrorHandler:
     If SecondChance Then Resume Next
-    ErrorMsg Err, "ReloadLanguage", "ID: " & ID
+    ErrorMsg Err, "ReloadLanguage", "ID: " & id
     If inIDE Then Stop: Resume Next
     SecondChance = True
-    Translation = IIf(Translate(572) <> "", Translate(572), "Invalid language File. Reset to default (English)?")
+    Translation = IIf(Len(Translate(572)) <> 0, Translate(572), "Invalid language File. Reset to default (English)?")
     If MsgBoxW( _
-      Translation & vbCrLf & vbCrLf & "[ #" & Err.Number & ", " & Err.Description & ", ID: " & ID & " ]", _
+      Translation & vbCrLf & vbCrLf & "[ #" & Err.Number & ", " & Err.Description & ", ID: " & id & " ]", _
       vbYesNo Or vbExclamation) = vbYes Then
         LoadDefaultLanguage UseResource:=True
         ReloadLanguage
@@ -1070,7 +1095,7 @@ Public Sub GetInfo(ByVal sItem$)
     aPage = Split(sMsg, "\\p")
     aPage(0) = sItem & vbCrLf & vbCrLf & aPage(0)
     For i = 0 To UBound(aPage)
-        MsgBoxW aPage(i), , IIf(UBound(aPage) > 0, CStr(i + 1) & "/" & CStr(UBound(aPage) + 1), "")
+        MsgBoxW aPage(i), , IIf(UBound(aPage) > 0, CStr(i + 1) & "/" & CStr(UBound(aPage) + 1), vbNullString)
     Next
     
     Exit Sub
@@ -1328,31 +1353,51 @@ Public Function IsRunningInIDE() As Boolean
     IsRunningInIDE = inIDE
 End Function
 
-'// converting specified CodePage to UTF-16
-Public Function ConvertCodePageW(Src As String, inPage As idCodePage) As String
+Public Function ConvertCodePage(SrcPtr As Long, inPage As idCodePage, Optional outPage As idCodePage = CP_UTF16LE) As String
     On Error GoTo ErrorHandler
-    AppendErrorLogCustom "ConvertCodePageW - Begin"
-    
-    Const MB_ERR_INVALID_CHARS As Long = 8&
-    
     Dim buf   As String
-    Dim Size  As Long
-    Dim kFlags As Long
-    kFlags = 0
-    'kFlags = MB_ERR_INVALID_CHARS ' https://blogs.msdn.microsoft.com/oldnewthing/20120504-00/?p=7703
-
-    Size = MultiByteToWideChar(inPage, kFlags, Src, Len(Src), 0&, 0&)
+    Dim Dst   As String
+    Dim cchBuf As Long
+    Dim cchSrc As Long
+    Dim cbBuf As Long
+    cchSrc = lstrlen(SrcPtr)
+    If cchSrc = 0 Then Exit Function
     
-    If Size > 0 Then
-        buf = String$(Size, 0)
-        Size = MultiByteToWideChar(inPage, kFlags, Src, Len(Src), StrPtr(buf), Len(buf))
-
-        If Size <> 0 Then ConvertCodePageW = Left$(buf, Size)
+    If inPage = CP_UTF16LE Then
+        cbBuf = WideCharToMultiByte(outPage, 0&, SrcPtr, cchSrc, 0&, 0&, 0&, 0&) 'returns size in bytes
+        If cbBuf > 0 Then
+            ConvertCodePage = String$((cbBuf + 1) \ 2, 0)
+            cbBuf = WideCharToMultiByte(outPage, 0&, SrcPtr, cchSrc, StrPtr(ConvertCodePage), cbBuf, 0&, 0&)
+            ConvertCodePage = Left$(ConvertCodePage, lstrlen(StrPtr(ConvertCodePage)))
+        End If
+    Else
+        If inPage = CP_DOS Then 'W -> A
+            Dim AnsiBuf As String
+            AnsiBuf = String(cchSrc, 0&)
+            memcpy ByVal StrPtr(AnsiBuf), ByVal SrcPtr, cchSrc * 2
+            AnsiBuf = StrConv(AnsiBuf, vbFromUnicode)
+            SrcPtr = StrPtr(AnsiBuf)
+            cchSrc = lstrlen(SrcPtr)
+        End If
+    
+        cchBuf = MultiByteToWideChar(inPage, 0&, SrcPtr, cchSrc * 2, 0&, 0&) 'returns size in characters
+        If cchBuf > 0 Then
+            buf = String$(cchBuf, 0)
+            cchBuf = MultiByteToWideChar(inPage, 0&, SrcPtr, cchSrc * 2, StrPtr(buf), cchBuf)
+            
+            If outPage = CP_UTF16LE Then
+                ConvertCodePage = buf
+            Else
+                cbBuf = WideCharToMultiByte(outPage, 0&, StrPtr(buf), cchBuf, 0&, 0&, 0&, 0&)
+                If cbBuf > 0 Then
+                    ConvertCodePage = String$((cbBuf + 1) \ 2, 0)
+                    cbBuf = WideCharToMultiByte(outPage, 0&, StrPtr(buf), cchBuf, StrPtr(ConvertCodePage), cbBuf, 0&, 0&)
+                End If
+            End If
+        End If
     End If
-    
-    AppendErrorLogCustom "ConvertCodePageW - End"
     Exit Function
 ErrorHandler:
-    ErrorMsg Err, "ConvertCodePageW", "src: " & Src
+    ErrorMsg Err, "ConvertCodePage", "inPage:", inPage, "outPage:", outPage
     If inIDE Then Stop: Resume Next
 End Function

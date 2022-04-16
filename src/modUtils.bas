@@ -29,141 +29,8 @@ Public Enum SETTINGS_SECTION
     SETTINGS_SECTION_STARTUPLIST
     SETTINGS_SECTION_UNINSTMAN
     SETTINGS_SECTION_REGUNLOCKER
+    SETTINGS_SECTION_FILEUNLOCKER
 End Enum
-
-'Private Type RECT
-'    Left    As Long
-'    Top     As Long
-'    Right   As Long
-'    Bottom  As Long
-'End Type
-'
-'Private Type POINTAPI
-'    x As Long
-'    y As Long
-'End Type
-'
-'Private Type OPENFILENAME
-'    lStructSize As Long
-'    hWndOwner As Long
-'    hInstance As Long
-'    lpstrFilter As Long
-'    lpstrCustomFilter As Long
-'    nMaxCustFilter As Long
-'    nFilterIndex As Long
-'    lpstrFile As Long
-'    nMaxFile As Long
-'    lpstrFileTitle As Long
-'    nMaxFileTitle As Long
-'    lpstrInitialDir As Long
-'    lpstrTitle As Long
-'    flags As Long
-'    nFileOffset As Integer
-'    nFileExtension As Integer
-'    lpstrDefExt As Long
-'    lCustData As Long
-'    lpfnHook As Long
-'    lpTemplateName As Long
-'    pvReserved As Long
-'    dwReserved As Long
-'    FlagsEx As Long
-'End Type
-'
-'Private Type OSVERSIONINFOEX
-'    dwOSVersionInfoSize As Long
-'    dwMajorVersion As Long
-'    dwMinorVersion As Long
-'    dwBuildNumber As Long
-'    dwPlatformId As Long
-'    szCSDVersion(255) As Byte
-'    wServicePackMajor As Integer
-'    wServicePackMinor As Integer
-'    wSuiteMask As Integer
-'    wProductType As Byte
-'    wReserved As Byte
-'End Type
-'
-'Private Type SYSTEMTIME
-'    wYear           As Integer
-'    wMonth          As Integer
-'    wDayOfWeek      As Integer
-'    wDay            As Integer
-'    wHour           As Integer
-'    wMinute         As Integer
-'    wSecond         As Integer
-'    wMilliseconds   As Integer
-'End Type
-'
-'Public Type UUID
-'    Data1 As Long
-'    Data2 As Integer
-'    Data3 As Integer
-'    Data4(0 To 7) As Byte
-'End Type
-'
-'Private Declare Function SetWindowLong Lib "user32.dll" Alias "SetWindowLongW" (ByVal hWnd As Long, ByVal nIndex As Long, ByVal dwNewLong As Long) As Long
-'Private Declare Function CallWindowProc Lib "user32.dll" Alias "CallWindowProcW" (ByVal lpPrevWndFunc As Long, ByVal hWnd As Long, ByVal msg As Long, ByVal wParam As Long, ByVal lParam As Long) As Long
-'Private Declare Function GetCursorPos Lib "user32.dll" (lpPoint As POINTAPI) As Long
-'Private Declare Function GetWindowRect Lib "user32.dll" (ByVal hWnd As Long, lpRect As RECT) As Long
-'Private Declare Function PtInRect Lib "user32.dll" (lpRect As RECT, ByVal x As Long, ByVal y As Long) As Long
-'Private Declare Sub SHChangeNotify Lib "shell32.dll" (ByVal wEventId As Long, ByVal uFlags As Long, ByVal dwItem1 As Long, ByVal dwItem2 As Long)
-'Private Declare Function GetModuleHandle Lib "kernel32.dll" Alias "GetModuleHandleW" (ByVal lpModuleName As Long) As Long
-'Private Declare Function GetModuleFileName Lib "kernel32.dll" Alias "GetModuleFileNameW" (ByVal hModule As Long, ByVal lpFileName As Long, ByVal nSize As Long) As Long
-'Private Declare Function LoadLibraryEx Lib "kernel32.dll" Alias "LoadLibraryExW" (ByVal lpFileName As Long, ByVal hFile As Long, ByVal dwFlags As Long) As Long
-'Private Declare Function FreeLibrary Lib "kernel32.dll" (ByVal hLibModule As Long) As Long
-'Private Declare Function LoadString Lib "user32.dll" Alias "LoadStringW" (ByVal hInstance As Long, ByVal uID As Long, ByVal lpBuffer As Long, ByVal nBufferMax As Long) As Long
-'Private Declare Function lstrlen Lib "kernel32.dll" Alias "lstrlenW" (ByVal lpString As Long) As Long
-'Private Declare Function lstrcpy Lib "kernel32.dll" Alias "lstrcpyW" (ByVal lpStrDest As Long, ByVal lpStrSrc As Long) As Long
-'Private Declare Function SystemTimeToVariantTime Lib "oleaut32.dll" (lpSystemTime As SYSTEMTIME, vtime As Date) As Long
-'Private Declare Function VariantTimeToSystemTime Lib "oleaut32.dll" (ByVal vtime As Date, lpSystemTime As SYSTEMTIME) As Long
-'Private Declare Function SystemTimeToTzSpecificLocalTime Lib "kernel32.dll" (ByVal lpTimeZone As Any, lpUniversalTime As SYSTEMTIME, lpLocalTime As SYSTEMTIME) As Long
-'Private Declare Function FileTimeToSystemTime Lib "kernel32.dll" (ByVal lpFileTime As Long, lpSystemTime As SYSTEMTIME) As Long
-''Private Declare Function FileTimeToLocalFileTime Lib "kernel32.dll" (lpFileTime As FILETIME, lpLocalFileTime As FILETIME) As Long
-''Private Declare Function SystemTimeToFileTime Lib "kernel32.dll" (lpSystemTime As SYSTEMTIME, lpFileTime As FILETIME) As Long
-''Private Declare Function GetTimeZoneInformation Lib "kernel32.dll" (ByVal lpTimeZoneInformation As Long) As Long
-'Private Declare Function GetCurrentProcess Lib "kernel32.dll" () As Long
-'Private Declare Function IsWow64Process Lib "kernel32.dll" (ByVal hProcess As Long, ByRef Wow64Process As Long) As Long
-'Private Declare Function GetSystemMetrics Lib "user32.dll" (ByVal nIndex As Long) As Long
-'Private Declare Function GetVersionEx Lib "kernel32.dll" Alias "GetVersionExW" (lpVersionInformation As OSVERSIONINFOEX) As Long
-'Private Declare Function GetPrivateProfileString Lib "kernel32.dll" Alias "GetPrivateProfileStringW" (ByVal lpApplicationName As Long, ByVal lpKeyName As Long, ByVal lpDefault As Long, ByVal lpReturnedString As Long, ByVal nSize As Long, ByVal lpFileName As Long) As Long
-'Private Declare Function MoveFile Lib "kernel32.dll" Alias "MoveFileW" (ByVal lpExistingFileName As Long, ByVal lpNewFileName As Long) As Long
-'Private Declare Function GetFileAttributes Lib "kernel32.dll" Alias "GetFileAttributesW" (ByVal lpFileName As Long) As Long
-'Private Declare Function SetFileAttributes Lib "kernel32.dll" Alias "SetFileAttributesW" (ByVal lpFileName As Long, ByVal dwFileAttributes As Long) As Long
-'Private Declare Function DeleteObject Lib "gdi32.dll" (ByVal hObject As Long) As Long
-'Private Declare Function GetPixel Lib "gdi32.dll" (ByVal hdc As Long, ByVal x As Long, ByVal y As Long) As Long
-'Private Declare Function SetWindowRgn Lib "user32.dll" (ByVal hWnd As Long, ByVal hRgn As Long, ByVal bRedraw As Boolean) As Long
-'Private Declare Function CreateRectRgn Lib "gdi32.dll" (ByVal X1 As Long, ByVal Y1 As Long, ByVal X2 As Long, ByVal Y2 As Long) As Long
-'Private Declare Function CombineRgn Lib "gdi32.dll" (ByVal hDestRgn As Long, ByVal hSrcRgn1 As Long, ByVal hSrcRgn2 As Long, ByVal nCombineMode As Long) As Long
-'Private Declare Function CLSIDFromString Lib "ole32.dll" (ByVal lpszGuid As Long, pGuid As UUID) As Long
-'Private Declare Function LoadLibrary Lib "kernel32.dll" Alias "LoadLibraryW" (ByVal lpFileName As Long) As Long
-'
-'
-'Private Const LOAD_LIBRARY_AS_DATAFILE As Long = &H2   'Read Only      ( do not execute DllMain )
-'
-'Public Const GWL_WNDPROC    As Long = &HFFFFFFFC
-'Public Const WM_MOUSEWHEEL  As Long = &H20A&
-'
-'Public Const SHCNE_DELETE       As Long = 4&
-'Public Const SHCNF_PATH         As Long = 1&
-'Public Const SHCNF_FLUSHNOWAIT  As Long = &H2000&
-'Public Const SHCNE_CREATE       As Long = 2&
-'Public Const SHCNE_RENAMEITEM   As Long = 1&
-'Public Const SHCNE_ATTRIBUTES   As Long = &H800&
-'
-'Private Const FILE_ATTRIBUTE_READONLY   As Long = 1&
-'Private Const ERROR_FILE_NOT_FOUND      As Long = 2&
-'Private Const ERROR_ACCESS_DENIED       As Long = 5&
-'
-'Private Const RGN_OR            As Long = 2
-
-'Public Const WM_NCDESTROY As Long = &H82&
-'Public Const WM_UAHDESTROYWINDOW As Long = &H90&
-'
-'Public Declare Function SHParseDisplayName Lib "Shell32" (ByVal pszName As Long, ByVal IBindCtx As Long, ByRef ppidl As Long, sfgaoIn As Long, sfgaoOut As Long) As Long
-'Public Declare Function NtQueryObject Lib "ntdll.dll" (ByVal Handle As Long, ByVal ObjectInformationClass As OBJECT_INFORMATION_CLASS, ObjectInformation As Any, ByVal ObjectInformationLength As Long, ReturnLength As Long) As Long
-'
-'Public Const ZipFldrCLSID      As String = "{E88DCCE0-B7B3-11d1-A9F0-00AA0060FA31}"
-'Public Const IID_IShellExtInit As String = "{000214E8-0000-0000-C000-000000000046}"
 
 Public BROWSERS As MY_BROWSERS
 
@@ -171,18 +38,38 @@ Public hLibPcre2        As Long
 Public oRegexp          As IRegExp
 Public g_bRegexpInit    As Boolean
 
-Private lSubclassed As Long
+Private lSubclassedTools As Long
+Private lSubclassedScan As Long
 Private hGetMsgHook As Long
 
 Public Sub SubClassScroll(SwitchON As Boolean)
+    
+    SubClassScroll_Tools SwitchON
+    SubClassScroll_ScanResults SwitchON
+    
+    'SubClassScroll_Hotkeys SwitchON 'Replaced by Form's "KeyPreview" property
+    
+End Sub
+
+Public Sub SubClassScroll_Tools(SwitchON As Boolean)
     If DisableSubclassing Then Exit Sub
-    If SwitchON Then
-        If lSubclassed = 0 Then lSubclassed = SetWindowSubclass(g_HwndMain, AddressOf WndProc, 0&)
-        'Replaced by Form's "KeyPreview" property
-        'If hGetMsgHook = 0 Then hGetMsgHook = SetWindowsHookEx(WH_GETMESSAGE, AddressOf GetMsgProc, 0, App.ThreadID) 'hotkeys support (Thanks to ManHunter)
+    If SwitchON And Not bAutoLogSilent Then
+        If lSubclassedTools = 0 Then lSubclassedTools = SetWindowSubclass(g_HwndMain, AddressOf WndProcTools, 0&)
     Else
-        If lSubclassed Then RemoveWindowSubclass g_HwndMain, AddressOf WndProc, 0&: lSubclassed = 0
-        'If hGetMsgHook Then UnhookWindowsHookEx hGetMsgHook: hGetMsgHook = 0
+        If lSubclassedTools Then RemoveWindowSubclass g_HwndMain, AddressOf WndProcTools, 0&: lSubclassedTools = 0
+    End If
+End Sub
+
+Public Sub SubClassScroll_ScanResults(SwitchON As Boolean)
+    If DisableSubclassing Then Exit Sub
+    If SwitchON And Not bAutoLogSilent Then
+        If Not (frmMain Is Nothing) Then
+            If lSubclassedScan Then SubClassScroll_ScanResults False
+            h_HwndScanResults = frmMain.lstResults.hwnd
+            If lSubclassedScan = 0 Then lSubclassedScan = SetWindowSubclass(h_HwndScanResults, AddressOf WndProcScan, 0&)
+        End If
+    Else
+        If lSubclassedScan Then RemoveWindowSubclass h_HwndScanResults, AddressOf WndProcScan, 0&: lSubclassedScan = 0
     End If
 End Sub
 
@@ -204,15 +91,25 @@ Public Function GetCursorPosRel() As POINTAPI
     GetCursorPosRel = p
 End Function
 
+'Public Sub SubClassScroll_Hotkeys(SwitchON As Boolean)
+'    If DisableSubclassing Then Exit Sub
+'    If SwitchON And Not bAutoLogSilent Then
+'        'hotkeys support (Thanks to ManHunter)
+'        If hGetMsgHook = 0 Then hGetMsgHook = SetWindowsHookEx(WH_GETMESSAGE, AddressOf GetMsgProc, 0, App.ThreadId)
+'    Else
+'        If hGetMsgHook Then UnhookWindowsHookEx hGetMsgHook: hGetMsgHook = 0
+'    End If
+'End Sub
+
 'Private Function GetMsgProc(ByVal nCode As Long, ByVal wParam As Long, lParam As msg) As Long
 '    If lParam.message = WM_KEYDOWN Then
 '        'http://www.manhunter.ru/assembler/878_obrabotka_soobscheniy_ot_klaviaturi_v_dialogbox.html
 '
 '        If nCode = HC_ACTION Then
-'            'Debug.Print "MSG: " & Hex(lParam.message) & ", " & _
-'                "HWND: " & Hex(lParam.hwnd) & ", " & _
-'                "WPARAM: " & Hex(lParam.wParam) & ", " & _
-'                "LPARAM: " & Hex(lParam.lParam) & ", " & _
+'            'Debug.Print "MSG: " & Hex$(lParam.message) & ", " & _
+'                "HWND: " & Hex$(lParam.hwnd) & ", " & _
+'                "WPARAM: " & Hex$(lParam.wParam) & ", " & _
+'                "LPARAM: " & Hex$(lParam.lParam) & ", " & _
 '                "MSGREMOVED: " & wParam
 '
 '            If (inIDE And wParam = 0) Or Not inIDE Then
@@ -238,29 +135,34 @@ End Function
 '    GetMsgProc = CallNextHookEx(hGetMsgHook, nCode, wParam, lParam)
 'End Function
 
-Private Function WndProc(ByVal hwnd As Long, ByVal uMsg As Long, ByVal wParam As Long, ByVal lParam As Long, ByVal uIdSubclass As Long, ByVal dwRefData As Long) As Long
+Private Function WndProcTools(ByVal hwnd As Long, ByVal uMsg As Long, ByVal wParam As Long, ByVal lParam As Long, ByVal uIdSubclass As Long, ByVal dwRefData As Long) As Long
     On Error Resume Next
+    
+    Static MouseKeys&, Rotation&, NewValue%
     
     Select Case uMsg
     
     Case WM_NCDESTROY
-        SubClassScroll False
+        SubClassScroll_Tools False
         
     Case WM_UAHDESTROYWINDOW 'dilettante's trick
-        SubClassScroll False
+        SubClassScroll_Tools False
         
     Case WM_MOUSEWHEEL
-        'If Not g_bMiscToolsTab Then Exit Function
+
         If Not IsMouseWithin(g_HwndMain) Then Exit Function ' mouse is outside the form
-        Dim MouseKeys&, Rotation&, NewValue%
-        MouseKeys = wParam And &HFFFF&
-        Rotation = wParam \ &HFFFF& 'direction
-        With frmMain.vscMiscTools
-            NewValue = .Value - .LargeChange * IIf(Rotation > 0, 1, -1)
-            If NewValue < .Min Then NewValue = .Min
-            If NewValue > .Max Then NewValue = .Max
-            .Value = NewValue   'change scroll value
-        End With
+        
+        If g_CurFrame = FRAME_ALIAS_MISC_TOOLS Then
+            
+            MouseKeys = wParam And &HFFFF&
+            Rotation = wParam \ &HFFFF& 'direction
+            With frmMain.vscMiscTools
+                NewValue = .Value - .LargeChange * IIf(Rotation > 0, 1, -1)
+                If NewValue < .Min Then NewValue = .Min
+                If NewValue > .Max Then NewValue = .Max
+                .Value = NewValue   'change scroll value
+            End With
+        End If
     
     'Case WM_KEYDOWN
     '  - is not working here because msg is intercepted by active control.
@@ -271,12 +173,73 @@ Private Function WndProc(ByVal hwnd As Long, ByVal uMsg As Long, ByVal wParam As
     '    WndProc = CallWindowProc(lpPrevWndProc, hwnd, uMsg, wParam, lParam)
     ' Not the best option, because RegisterHotKey() intercepts hotkeys from whole system!
     ' As well as not allows to use them by another programs until UnregisterHotKey() call.
-        
-    Case Else
-
-        WndProc = DefSubclassProc(hwnd, uMsg, wParam, lParam)
+    
     End Select
+    
+    WndProcTools = DefSubclassProc(hwnd, uMsg, wParam, lParam)
+    
 End Function
+
+Private Function WndProcScan(ByVal hwnd As Long, ByVal uMsg As Long, ByVal wParam As Long, ByVal lParam As Long, ByVal uIdSubclass As Long, ByVal dwRefData As Long) As Long
+    On Error Resume Next
+    
+    Static Rotation&
+    
+    Select Case uMsg
+    
+    Case WM_NCDESTROY
+        SubClassScroll_ScanResults False
+        
+    Case WM_UAHDESTROYWINDOW 'dilettante's trick
+        SubClassScroll_ScanResults False
+        
+    Case WM_MOUSEWHEEL
+
+        If Not IsMouseWithin(h_HwndScanResults) Then Exit Function ' mouse is outside the form
+        
+        If g_CurFrame = FRAME_ALIAS_SCAN Then
+                
+            If cMath.HIWORD(GetKeyState(VK_CONTROL)) Then
+                Rotation = wParam \ &HFFFF& 'direction
+                Call SetFontSizeDelta(IIf(Rotation > 0, 1, -1))
+            End If
+                
+        End If
+    
+    End Select
+    
+    WndProcScan = DefSubclassProc(hwnd, uMsg, wParam, lParam)
+    
+End Function
+
+Private Sub SetFontSizeDelta(delta As Long)
+    On Error GoTo ErrorHandler:
+    
+    Dim lFontSize As Long
+    
+    g_FontName = frmMain.cmbFont.List(frmMain.cmbFont.ListIndex)
+    g_FontSize = frmMain.cmbFontSize.List(frmMain.cmbFontSize.ListIndex)
+    
+    If g_FontSize = "Auto" Or Len(g_FontSize) = 0 Then
+        lFontSize = 8
+    Else
+        lFontSize = CLng(g_FontSize)
+    End If
+    
+    If (g_FontName = "MS Sans Serif") And ((lFontSize Mod 2) = 0) Then delta = delta * 2
+    
+    lFontSize = lFontSize + delta
+    
+    If lFontSize < 6 Then lFontSize = 6
+    If lFontSize > 14 Then lFontSize = 14
+    
+    ComboSetValue frmMain.cmbFontSize, CStr(lFontSize)
+    
+    Exit Sub
+ErrorHandler:
+    ErrorMsg Err, "SetFontSizeDelta"
+    If inIDE Then Stop: Resume Next
+End Sub
 
 Public Function GetStringFromBinary(Optional ByVal sFile As String, Optional ByVal nid As Long, Optional ByVal FileAndIDHybrid As String) As String
     On Error GoTo ErrorHandler:
@@ -298,8 +261,6 @@ Public Function GetStringFromBinary(Optional ByVal sFile As String, Optional ByV
     sInitialVar = FileAndIDHybrid
     
     If 0 <> Len(FileAndIDHybrid) Then
-    
-        Dbg "1"
     
         If Left$(FileAndIDHybrid, 1) = "@" Then FileAndIDHybrid = Mid$(FileAndIDHybrid, 2)
         If InStr(FileAndIDHybrid, "%") <> 0 Then
@@ -337,38 +298,29 @@ Public Function GetStringFromBinary(Optional ByVal sFile As String, Optional ByV
     sFile = EnvironW(sFile)
     
     If Not FileExists(sFile) Then
-        sFile = FindOnPath(sFile, , IIf(bIsInf, BuildPath(sWinDir, "inf"), ""))
+        sFile = FindOnPath(sFile, , IIf(bIsInf, BuildPath(sWinDir, "inf"), vbNullString))
         If 0 = Len(sFile) Then Exit Function
     End If
     
     sBuf = String$(160, 0)
     
-    Dbg "2"
-    
     Redirect = ToggleWow64FSRedirection(False, sFile, bOldStatus)
     
     If bIsInf Then
-        Dbg "3"
         nSize = GetPrivateProfileString(StrPtr("Strings"), StrPtr(sResVar), StrPtr(sInitialVar), StrPtr(sBuf), Len(sBuf), StrPtr(sFile))
         If nSize <> 0 Then
             sBuf = UnQuote(Left$(sBuf, nSize))
         End If
         GetStringFromBinary = sBuf
     Else
-        Dbg "4"
         hModule = LoadLibraryEx(StrPtr(sFile), 0&, LOAD_LIBRARY_AS_DATAFILE)
 
-        Dbg "5"
-
         If hModule Then
-            Dbg "6"
             nSize = LoadString(hModule, Abs(nid), StrPtr(sBuf), LenB(sBuf))
             If nSize > 0 Then
                 GetStringFromBinary = TrimNull(Left$(sBuf, nSize))
             End If
-            Dbg "7"
             FreeLibrary hModule
-            Dbg "8"
         End If
     End If
     
@@ -429,7 +381,7 @@ Public Function GetChromeVersion() As String
     End If
     If Len(sVer) = 0 Then
         sPath = Reg.GetString(HKEY_LOCAL_MACHINE, "SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe", vbNullString)
-        If sPath <> "" Then
+        If Len(sPath) <> 0 Then
             sVer = GetFilePropVersion(sPath)
         End If
     End If
@@ -643,82 +595,32 @@ ErrorHandler:
     If inIDE Then Stop: Resume Next
 End Function
 
-Sub TryUnlock(ByVal File As String)  'получения прав NTFS + смена владельца на локальную группу "Администраторы"
-    On Error GoTo ErrorHandler:
-    AppendErrorLogCustom "TryUnlock - Begin", "File: " & File
+Function TryUnlock(ByVal FS_Object As String, Optional bRecursive As Boolean) As Boolean
+
+    AppendErrorLogCustom "TryUnlock - Begin", "File: " & FS_Object
     
-    Dim TakeOwn As String
-    Dim Icacls As String
-    Dim DosName As String
-    Dim bIsFolder As Boolean
+    ' DACL for LocalSystem, Administrators, Users, TrustedInstaller, All Packages (AppX)
+    ' Full Access
+    ' Container Inherited, Object Inherited, Propagated to Children
+    ' Disabled inheritance from parent
+    '
     
-    DosName = GetDOSFilename(File)
-    If Len(DosName) <> 0 Then File = DosName
+    Dim SDDL As String
     
-    If Not OSver.IsWindowsVistaOrGreater Then Exit Sub
+    SDDL = "O:BAG:BAD:PAI" ' Owner - Administrators / Group - Administrators / Disabled inheritance from parent
+    SDDL = SDDL & "(A;OICIID;FA;;;SY)" ' LocalSystem
+    SDDL = SDDL & "(A;OICIID;FA;;;BA)" ' Administrators
+    SDDL = SDDL & "(A;OICIID;FA;;;BU)" ' Users
+    SDDL = SDDL & "(A;OICIID;FA;;;S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464)" ' TrustedInstaller
     
-    bIsFolder = FolderExists(File)
-    
-    If OSver.Bitness = "x64" And FolderExists(sWinDir & "\sysnative") Then
-        TakeOwn = EnvironW("%SystemRoot%") & "\Sysnative\takeown.exe"
-        Icacls = EnvironW("%SystemRoot%") & "\Sysnative\icacls.exe"
-    Else
-        TakeOwn = EnvironW("%SystemRoot%") & "\System32\takeown.exe"
-        Icacls = EnvironW("%SystemRoot%") & "\System32\icacls.exe"
+    If OSver.IsWindows8OrGreater Then
+        SDDL = SDDL & "(A;OICIID;FA;;;S-1-15-2-1)" 'AppX
     End If
     
-    If FileExists(TakeOwn) Then
-      If bIsFolder Then
-        Proc.ProcessRun TakeOwn, "/F " & """" & File & """" & " /r /d y", , 0
-        If ERROR_SUCCESS <> Proc.WaitForTerminate(, , , 30000) Then
-            Proc.ProcessClose , , True
-        End If
-      Else
-        Proc.ProcessRun TakeOwn, "/F " & """" & File & """", , 0
-        If ERROR_SUCCESS <> Proc.WaitForTerminate(, , , 5000) Then
-            Proc.ProcessClose , , True
-        End If
-      End If
-    End If
-    
-    If FileExists(Icacls) Then
-      If bIsFolder Then
-        If 0 <> Len(OSver.SID_CurrentProcess) Then
-            Proc.ProcessRun Icacls, """" & File & """" & " /grant:r *" & OSver.SID_CurrentProcess & ":F /T /C /L", , 0
-        Else
-            Proc.ProcessRun Icacls, """" & File & """" & " /grant:r """ & envCurUser & """:F /T /C /L", , 0
-        End If
-        If ERROR_SUCCESS <> Proc.WaitForTerminate(, , , 30000) Then
-            Proc.ProcessClose , , True
-        End If
-      Else
-        Proc.ProcessRun Icacls, """" & File & """" & " /grant:r *S-1-1-0:F /L", , 0
-        If ERROR_SUCCESS <> Proc.WaitForTerminate(, , , 5000) Then
-            Proc.ProcessClose , , True
-        End If
-        
-        Proc.ProcessRun Icacls, """" & File & """" & " /grant:r *S-1-5-32-544:F /L", , 0
-        If ERROR_SUCCESS <> Proc.WaitForTerminate(, , , 5000) Then
-            Proc.ProcessClose , , True
-        End If
-    
-        If 0 <> Len(OSver.SID_CurrentProcess) Then
-            Proc.ProcessRun Icacls, """" & File & """" & " /grant:r *" & OSver.SID_CurrentProcess & ":F /L", , 0
-        Else
-            Proc.ProcessRun Icacls, """" & File & """" & " /grant:r """ & envCurUser & """:F /L", , 0
-        End If
-        If ERROR_SUCCESS <> Proc.WaitForTerminate(, , , 5000) Then
-            Proc.ProcessClose , , True
-        End If
-      End If
-    End If
+    TryUnlock = SetFileStringSD(FS_Object, SDDL, bRecursive)
     
     AppendErrorLogCustom "TryUnlock - End"
-    Exit Sub
-ErrorHandler:
-    ErrorMsg Err, "TryUnlock", "File:", File
-    If inIDE Then Stop: Resume Next
-End Sub
+End Function
 
 Public Function AppPath(Optional bGetFullPath As Boolean) As String
     On Error GoTo ErrorHandler
@@ -818,7 +720,7 @@ Public Function AppExeName(Optional WithExtension As Boolean) As String
     End If
 
     If inIDE Then
-        AppExeName = App.ExeName & IIf(WithExtension, ".exe", "")
+        AppExeName = App.ExeName & IIf(WithExtension, ".exe", vbNullString)
         Exit Function
     End If
 
@@ -834,7 +736,7 @@ Public Function AppExeName(Optional WithExtension As Boolean) As String
     End If
     
     If cnt = 0 Then                          'clear path
-        ProcPath = App.ExeName & IIf(WithExtension, ".exe", "")
+        ProcPath = App.ExeName & IIf(WithExtension, ".exe", vbNullString)
     Else
         ProcPath = Left$(ProcPath, cnt)
         
@@ -876,15 +778,15 @@ Public Function ParseCommandLine(Line As String, argc As Long, argv() As String)
       Unit = Lex(nL) 'Записысаем текущую лексему как начало нового аргумента
       If Len(Unit) <> 0 Then 'Защита от двойных пробелов между аргументами
         'если в лексеме найдена кавычка или непарное их число, то начинаем процесс "квотирования"
-        If (Len(Lex(nL)) - Len(Replace$(Lex(nL), """", ""))) Mod 2 = 1 Then
+        If (Len(Lex(nL)) - Len(Replace$(Lex(nL), """", vbNullString))) Mod 2 = 1 Then
           Do
             nL = nL + 1
             If nL > UBound(Lex) Then Exit Do 'Если не дождались завершающей кавычки, а больше лексем нет
             Unit = Unit & " " & Lex(nL) 'дополняем соседней лексемой
           ' аргумент должен завершаться 1 или непарным числом кавычек лексемы со всеми прилягающими к ней справа символами (кроме знака пробела)
-          Loop Until (Len(Lex(nL)) - Len(Replace$(Lex(nL), """", ""))) Mod 2 = 1
+          Loop Until (Len(Lex(nL)) - Len(Replace$(Lex(nL), """", vbNullString))) Mod 2 = 1
         End If
-        Unit = Replace$(Unit, """", "") 'Удаляем кавычки
+        Unit = Replace$(Unit, """", vbNullString) 'Удаляем кавычки
         nA = nA + 1 'Счетчик кол-ва выходных аргументов
         argv(nA) = Unit
       End If
@@ -942,7 +844,7 @@ Public Function DeleteFileWEx(lpSTR As Long, Optional ForceDeleteMicrosoft As Bo
     sExt = GetExtensionName(FileName)
     
     If Not ForceDeleteMicrosoft Then
-        If Not StrInParamArray(sExt, ".txt", ".log", ".tmp") Then
+        If Not StrInParamArray(sExt, ".txt", ".log", ".tmp", ".ini") Then
             If IsMicrosoftFile(FileName, True) Then
                 SFC_RestoreFile FileName
                 Exit Function
@@ -961,7 +863,7 @@ Public Function DeleteFileWEx(lpSTR As Long, Optional ForceDeleteMicrosoft As Bo
     Redirect = ToggleWow64FSRedirection(False, FileName, bOldStatus)
     
     iAttr = GetFileAttributes(lpSTR)
-    If (iAttr And 2048) Then iAttr = iAttr - 2048
+    If (iAttr And FILE_ATTRIBUTE_COMPRESSED) Then iAttr = iAttr - FILE_ATTRIBUTE_COMPRESSED
     
     If iAttr And FILE_ATTRIBUTE_READONLY Then SetFileAttributes lpSTR, iAttr And Not FILE_ATTRIBUTE_READONLY
     lr = DeleteFileW(lpSTR)
@@ -978,7 +880,7 @@ Public Function DeleteFileWEx(lpSTR As Long, Optional ForceDeleteMicrosoft As Bo
     
     If Err.LastDllError = ERROR_ACCESS_DENIED Then
         TryUnlock FileName
-        If iAttr And FILE_ATTRIBUTE_READONLY Then SetFileAttributes lpSTR, iAttr And Not FILE_ATTRIBUTE_READONLY
+        SetFileAttributes lpSTR, FILE_ATTRIBUTE_NORMAL
         lr = DeleteFileW(lpSTR)
     End If
     
@@ -1055,7 +957,11 @@ ErrorHandler:
 End Function
 
 Private Function BuildPath$(sPath$, sFile$)
-    BuildPath = sPath & IIf(Right$(sPath, 1) = "\", vbNullString, "\") & sFile
+    If Right$(sPath, 1) = "\" Then
+        BuildPath = sPath & sFile
+    Else
+        BuildPath = sPath & "\" & sFile
+    End If
 End Function
 
 Public Function GetWindowsVersion() As String    'Init by Form_load.
@@ -1300,7 +1206,7 @@ Public Function ScanAfterReboot(Optional bSaveState As Boolean = True) As Boolea
     dNow = Now()
     dReboot = dNow - dUptime
     
-    sTime = RegReadHJT("DateLastScan", "")
+    sTime = RegReadHJT("DateLastScan", vbNullString)
     
     If Len(sTime) <> 0 Then
         If StrBeginWith(sTime, "HJT:") Then
@@ -1359,7 +1265,7 @@ Public Sub GetTitleByCLSID(ByVal sCLSID As String, out_sTitle As String, Optiona
     Dim i As Long
     
     If Len(sCLSID) = 0 Then
-        out_sTitle = "(no name)"
+        out_sTitle = STR_NO_NAME
         Exit Sub
     End If
     
@@ -1372,7 +1278,7 @@ Public Sub GetTitleByCLSID(ByVal sCLSID As String, out_sTitle As String, Optiona
         out_sTitle = Reg.GetString(HKEY_CLASSES_ROOT, "CLSID\" & sCLSID, vbNullString, Not bRedirected)
     End If
     If 0 = Len(out_sTitle) Then
-        out_sTitle = "(no name)"
+        out_sTitle = STR_NO_NAME
         
         For i = 1 To 2
             If i = 1 Then
@@ -1421,8 +1327,8 @@ Public Sub GetFileByCLSID(ByVal sCLSID As String, out_sFile As String, Optional 
     Dim i As Long
     
     If Len(sCLSID) = 0 Then
-        out_sTitle = "(no name)"
-        out_sFile = "(no file)"
+        out_sTitle = STR_NO_NAME
+        out_sFile = STR_NO_FILE
         Exit Sub
     End If
     
@@ -1435,7 +1341,7 @@ Public Sub GetFileByCLSID(ByVal sCLSID As String, out_sFile As String, Optional 
         If bShared And 0 = Len(out_sTitle) Then
             out_sTitle = Reg.GetString(HKEY_CLASSES_ROOT, "CLSID\" & sCLSID, vbNullString, Not bRedirected)
         End If
-        If 0 = Len(out_sTitle) Then out_sTitle = "(no name)"
+        If 0 = Len(out_sTitle) Then out_sTitle = STR_NO_NAME
         
         If Left$(out_sTitle, 1) = "@" Then
             sBuf = GetStringFromBinary(, , out_sTitle)
@@ -1460,21 +1366,21 @@ Public Sub GetFileByCLSID(ByVal sCLSID As String, out_sFile As String, Optional 
                 If IsMissing(out_sTitle) Then
                     GetFileByAppID sAppID, out_sFile, , bRedirState, False
                 Else
-                    If out_sTitle <> "(no name)" Then
+                    If out_sTitle <> STR_NO_NAME Then
                         GetFileByAppID sAppID, out_sFile, , bRedirState, False
                     Else
                         GetFileByAppID sAppID, out_sFile, out_sTitle, bRedirState, False
                     End If
                 End If
             End If
-            If out_sFile = "" Then
+            If Len(out_sFile) = 0 Then
                 out_sFile = Reg.GetString(HKEY_CLASSES_ROOT, "CLSID\" & sCLSID & "\LocalServer32", vbNullString, bRedirState)
             End If
         End If
     Next
     
     If 0 = Len(out_sFile) Then
-        out_sFile = "(no file)"
+        out_sFile = STR_NO_FILE
     Else
         out_sFile = UnQuote(EnvironW(out_sFile))
         
@@ -1487,7 +1393,7 @@ Public Sub GetFileByCLSID(ByVal sCLSID As String, out_sFile As String, Optional 
             out_sFile = GetLongPath(out_sFile)
             
     '    Else
-    '        out_sFile = GetLongPath(out_sFile) & " (file missing)"
+    '        out_sFile = GetLongPath(out_sFile) & " " & STR_FILE_MISSING
         End If
     End If
     
@@ -1507,7 +1413,7 @@ Public Sub GetTitleByAppID(sAppID As String, out_sTitle As String, Optional bRed
     If bShared And 0 = Len(out_sTitle) Then
         out_sTitle = Reg.GetString(HKEY_CLASSES_ROOT, "AppID\" & sAppID, vbNullString, Not bRedirected)
     End If
-    If 0 = Len(out_sTitle) Then out_sTitle = "(no name)"
+    If 0 = Len(out_sTitle) Then out_sTitle = STR_NO_NAME
     
     If Left$(out_sTitle, 1) = "@" Then
         sBuf = GetStringFromBinary(, , out_sTitle)
@@ -1533,7 +1439,7 @@ Public Sub GetFileByAppID(sAppID As String, out_sFile As String, Optional out_sT
         If bShared And 0 = Len(out_sTitle) Then
             out_sTitle = Reg.GetString(HKEY_CLASSES_ROOT, "AppID\" & sAppID, vbNullString, Not bRedirected)
         End If
-        If 0 = Len(out_sTitle) Then out_sTitle = "(no name)"
+        If 0 = Len(out_sTitle) Then out_sTitle = STR_NO_NAME
         
         If Left$(out_sTitle, 1) = "@" Then
             sBuf = GetStringFromBinary(, , out_sTitle)
@@ -1584,8 +1490,8 @@ Public Function FormatFileMissing(ByVal sFile As String, Optional sArgs As Strin
     sFile = UnQuote(EnvironW(sFile))
     
     If Len(sFile) = 0 Then
-        FormatFileMissing = "(no file)"
-    ElseIf sFile = "(no file)" Then
+        FormatFileMissing = STR_NO_FILE
+    ElseIf sFile = STR_NO_FILE Then
         FormatFileMissing = sFile
         Exit Function
     Else
@@ -1606,7 +1512,7 @@ Public Function FormatFileMissing(ByVal sFile As String, Optional sArgs As Strin
         Else
             If InStr(sFile, "\") <> 0 Then
                 
-                FormatFileMissing = sFile & " (file missing)"
+                FormatFileMissing = sFile & " " & STR_FILE_MISSING
                 
             Else 'relative path?
         
@@ -1615,7 +1521,7 @@ Public Function FormatFileMissing(ByVal sFile As String, Optional sArgs As Strin
                 If FileExists(sFile) Then
                     FormatFileMissing = sFile
                 Else
-                    FormatFileMissing = sFile & " (file missing)"
+                    FormatFileMissing = sFile & " " & STR_FILE_MISSING
                 End If
             End If
         End If
@@ -1642,14 +1548,19 @@ End Function
 
 '// concat string File + Arg, considering that "(no file)" or "(file missing)" postfixes in 'Filename' should go the last in the resulting string
 Public Function ConcatFileArg(sFile As String, sArg As String) As String
-    If sFile = "(no file)" Then
-        ConcatFileArg = IIf(Len(sArg) <> 0, sArg & " ", "") & sFile
-    ElseIf StrEndWith(sFile, " (file missing)") Then
-        ConcatFileArg = Left$(sFile, Len(sFile) - Len(" (file missing)")) & " " & sArg & " (file missing)"
-    ElseIf StrEndWith(sFile, " (folder missing)") Then
-        ConcatFileArg = Left$(sFile, Len(sFile) - Len(" (folder missing)")) & " " & sArg & " (folder missing)"
+    If Right$(sFile, 1) = ")" Then
+        If StrEndWith(sFile, STR_FILE_MISSING) Then
+            ConcatFileArg = Left$(sFile, Len(sFile) - Len(STR_FILE_MISSING)) & sArg & IIf(Len(sArg) = 0, vbNullString, " ") & STR_FILE_MISSING
+            Exit Function
+        ElseIf StrEndWith(sFile, STR_FOLDER_MISSING) Then
+            ConcatFileArg = Left$(sFile, Len(sFile) - Len(STR_FOLDER_MISSING)) & sArg & IIf(Len(sArg) = 0, vbNullString, " ") & STR_FOLDER_MISSING
+            Exit Function
+        End If
+    End If
+    If Len(sArg) = 0 Then
+        ConcatFileArg = sFile
     Else
-        ConcatFileArg = sFile & IIf(Len(sArg) <> 0, " " & sArg, "")
+        ConcatFileArg = sFile & " " & sArg
     End If
 End Function
 
@@ -1691,7 +1602,7 @@ Function UnpackZIP(Archive As String, DestFolder As String) As Boolean
     
     Do While enm.Next(1&, itm) = S_OK
         cb = lstrlen(itm.pwcsName)
-        nam = Space(cb)
+        nam = Space$(cb)
         
         lstrcpyn StrPtr(nam), itm.pwcsName, cb + 1
         CoTaskMemFree itm.pwcsName
@@ -1757,7 +1668,7 @@ Function UnpackZIPtoArray(Archive As String, out_Buf() As Byte) As Boolean
     enm.Reset
     Do While enm.Next(1&, itm) = S_OK
         cb = lstrlen(itm.pwcsName)
-        nam = Space(cb)
+        nam = Space$(cb)
         
         lstrcpyn StrPtr(nam), itm.pwcsName, cb + 1
         CoTaskMemFree itm.pwcsName
@@ -1789,13 +1700,13 @@ ErrorHandler:
     If inIDE Then Stop: Resume Next
 End Function
 
-Public Sub CreateUninstallKey(bCreate As Boolean, Optional EXE_Location As String = "") ' if false -> delete registry entries
+Public Sub CreateUninstallKey(bCreate As Boolean, Optional EXE_Location As String = vbNullString) ' if false -> delete registry entries
     On Error GoTo ErrorHandler:
     AppendErrorLogCustom "CreateUninstallKey - Begin"
     Dim Setup_Key$:   Setup_Key = "Software\Microsoft\Windows\CurrentVersion\Uninstall\HiJackThis Fork"
     
     If bCreate Then
-        If EXE_Location = "" Then EXE_Location = AppPath(True)
+        If Len(EXE_Location) = 0 Then EXE_Location = AppPath(True)
         
         Reg.CreateKey HKEY_LOCAL_MACHINE, Setup_Key
         Reg.SetStringVal HKEY_LOCAL_MACHINE, Setup_Key, "DisplayName", "HiJackThis Fork " & AppVerString
@@ -2442,7 +2353,7 @@ ErrorHandler:
     If inIDE Then Stop: Resume Next
 End Function
 
-Public Function PathBeginWith(sPath, sBeginPart As String) As Boolean
+Public Function PathBeginWith(sPath As String, sBeginPart As String) As Boolean
     If StrComp(Left$(sPath, Len(sBeginPart)), sBeginPart, 1) = 0 Then
         If Len(sPath) = Len(sBeginPart) Or Mid$(sPath, Len(sBeginPart) + 1, 1) = "\" Then PathBeginWith = True
     End If
@@ -2579,7 +2490,7 @@ Public Function HasCommandLineKey(ByVal sKey As String) As Boolean
             If bHasKey Then
                 If Right$(sKey, 1) = ":" Then offset = -1
                 ch = Mid$(g_sCommandLineArg(i), Len(sKey) + 2 + offset, 1)
-                If (ch = "" Or ch = ":") Then
+                If (Len(ch) = 0 Or ch = ":") Then
                     HasCommandLineKey = True
                     Exit Function
                 End If
@@ -2600,6 +2511,7 @@ Public Function SectionNameById(IdSection As SETTINGS_SECTION) As String
     Case SETTINGS_SECTION_STARTUPLIST:  sName = "Tools\StartupList"
     Case SETTINGS_SECTION_UNINSTMAN:    sName = "Tools\UninstMan"
     Case SETTINGS_SECTION_REGUNLOCKER:  sName = "Tools\RegUnlocker"
+    Case SETTINGS_SECTION_FILEUNLOCKER:  sName = "Tools\FileUnlocker"
     End Select
     
     SectionNameById = sName
@@ -2955,3 +2867,9 @@ Public Sub ComboSetValue(cmb As ComboBox, sValue As String)
     Next
     ErrorMsg Err, "Cannot set value: " & sValue & " - for ComboBox: " & cmb.Name
 End Sub
+
+Public Function OS_SupportSHA2() As Boolean
+
+    OS_SupportSHA2 = OSver.IsWindowsXP_SP3OrGreater
+
+End Function

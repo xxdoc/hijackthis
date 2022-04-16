@@ -10,7 +10,7 @@ Option Explicit
 
 Private Const MAX_HASH_FILE_SIZE As Currency = 314572800@ '300 MB. (maximum file size to calculate hash)
 
-Private Const poly As Long = &HEDB88320
+'Private Const poly As Long = &HEDB88320
 
 Private Declare Function Mul Lib "msvbvm60.dll" Alias "_allmul" (ByVal dw1 As Long, ByVal Reserved As Long, ByVal dw3 As Long, ByVal Reserved As Long) As Long
 Private Declare Function CryptAcquireContext Lib "Advapi32.dll" Alias "CryptAcquireContextW" (ByRef phProv As Long, ByVal pszContainer As Long, ByVal pszProvider As Long, ByVal dwProvType As Long, ByVal dwFlags As Long) As Long
@@ -88,8 +88,8 @@ Public Function GetFileMD5( _
     Dim OldRedir    As Boolean
     Dim Redirect    As Boolean
     
-    If StrEndWith(sFilename, "(file missing)") Then Exit Function
-    If StrEndWith(sFilename, "(no file)") Then Exit Function
+    If StrEndWith(sFilename, STR_FILE_MISSING) Then Exit Function
+    If StrEndWith(sFilename, STR_NO_FILE) Then Exit Function
 
     Redirect = ToggleWow64FSRedirection(False, sFilename, OldRedir)
     
@@ -191,15 +191,14 @@ Public Function GetFileSHA1( _
     Dim hCrypt      As Long
     Dim hHash       As Long
     Dim uSHA1(19)   As Byte
-    Dim lSHA1Len    As Long
     Dim i           As Long
     Dim sSHA1       As String
     Dim aBuf()      As Byte
     Dim OldRedir    As Boolean
     Dim Redirect    As Boolean
     
-    If StrEndWith(sFilename, "(file missing)") Then Exit Function
-    If StrEndWith(sFilename, "(no file)") Then Exit Function
+    If StrEndWith(sFilename, STR_FILE_MISSING) Then Exit Function
+    If StrEndWith(sFilename, STR_NO_FILE) Then Exit Function
     
     Redirect = ToggleWow64FSRedirection(False, sFilename, OldRedir)
     
@@ -242,7 +241,7 @@ Public Function GetFileSHA1( _
 
                 If CryptGetHashParam(hHash, HP_HASHVAL, uSHA1(0), UBound(uSHA1) + 1, 0) <> 0 Then
                     
-                    sSHA1 = String(40, 0&)
+                    sSHA1 = String$(40, 0&)
                     For i = 0 To 19
                         Mid$(sSHA1, i * 2 + 1) = Right$("0" & Hex$(uSHA1(i)), 2)
                     Next i
@@ -293,9 +292,6 @@ Public Function GetFileSHA256( _
     
     On Error GoTo ErrorHandler:
     
-    'temporarily disabled // TODO
-    If Not OSver.IsWindowsVistaOrGreater Then Exit Function
-    
     AppendErrorLogCustom "GetFileSHA256 - Begin", "File: " & sFilename
     
     Dim ff          As Long
@@ -308,8 +304,8 @@ Public Function GetFileSHA256( _
     Dim OldRedir    As Boolean
     Dim Redirect    As Boolean
     
-    If StrEndWith(sFilename, "(file missing)") Then Exit Function
-    If StrEndWith(sFilename, "(no file)") Then Exit Function
+    If StrEndWith(sFilename, STR_FILE_MISSING) Then Exit Function
+    If StrEndWith(sFilename, STR_NO_FILE) Then Exit Function
 
     Redirect = ToggleWow64FSRedirection(False, sFilename, OldRedir)
     
@@ -344,7 +340,7 @@ Public Function GetFileSHA256( _
     
     If Not bAutoLogSilent Then DoEvents
     
-    If CryptAcquireContext(hCrypt, 0&, StrPtr(MS_ENH_RSA_AES_PROV), PROV_RSA_AES, CRYPT_VERIFYCONTEXT) <> 0 Then
+    If CryptAcquireContext(hCrypt, 0&, 0&, PROV_RSA_AES, CRYPT_VERIFYCONTEXT) <> 0 Then
 
         If CryptCreateHash(hCrypt, CALG_SHA_256, 0, 0, hHash) <> 0 Then
 
@@ -362,7 +358,7 @@ Public Function GetFileSHA256( _
         End If
         CryptReleaseContext hCrypt, 0&
     Else
-        ErrorMsg Err, "GetFileSHA256", "File: ", sFilename, "Handle: ", ff, "Size: ", lFileSize
+        ErrorMsg Err, "GetFileSHA256. CryptAcquireContext failed.", "File: ", sFilename, "Handle: ", ff, "Size: ", lFileSize
     End If
     
     If Len(sSHA2) <> 0 Then
@@ -396,6 +392,10 @@ End Function
 
 Public Function CalcSha256(stri As String) As String
 
+    On Error GoTo ErrorHandler:
+    
+    If Not OS_SupportSHA2() Then Exit Function
+    
     Dim hCrypt      As Long
     Dim hHash       As Long
     Dim aBuf()      As Byte
@@ -404,7 +404,7 @@ Public Function CalcSha256(stri As String) As String
     
     aBuf = StrConv(stri, vbFromUnicode)
     
-    If CryptAcquireContext(hCrypt, 0&, StrPtr(MS_ENH_RSA_AES_PROV), PROV_RSA_AES, CRYPT_VERIFYCONTEXT) <> 0 Then
+    If CryptAcquireContext(hCrypt, 0&, 0&, PROV_RSA_AES, CRYPT_VERIFYCONTEXT) <> 0 Then
 
         If CryptCreateHash(hCrypt, CALG_SHA_256, 0, 0, hHash) <> 0 Then
 
@@ -423,6 +423,10 @@ Public Function CalcSha256(stri As String) As String
         CryptReleaseContext hCrypt, 0&
     End If
     
+    Exit Function
+ErrorHandler:
+    ErrorMsg Err, "CalcSha256"
+    If inIDE Then Stop: Resume Next
 End Function
 
 ' Шифрование/дешифровка строки
@@ -885,8 +889,9 @@ End Sub
 Public Function RecoverCRC(ForwardCRC As Long, newCRC As Long) As String
     
     'Dim newCRC&, InitStri$, ForwardCRC&
-    Dim oldCRC&, ChkCRC&, a(3) As Byte, b(3) As Byte, c(3) As Byte, d(3) As Byte, e(3) As Byte, F(3) As Byte, r(3) As Byte
-    Dim NewStri$, PatchAddr&, BackwardCRC&, AddBytes$
+    Dim a(3) As Byte, b(3) As Byte, c(3) As Byte, d(3) As Byte, e(3) As Byte, F(3) As Byte, r(3) As Byte
+    Dim BackwardCRC&, AddBytes$
+    'Dim oldCRC&, ChkCRC&, NewStri$, PatchAddr&
     
     ' Исходные данные
     'InitStri = "Some Data"

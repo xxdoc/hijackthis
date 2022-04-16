@@ -11,6 +11,90 @@ Version history:
 ||||||||       1. HiJackThis: changelog         |||||||||||
 ===========================================================
 
+[2.10.0.17] - Apr 07, 2022
+ - Added new Microsoft certificates.
+ - Files unlocker: Added buttons "Add File(s) / Folder(s)".
+
+[2.10.0.16] - Jan 12, 2022
+ - Added Spanish translation (thanks to Andago).
+ - Added key /LangSP - force use Spanish language for user interface.
+ - Corrected size of the forms for better match the translation.
+ - Minor edits of RU/UA/FR translations.
+ - Updated Merijn Bellekom donation link in StartupList tool.
+ - StartupList (and HJT): fixed "Show file" context menu didn't work with System32 files.
+
+[2.10.0.14] - Dec 26, 2021
+ - O22 - BITS: Fixed throwing error when URL is missing (thanks to @Sandor-Helper for report).
+ - Certificates are updated.
+
+[2.10.0.13] - Dec 02, 2021
+ - Fixed potential crash related to bad buffer size in codepage encoder (thanks to @thetrik for letting me know).
+ - Fixed missing translation.
+ - Fixed font size on some controls.
+ - [Updates checker] Corrected error code returned.
+ - System errors description are now displayed on selected language.
+ - [Uninstall manager] Fixed double-unicode in registry snapshot report on some locales.
+
+[2.10.0.12] - Nov 23, 2021
+ - Updated MS certificates list.
+
+[2.10.0.11] - Nov 21, 2021
+ - Improved error logging.
+
+[2.10.0.10] - Oct 14, 2021
+ - Added detection of Windows 11, Windows Server 2019, Windows Server 2022.
+ - Added DisplayVersion in addition to ReleseId where possible.
+ - O22 - Tasks: whitelists are updated.
+
+[2.10.0.9]
+ - Moved status to a stable release.
+ - O26 - Fixed false "file missing".
+ - O7 Policy - Added more keys for detection DisableTaskMgr.
+
+[2.10.0.8 beta] (Nightly) - Mar 16, 2021
+ - More code clear.
+ - Improved filter of O22 - Bits whitelists.
+
+[2.10.0.7 beta] (Nightly) - Feb 20, 2021
+ - Added new 'Files Unlocker' tool (see 'Tools' menu => Files => Unlock File / Folder).
+ - Global code clear and optimization (thanks to LaVolpe and his 'Project Scaner' tool).
+ - Some errors are fixed.
+ - Improved source code building script.
+
+[2.10.0.6 beta] (Nightly) - Feb 12, 2021
+ - Fixed: HJT uninstallation removes not all keys.
+ - Fixed: Explorer is restarted in 'Limited Mode' after O21 Fix.
+ - Fixed: O26 - Tools false positives.
+ - Hotkeys: 'Ctrl' + 'Mouse Wheel' to change the font size of results window list.
+ - More optimizations.
+
+[2.10.0.5 beta] (Nightly) - Feb 08, 2021
+ - Search window: added option to search in filtering mode (only scan results window).
+ - Search window: added option to mark all items automatically in filtering mode.
+ - Search window: options are now can be saved with a diskette button.
+ - Fixed throwing error when you close the program after fixing the item.
+ - Improved path arguments parser.
+ - Improved file/folder permissions reset.
+
+[2.10.0.4 beta] (Nightly) - Feb 07, 2021
+ - Micro-optimizations.
+
+[2.10.0.3 beta] (Nightly) - Feb 05, 2021
+ - All HKU\.DEFAULT prefixes are replaced by "HKU\S-1-5-18".
+ - O4 - Run* - is now contains postfix with username for service Sids as well.
+ - O7 - Policy: fixed DisallowRun item state.
+ - Fixed unicode strings detection in US Locale.
+ - Fixed missing restore feature in ABR backup.
+
+[2.10.0.2 beta] (Nightly) - Feb 03, 2021
+ - VirusTotal: added compatibility with Windows XP SP3 (thanks to @wqweto for help).
+ - Fixed error in O21 scan (thanks to @Sandor-Helper for reporting).
+ - Fixed BSOD on AppLocker fix, caused by MS GPUpdate. Instead, reboot will be prompted.
+ - Fixed error in hashing the backup while fixing the items (thanks to regist for testing).
+ - Updated certificates (thanks to @akokSZ for reporting).
+ - Improved reset ACL, icacls.exe / takeown.exe are no more used.
+ - Fixed ability to restore the item even if backup system failed to retrieve the file hash.
+
 [2.10.0.1 beta] (Nightly) - Feb 01, 2021
 
 New detections are added:
@@ -33,7 +117,7 @@ New detections are added:
 
 Interface:
  - Added ability to mark multiple items for fixing with 'Shift + Click'.
- - Added "Copy" multi-context menu in scan results window (thanks @TheTrick for helping with Clipboard).
+ - Added "Copy" multi-context menu in scan results window (thanks @thetrik for helping with Clipboard).
  - Added "VirusTotal" multi-context menu in scan results window with options to check file/URL by hash or to submit file with SysInternals Autoruns.
 
 Report:
@@ -1530,4 +1614,4 @@ saved and edited in Wordpad.
 
 [v1.00]
 * Original release, later added copy to clipboard button
-                                                    
+                                                                             
