@@ -1062,15 +1062,15 @@ End Function
 
 Public Function DisableTask(TaskFullPath As String) As Boolean
     
-    SetTaskState TaskFullPath, False
+    DisableTask = SetTaskState(TaskFullPath, False)
 End Function
 
 Public Function EnableTask(TaskFullPath As String) As Boolean
     
-    SetTaskState TaskFullPath, True
+    EnableTask = SetTaskState(TaskFullPath, True)
 End Function
 
-Function SetTaskState(TaskFullPath As String, bEnable As Boolean)
+Function SetTaskState(TaskFullPath As String, bEnable As Boolean) As Boolean
     
     On Error GoTo ErrorHandler
     Dim TaskPath As String
@@ -1150,10 +1150,54 @@ Public Sub EnumTasksVista(Optional MakeCSV As Boolean)
     AppendErrorLogCustom "EnumTasksVista - Begin"
     
     Dim dXmlPathFromDisk    As clsTrickHashTable
-    Dim dTasksTreeGuid      As clsTrickHashTable
-    Dim dTasksEmpty         As clsTrickHashTable
     
     Dim sLogFile        As String
+    
+    '// TODO: Add record: "O22 - Task: 'Task scheduler' service is disabled!"
+    
+    'If GetServiceRunState("Schedule") <> SERVICE_RUNNING Then
+        'Err.Raise 33333, , "Task scheduler service is not running!"
+    'End If
+    
+    Set dXmlPathFromDisk = New clsTrickHashTable
+    
+    dXmlPathFromDisk.CompareMode = 1
+    
+    If MakeCSV Then
+        LogHandle = FreeFile()
+        sLogFile = BuildPath(AppPath(), "Tasks.csv")
+        Open sLogFile For Output As #LogHandle
+        Print #LogHandle, "OSver" & ";" & "State" & ";" & "Name" & ";" & "Dir" & ";" & "RunObj" & ";" & "Args" & ";" & "Note" & ";" & "Error"
+    End If
+    
+    EnumTaskFolder LogHandle, dXmlPathFromDisk, "Tasks", BuildPath(sWinSysDir, "Tasks"), False, True
+    EnumTaskFolder LogHandle, dXmlPathFromDisk, "Tasks_Migrated", BuildPath(sWinSysDir, "Tasks_Migrated"), True, True
+    
+    If OSver.IsWin64 Then
+        EnumTaskFolder LogHandle, dXmlPathFromDisk, "Tasks", BuildPath(sWinSysDirWow64, "Tasks"), False, False
+        EnumTaskFolder LogHandle, dXmlPathFromDisk, "Tasks_Migrated", BuildPath(sWinSysDirWow64, "Tasks_Migrated"), True, False
+    End If
+    
+    EnumTaskOther dXmlPathFromDisk
+    
+    If MakeCSV Then
+        Close #LogHandle
+        Shell "rundll32.exe shell32.dll,ShellExec_RunDLL " & """" & sLogFile & """", vbNormalFocus
+    End If
+    
+    AppendErrorLogCustom "EnumTasksVista - End"
+    Exit Sub
+
+ErrorHandler:
+    ErrorMsg Err, "EnumTasksVista"
+    If inIDE Then Stop: Resume Next
+End Sub
+    
+Sub EnumTaskFolder(LogHandle As Integer, dXmlPathFromDisk As clsTrickHashTable, TaskAlias As String, sWinTasksFolder As String, IsMigrated As Boolean, IsX64 As Boolean)
+
+    On Error GoTo ErrorHandler
+    AppendErrorLogCustom "EnumTaskFolder - Begin"
+
     Dim i               As Long
     Dim j               As Long
     Dim result          As SCAN_RESULT
@@ -1169,7 +1213,6 @@ Public Sub EnumTasksVista(Optional MakeCSV As Boolean)
     Dim aFiles()        As String
     Dim te()            As TASK_ENTRY
     Dim numTasks        As Long
-    Dim sWinTasksFolder As String
     Dim bNoFile         As Boolean
     Dim aSubKeys()      As String
     Dim oKey            As Variant
@@ -1179,30 +1222,8 @@ Public Sub EnumTasksVista(Optional MakeCSV As Boolean)
     Dim bActivation     As Boolean
     Dim bUpdate         As Boolean
     Dim sDllFile        As String
-    
-    '// TODO: Add record: "O22 - Task: 'Task scheduler' service is disabled!"
-    
-    'If GetServiceRunState("Schedule") <> SERVICE_RUNNING Then
-        'Err.Raise 33333, , "Task scheduler service is not running!"
-    'End If
-    
-    Set dXmlPathFromDisk = New clsTrickHashTable
-    Set dTasksTreeGuid = New clsTrickHashTable
-    Set dTasksEmpty = New clsTrickHashTable
-    
-    dXmlPathFromDisk.CompareMode = 1
-    dTasksTreeGuid.CompareMode = 1
-    dTasksEmpty.CompareMode = 1
-    
-    If MakeCSV Then
-        LogHandle = FreeFile()
-        sLogFile = BuildPath(AppPath(), "Tasks.csv")
-        Open sLogFile For Output As #LogHandle
-        Print #LogHandle, "OSver" & ";" & "State" & ";" & "Name" & ";" & "Dir" & ";" & "RunObj" & ";" & "Args" & ";" & "Note" & ";" & "Error"
-    End If
-    
-    sWinTasksFolder = BuildPath(sWinSysDir, "Tasks")
-    
+    Dim sAlias          As String
+
     aFiles = ListFiles(sWinTasksFolder, vbNullString, True)
     
     If AryItems(aFiles) Then
@@ -1214,8 +1235,10 @@ Public Sub EnumTasksVista(Optional MakeCSV As Boolean)
         
         DirXml = Mid$(aFiles(i), Len(sWinTasksFolder) + 1)
         
-        'cache xml path
-        dXmlPathFromDisk.Add DirXml, 0
+        If Not IsMigrated Then
+            'cache xml path
+            dXmlPathFromDisk.Add DirXml, 0
+        End If
         
         DirParent = GetParentDir(DirXml)
         If 0 = Len(DirParent) Then DirParent = "{root}"
@@ -1226,11 +1249,9 @@ Public Sub EnumTasksVista(Optional MakeCSV As Boolean)
         
         For j = 0 To numTasks - 1
             
-            'WipeSignResult SignResult
-            
             bIsMicrosoftFile = False
             
-            If MakeCSV Then
+            If LogHandle Then
                 'taskState
                 Print #LogHandle, OSver.MajorMinor & ";" & ScreenChar(DirParent & "\" & TaskName) & ";" & _
                     ScreenChar(te(j).RunObj) & ";" & _
@@ -1317,7 +1338,9 @@ Public Sub EnumTasksVista(Optional MakeCSV As Boolean)
             '
             If Not IsValidTaskUserId(te(j).UserId) And Not IsValidTaskGroupId(te(j).GroupId) Then
             
-                sHit = "O22 - Task: (damaged) " & IIf(te(j).Enabled, vbNullString, "(disabled) ") & _
+                sAlias = IIf(IsX64, "O22", "O22-32")
+                
+                sHit = sAlias & " - " & TaskAlias & ": (damaged) " & IIf(te(j).Enabled, vbNullString, "(disabled) ") & _
                     IIf(DirParent = "{root}", TaskName, DirParent & "\" & TaskName)
 
                 sHit = sHit & " - " & te(j).RunObj & _
@@ -1326,14 +1349,13 @@ Public Sub EnumTasksVista(Optional MakeCSV As Boolean)
                     IIf(bIsMicrosoftFile, " (Microsoft)", vbNullString) & _
                     " (user missing)"
                   
+                  If g_bCheckSum Then
+                    If FileExists(te(j).RunObj) Then
+                        sHit = sHit & GetFileCheckSum(te(j).RunObj)
+                    End If
+                  End If
+                  
                   If Not IsOnIgnoreList(sHit) Then
-                    
-                      If g_bCheckSum Then
-                          If FileExists(te(j).RunObj) Then
-                              sHit = sHit & GetFileCheckSum(te(j).RunObj)
-                          End If
-                      End If
-                      
                       With result
                           .Section = "O22"
                           .HitLineW = sHit
@@ -1342,16 +1364,21 @@ Public Sub EnumTasksVista(Optional MakeCSV As Boolean)
                           
                           AddFileToFix .File, REMOVE_FILE, aFiles(i)
                           
-                          te(j).RegID = Reg.GetString(HKEY_LOCAL_MACHINE, "SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\TaskCache\Tree" & DirXml, "Id")
-                          If Len(te(j).RegID) <> 0 Then
-                              AddRegToFix .Reg, REMOVE_KEY, HKLM, "SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\TaskCache\Boot\" & te(j).RegID
-                              AddRegToFix .Reg, REMOVE_KEY, HKLM, "SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\TaskCache\Logon\" & te(j).RegID
-                              AddRegToFix .Reg, REMOVE_KEY, HKLM, "SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\TaskCache\Plain\" & te(j).RegID
-                              AddRegToFix .Reg, REMOVE_KEY, HKLM, "SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\TaskCache\Tasks\" & te(j).RegID
-                          End If
-                          AddRegToFix .Reg, REMOVE_KEY, HKLM, "SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\TaskCache\Tree" & DirXml
+                          If Not IsMigrated Then
                           
-                          .CureType = REGISTRY_BASED Or FILE_BASED
+                            te(j).RegID = Reg.GetString(HKEY_LOCAL_MACHINE, "SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\TaskCache\Tree" & DirXml, "Id")
+                            If Len(te(j).RegID) <> 0 Then
+                                AddRegToFix .Reg, REMOVE_KEY, HKLM, "SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\TaskCache\Boot\" & te(j).RegID
+                                AddRegToFix .Reg, REMOVE_KEY, HKLM, "SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\TaskCache\Logon\" & te(j).RegID
+                                AddRegToFix .Reg, REMOVE_KEY, HKLM, "SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\TaskCache\Plain\" & te(j).RegID
+                                AddRegToFix .Reg, REMOVE_KEY, HKLM, "SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\TaskCache\Tasks\" & te(j).RegID
+                            End If
+                            AddRegToFix .Reg, REMOVE_KEY, HKLM, "SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\TaskCache\Tree" & DirXml
+                            
+                            .CureType = REGISTRY_BASED Or FILE_BASED
+                        Else
+                            .CureType = FILE_BASED
+                        End If
                       End With
                       AddToScanResults result
                   End If
@@ -1383,6 +1410,8 @@ Public Sub EnumTasksVista(Optional MakeCSV As Boolean)
                 ElseIf StrComp(sRunFilename, "NvTmRep.exe", 1) = 0 Then
                     bTelemetry = True
                 ElseIf StrComp(sRunFilename, "NvTmMon.exe", 1) = 0 Then
+                    bTelemetry = True
+                ElseIf StrComp(sRunFilename, "PLUGscheduler.exe", 1) = 0 Then
                     bTelemetry = True
                 End If
                 
@@ -1479,7 +1508,7 @@ Public Sub EnumTasksVista(Optional MakeCSV As Boolean)
                 '    Debug.Print "File = " & sRunFilename
                 'End If
                 
-                If (Not isSafe) Or (Not bHideMicrosoft) Then
+                If (Not isSafe) Or (Not bHideMicrosoft) Or bTelemetry Then
                   'skip signature mark for LoLBin processes
                   If bIsMicrosoftFile Then
                   
@@ -1532,7 +1561,9 @@ Public Sub EnumTasksVista(Optional MakeCSV As Boolean)
                       End If
                   End If
                   
-                  sHit = "O22 - Task: " & IIf(te(j).Enabled, vbNullString, "(disabled) ") & _
+                  sAlias = IIf(IsX64, "O22", "O22-32")
+                  
+                  sHit = sAlias & " - " & TaskAlias & ": " & IIf(te(j).Enabled, vbNullString, "(disabled) ") & _
                     IIf(bTelemetry, "(telemetry) ", vbNullString) & _
                     IIf(bActivation, "(activation) ", vbNullString) & _
                     IIf(bUpdate, "(update) ", vbNullString) & _
@@ -1543,14 +1574,13 @@ Public Sub EnumTasksVista(Optional MakeCSV As Boolean)
                     IIf(te(j).FileMissing And Not bNoFile, " " & STR_FILE_MISSING, vbNullString) & _
                     IIf(bIsMicrosoftFile, " (Microsoft)", vbNullString)
                   
+                  If g_bCheckSum Then
+                    If FileExists(te(j).RunObj) Then
+                        sHit = sHit & GetFileCheckSum(te(j).RunObj)
+                    End If
+                  End If
+                  
                   If Not IsOnIgnoreList(sHit) Then
-                
-                      If g_bCheckSum Then
-                          If FileExists(te(j).RunObj) Then
-                              sHit = sHit & GetFileCheckSum(te(j).RunObj)
-                          End If
-                      End If
-                      
                       With result
                           .Section = "O22"
                           .HitLineW = sHit
@@ -1560,18 +1590,25 @@ Public Sub EnumTasksVista(Optional MakeCSV As Boolean)
                           AddFileToFix .File, REMOVE_FILE Or USE_FEATURE_DISABLE, te(j).RunObj 'should go first! Uses by VT.
                           AddFileToFix .File, REMOVE_FILE, aFiles(i)
                           
-                          te(j).RegID = Reg.GetString(HKEY_LOCAL_MACHINE, "SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\TaskCache\Tree" & DirXml, "Id")
-                          If Len(te(j).RegID) <> 0 Then
-                              AddRegToFix .Reg, REMOVE_KEY, HKLM, "SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\TaskCache\Boot\" & te(j).RegID
-                              AddRegToFix .Reg, REMOVE_KEY, HKLM, "SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\TaskCache\Logon\" & te(j).RegID
-                              AddRegToFix .Reg, REMOVE_KEY, HKLM, "SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\TaskCache\Plain\" & te(j).RegID
-                              AddRegToFix .Reg, REMOVE_KEY, HKLM, "SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\TaskCache\Tasks\" & te(j).RegID
+                          If Not IsMigrated Then
+                          
+                            te(j).RegID = Reg.GetString(HKEY_LOCAL_MACHINE, "SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\TaskCache\Tree" & DirXml, "Id")
+                            If Len(te(j).RegID) <> 0 Then
+                                AddRegToFix .Reg, REMOVE_KEY, HKLM, "SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\TaskCache\Boot\" & te(j).RegID
+                                AddRegToFix .Reg, REMOVE_KEY, HKLM, "SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\TaskCache\Logon\" & te(j).RegID
+                                AddRegToFix .Reg, REMOVE_KEY, HKLM, "SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\TaskCache\Plain\" & te(j).RegID
+                                AddRegToFix .Reg, REMOVE_KEY, HKLM, "SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\TaskCache\Tasks\" & te(j).RegID
+                            End If
+                            AddRegToFix .Reg, REMOVE_KEY, HKLM, "SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\TaskCache\Tree" & DirXml
+                            
+                            .CureType = FILE_BASED Or REGISTRY_BASED Or PROCESS_BASED
+                          
+                          Else
+                            .CureType = FILE_BASED Or PROCESS_BASED
                           End If
-                          AddRegToFix .Reg, REMOVE_KEY, HKLM, "SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\TaskCache\Tree" & DirXml
                           
                           AddProcessToFix .Process, FREEZE_OR_KILL_PROCESS, aFiles(i)
                           
-                          .CureType = FILE_BASED Or REGISTRY_BASED Or PROCESS_BASED
                       End With
                       AddToScanResults result
                   End If
@@ -1582,6 +1619,33 @@ Public Sub EnumTasksVista(Optional MakeCSV As Boolean)
         
       Next
     End If
+    
+    AppendErrorLogCustom "EnumTaskFolder - End"
+    Exit Sub
+
+ErrorHandler:
+    ErrorMsg Err, "EnumTaskFolder"
+    If inIDE Then Stop: Resume Next
+End Sub
+
+Sub EnumTaskOther(dXmlPathFromDisk As clsTrickHashTable)
+    
+    On Error GoTo ErrorHandler
+    AppendErrorLogCustom "EnumTaskOther - Begin"
+    
+    Dim i As Long
+    Dim DirXml As String
+    Dim sHit As String
+    Dim result          As SCAN_RESULT
+    
+    Dim dTasksTreeGuid      As clsTrickHashTable
+    Dim dTasksEmpty         As clsTrickHashTable
+    
+    Set dTasksTreeGuid = New clsTrickHashTable
+    Set dTasksEmpty = New clsTrickHashTable
+    
+    dTasksTreeGuid.CompareMode = 1
+    dTasksEmpty.CompareMode = 1
     
     ' Searching for missing or damaged tasks:
     
@@ -1630,7 +1694,8 @@ Public Sub EnumTasksVista(Optional MakeCSV As Boolean)
     ' \Tree\ has missing TaskCache\Tasks\{GUID} record
     '
     Dim nIndex As Long
-    Erase aSubKeys
+    Dim aSubKeys() As String
+    Dim id As String
 
     For i = 1 To Reg.EnumSubKeysToArray(HKLM, "SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\TaskCache\Tree", aSubKeys(), , , True)
         
@@ -1822,20 +1887,15 @@ Public Sub EnumTasksVista(Optional MakeCSV As Boolean)
     '
     ' TODO: undoc. key
     
-    If MakeCSV Then
-        Close #LogHandle
-        Shell "rundll32.exe shell32.dll,ShellExec_RunDLL " & """" & sLogFile & """", vbNormalFocus
-    End If
-    
     Set dXmlPathFromDisk = Nothing
     Set dTasksTreeGuid = Nothing
     Set dTasksEmpty = Nothing
     
-    AppendErrorLogCustom "EnumTasksVista - End"
+    AppendErrorLogCustom "EnumTaskOther - End"
     Exit Sub
 
 ErrorHandler:
-    ErrorMsg Err, "EnumTasksVista"
+    ErrorMsg Err, "EnumTaskOther"
     If inIDE Then Stop: Resume Next
 End Sub
 
@@ -1898,7 +1958,7 @@ Private Function AnalyzeTask(sFilename As String, te() As TASK_ENTRY) As Long
     
     ReDim te(0)
     
-    sFileData = ReadFileContents(sFilename, FileGetTypeBOM(sFilename) = 1200)
+    sFileData = ReadFileContents(sFilename, FileGetTypeBOM(sFilename) = CP_UTF16LE)
     
     If Len(sFileData) = 0 Then Exit Function
     
@@ -2119,7 +2179,6 @@ Public Sub EnumJobs()
             If g_bCheckSum Then sHit = sHit & GetFileCheckSum(Job.prop.AppName.Data)
 
             If Not IsOnIgnoreList(sHit) Then
-            
                 With result
                     .Section = "O22"
                     .HitLineW = sHit
@@ -2271,8 +2330,9 @@ Sub EnumTasksXP() 'Win XP / Server 2003
         If Not isSafe Then
             sHit = "O22 - ScheduledTask: " & sName & " - " & sCLSID & " - " & sFile
             
+            If g_bCheckSum Then sHit = sHit & GetFileCheckSum(sFile)
+            
             If Not IsOnIgnoreList(sHit) Then
-                If g_bCheckSum Then sHit = sHit & GetFileCheckSum(sFile)
                 With result
                     .Section = "O22"
                     .HitLineW = sHit

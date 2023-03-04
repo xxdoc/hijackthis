@@ -30,43 +30,64 @@ End Type
 Private tBackupList As T_LIST_BACKUP
 
 Public Enum ENUM_FILE_RESTORE_VERBS 'values should coerce with ENUM_RESTORE_VERBS !
-    BACKUP_FILE_COPY = 1
-    BACKUP_FILE_REGISTER = 32
+    BACKUP_FILE_COPY = 2 ^ 0
+    BACKUP_FILE_REGISTER = 2 ^ 5
 End Enum
 
 Public Enum ENUM_CUSTOM_RESTORE_VERBS 'values should coerce with ENUM_RESTORE_VERBS !
-    BACKUP_BITS_JOB = 512
+    BACKUP_BITS_JOB = 2 ^ 9
+    BACKUP_APPLOCKER = 2 ^ 10
+End Enum
+
+Public Enum ENUM_SERVICE_RESTORE_VERBS 'values should coerce with ENUM_RESTORE_VERBS !
+    VERB_SERVICE_ENABLE = 2 ^ 11
+    VERB_SERVICE_DISABLE = 2 ^ 12
+    VERB_SERVICE_START = 2 ^ 13
+    VERB_SERVICE_STOP = 2 ^ 14
+End Enum
+
+Public Enum ENUM_TASK_RESTORE_VERBS 'values should coerce with ENUM_RESTORE_VERBS !
+    VERB_TASK_ENABLE = 2 ^ 11
+    VERB_TASK_DISABLE = 2 ^ 12
+    VERB_TASK_START = 2 ^ 13
+    VERB_TASK_STOP = 2 ^ 14
 End Enum
 
 Private Enum ENUM_RESTORE_VERBS 'WARNING: re-enumeration of values is forbidden !!!
-    VERB_FILE_COPY = 1
-    VERB_GENERAL_RESTORE = 2 'for ABR
-    VERB_RESTORE_INI_VALUE = 4
-    VERB_RESTORE_REG_VALUE = 8
-    VERB_RESTORE_REG_KEY = 16
-    VERB_FILE_REGISTER = 32
-    VERB_SERVICE_STATE = 64
-    VERB_WMI_CONSUMER = 128
-    VERB_RESTART_SYSTEM = 256
-    VERB_BITS_JOB = 512
+    VERB_FILE_COPY = 2 ^ 0
+    VERB_GENERAL_RESTORE = 2 ^ 1 'for ABR
+    VERB_RESTORE_INI_VALUE = 2 ^ 2
+    VERB_RESTORE_REG_VALUE = 2 ^ 3
+    VERB_RESTORE_REG_KEY = 2 ^ 4
+    VERB_FILE_REGISTER = 2 ^ 5
+    VERB_SERVICE_STATE = 2 ^ 6
+    VERB_WMI_CONSUMER = 2 ^ 7
+    VERB_RESTART_SYSTEM = 2 ^ 8
+    VERB_BITS_JOB = 2 ^ 9
+    VERB_APPLOCKER = 2 ^ 10
+    VERB_ENABLE = 2 ^ 11
+    VERB_DISABLE = 2 ^ 12
+    VERB_START = 2 ^ 13
+    VERB_STOP = 2 ^ 14
 End Enum
 
 Private Enum ENUM_RESTORE_OBJECT_TYPES 'WARNING: re-enumeration of values is forbidden !!!
-    OBJ_FILE = 1
-    OBJ_ABR_BACKUP = 2
-    OBJ_REG_VALUE = 4
-    OBJ_REG_KEY = 8
-    OBJ_SERVICE = 16
-    OBJ_WMI_CONSUMER = 32
-    OBJ_OS = 64
-    OBJ_REG_METADATA = 128
-    OBJ_FIX_CUSTOM = 256
+    OBJ_FILE = 2 ^ 0
+    OBJ_ABR_BACKUP = 2 ^ 1
+    OBJ_REG_VALUE = 2 ^ 2
+    OBJ_REG_KEY = 2 ^ 3
+    OBJ_SERVICE = 2 ^ 4
+    OBJ_WMI_CONSUMER = 2 ^ 5
+    OBJ_OS = 2 ^ 6
+    OBJ_REG_METADATA = 2 ^ 7
+    OBJ_FIX_CUSTOM = 2 ^ 8
+    OBJ_TASK = 2 ^ 9
 End Enum
 
 Private Type BACKUP_COMMAND
     Full        As String
     RecovType   As ENUM_CURE_BASED
-    verb        As ENUM_RESTORE_VERBS
+    Verb        As ENUM_RESTORE_VERBS
     ObjType     As ENUM_RESTORE_OBJECT_TYPES
     Args        As String
 End Type
@@ -185,7 +206,7 @@ Dim HE_Uniq As clsHiveEnum
 Public Sub InitBackupIni()
     If cBackupIni Is Nothing Then
         Set cBackupIni = New clsIniFile
-        cBackupIni.InitFile LIST_BACKUP_FILE, 1200
+        cBackupIni.InitFile LIST_BACKUP_FILE, CP_UTF16LE
         tBackupList.Total = cBackupIni.ReadParam("main", "Total", 0)
         tBackupList.LastFixID = cBackupIni.ReadParam("main", "LastFixID", 0)
         tBackupList.LastBackupID = cBackupIni.ReadParam("main", "LastBackupID", 0)
@@ -368,9 +389,22 @@ Public Function MakeBackup(result As SCAN_RESULT) As Boolean
                 For i = 0 To UBound(.Service)
                     With .Service(i)
                         If ((.ActionType And DELETE_SERVICE) Or (.ActionType And DISABLE_SERVICE)) Then
-                            'If Not (.RunState = SERVICE_STATE_UNKNOWN Or .RunState = SERVICE_STOP_PENDING Or .RunState = SERVICE_STOPPED) Then
-                                BackupServiceState result, .ServiceName
-                            'End If
+                            BackupServiceState result, .ServiceName
+                        End If
+                    End With
+                Next
+            End If
+        End If
+        
+        If .CureType And TASK_BASED Then
+            If AryPtr(.Task) Then
+                For i = 0 To UBound(.Task)
+                    With .Task(i)
+                        If .ActionType = ENABLE_TASK Then
+                            BackupTaskActionRequired result, .TaskPath, VERB_DISABLE
+                            
+                        ElseIf .ActionType = DISABLE_TASK Then
+                            BackupTaskActionRequired result, .TaskPath, VERB_ENABLE
                         End If
                     End With
                 Next
@@ -378,6 +412,10 @@ Public Function MakeBackup(result As SCAN_RESULT) As Boolean
         End If
         
         If .CureType And PROCESS_BASED Then
+            'nothing
+        End If
+        
+        If .CureType And COMMANDLINE_BASED Then
             'nothing
         End If
     
@@ -391,6 +429,9 @@ Public Function MakeBackup(result As SCAN_RESULT) As Boolean
                         End If
                         If (.ActionType And CUSTOM_ACTION_BITS) Then
                             BackupCustom result, result.Custom(i), BACKUP_BITS_JOB
+                        End If
+                        If (.ActionType And CUSTOM_ACTION_APPLOCKER) Then
+                            BackupCustom result, result.Custom(i), BACKUP_APPLOCKER
                         End If
                     End With
                 Next
@@ -539,14 +580,14 @@ Private Sub UpdateBackupEntry(result As SCAN_RESULT, Optional bForceCreateNewEnt
         tBackupList.LastHitW = result.HitLineW
         
         Set tBackupList.cLastCMD = New clsIniFile
-        tBackupList.cLastCMD.InitFile BuildPath(AppPath, "Backups\" & tBackupList.LastBackupID & "\" & BACKUP_COMMAND_FILE_NAME), 1200
+        tBackupList.cLastCMD.InitFile BuildPath(AppPath, "Backups\" & tBackupList.LastBackupID & "\" & BACKUP_COMMAND_FILE_NAME), CP_UTF16LE
         'tBackupList.cLastCMD.Flush
         
         MkDirW BuildPath(AppPath, "Backups\" & tBackupList.LastBackupID)
     Else
         tBackupList.CurrentBackupID = lBackupID
         Set tBackupList.cLastCMD = New clsIniFile
-        tBackupList.cLastCMD.InitFile BuildPath(AppPath, "Backups\" & lBackupID & "\" & BACKUP_COMMAND_FILE_NAME), 1200
+        tBackupList.cLastCMD.InitFile BuildPath(AppPath, "Backups\" & lBackupID & "\" & BACKUP_COMMAND_FILE_NAME), CP_UTF16LE
     End If
     
     Exit Sub
@@ -785,6 +826,21 @@ Private Sub BackupServiceState(result As SCAN_RESULT, ServiceName As String)
     Exit Sub
 ErrorHandler:
     ErrorMsg Err, "BackupServiceState", ServiceName
+    If inIDE Then Stop: Resume Next
+End Sub
+
+Private Sub BackupTaskActionRequired(result As SCAN_RESULT, TaskPath As String, VerbRestore As ENUM_TASK_RESTORE_VERBS)
+    On Error GoTo ErrorHandler
+    
+    If Len(TaskPath) = 0 Then Exit Sub
+    
+    UpdateBackupEntry result
+    
+    BackupAddCommand TASK_BASED, VerbRestore, OBJ_TASK, TaskPath
+    
+    Exit Sub
+ErrorHandler:
+    ErrorMsg Err, "BackupTaskActionRequired", TaskPath
     If inIDE Then Stop: Resume Next
 End Sub
 
@@ -1117,11 +1173,6 @@ Public Function ABR_CreateBackup(bForceIgnoreDays As Boolean) As Boolean
             MsgBoxW "Error while creating registry backup (ABR)", vbExclamation, "HiJackThis"
         End If
         
-'        Sleep 2000&
-'
-'        If Not inIDE Then
-'            DisableWER bRevert:=True
-'        End If
     End If
     
     If inIDE Then
@@ -1756,7 +1807,7 @@ Private Function BackupLoadBackupByID(lBackupID As Long) As Boolean
     Dim CmdFile As String
     CmdFile = BuildPath(AppPath, "Backups\" & lBackupID & "\" & BACKUP_COMMAND_FILE_NAME)
     If FileExists(CmdFile) Then
-        tBackupList.cLastCMD.InitFile CmdFile, 1200
+        tBackupList.cLastCMD.InitFile CmdFile, CP_UTF16LE
         BackupLoadBackupByID = True
     Else
         MsgBoxW "Error! Backup entry for this item is no longer exists. Cannot continue.", vbCritical
@@ -2086,6 +2137,7 @@ Public Function RestoreBackup(sItem As String) As Boolean
     Dim sCommandLine As String
     Dim sTarget As String
     Dim sURL As String
+    Dim TaskPath As String
     
     RestoreBackup = True
     
@@ -2141,7 +2193,7 @@ Public Function RestoreBackup(sItem As String) As Boolean
         
         Case FILE_BASED
         
-            If Cmd.verb = VERB_FILE_COPY Then
+            If Cmd.Verb = VERB_FILE_COPY Then
                 If Cmd.ObjType = OBJ_FILE Then
                     lFileID = CLng(Cmd.Args)
                     sBackupFile = tBackupList.cLastCMD.ReadParam(lFileID, "name")
@@ -2215,11 +2267,11 @@ Public Function RestoreBackup(sItem As String) As Boolean
                         RestoreBackup = False
                     End If
                 Else
-                    MsgBoxW "Error! RestoreBackup: unknown object type: " & Cmd.ObjType, vbExclamation
+                    MsgBoxW "Error! RestoreBackup (FILE): unknown object type: " & Cmd.ObjType, vbExclamation
                     RestoreBackup = False
                 End If
                 
-            ElseIf Cmd.verb = VERB_FILE_REGISTER Then
+            ElseIf Cmd.Verb = VERB_FILE_REGISTER Then
                 If Cmd.ObjType = OBJ_FILE Then
                     lFileID = CLng(Cmd.Args)
                     sSystemFile = EnvironW(tBackupList.cLastCMD.ReadParam(lFileID, "name"))
@@ -2231,13 +2283,13 @@ Public Function RestoreBackup(sItem As String) As Boolean
                     End If
                 End If
             Else
-                MsgBoxW "Error! RestoreBackup: unknown verb: " & Cmd.verb, vbExclamation
+                MsgBoxW "Error! RestoreBackup (FILE): unknown verb: " & Cmd.Verb, vbExclamation
                 RestoreBackup = False
             End If
             
         Case REGISTRY_BASED
         
-            If Cmd.verb = VERB_RESTORE_REG_VALUE Then
+            If Cmd.Verb = VERB_RESTORE_REG_VALUE Then
                 If Cmd.ObjType = OBJ_REG_VALUE Then
                     lRegID = CLng(Cmd.Args)
                     With FixReg
@@ -2263,11 +2315,11 @@ Public Function RestoreBackup(sItem As String) As Boolean
                         End If
                     End With
                 Else
-                    MsgBoxW "Error! RestoreBackup: unknown object type: " & Cmd.ObjType, vbExclamation
+                    MsgBoxW "Error! RestoreBackup (REG): unknown object type: " & Cmd.ObjType, vbExclamation
                     RestoreBackup = False
                 End If
             
-            ElseIf Cmd.verb = VERB_RESTORE_REG_KEY Then
+            ElseIf Cmd.Verb = VERB_RESTORE_REG_KEY Then
                 If Cmd.ObjType = OBJ_REG_METADATA Then
                     lRegID = CLng(Cmd.Args)
                     With FixReg
@@ -2280,17 +2332,17 @@ Public Function RestoreBackup(sItem As String) As Boolean
                         End If
                     End With
                 Else
-                    MsgBoxW "Error! RestoreBackup: unknown object type: " & Cmd.ObjType, vbExclamation
+                    MsgBoxW "Error! RestoreBackup (REG): unknown object type: " & Cmd.ObjType, vbExclamation
                     RestoreBackup = False
                 End If
             Else
-                MsgBoxW "Error! RestoreBackup: unknown verb: " & Cmd.verb, vbExclamation
+                MsgBoxW "Error! RestoreBackup (REG): unknown verb: " & Cmd.Verb, vbExclamation
                 RestoreBackup = False
             End If
             
         Case INI_BASED
         
-            If Cmd.verb = VERB_RESTORE_INI_VALUE Then
+            If Cmd.Verb = VERB_RESTORE_INI_VALUE Then
                 If Cmd.ObjType = OBJ_FILE Then
                     lRegID = CLng(Cmd.Args)
                      With FixReg
@@ -2300,17 +2352,17 @@ Public Function RestoreBackup(sItem As String) As Boolean
                         End If
                     End With
                 Else
-                    MsgBoxW "Error! RestoreBackup: unknown object type: " & Cmd.ObjType, vbExclamation
+                    MsgBoxW "Error! RestoreBackup (INI): unknown object type: " & Cmd.ObjType, vbExclamation
                     RestoreBackup = False
                 End If
             Else
-                MsgBoxW "Error! RestoreBackup: unknown verb: " & Cmd.verb, vbExclamation
+                MsgBoxW "Error! RestoreBackup (INI): unknown verb: " & Cmd.Verb, vbExclamation
                 RestoreBackup = False
             End If
 
         Case SERVICE_BASED
         
-            If Cmd.verb = VERB_SERVICE_STATE Then
+            If Cmd.Verb = VERB_SERVICE_STATE Then
                 If Cmd.ObjType = OBJ_SERVICE Then
                     ServiceName = Cmd.Args
 '                    ServiceState = GetServiceRunState(ServiceName)
@@ -2320,11 +2372,37 @@ Public Function RestoreBackup(sItem As String) As Boolean
                     bRebootRequired = True
                     RestoreBackup = True
                 Else
-                    MsgBoxW "Error! RestoreBackup: unknown object type: " & Cmd.ObjType, vbExclamation
+                    MsgBoxW "Error! RestoreBackup (SERVICE): unknown object type: " & Cmd.ObjType, vbExclamation
                     RestoreBackup = False
                 End If
             Else
-                MsgBoxW "Error! RestoreBackup: unknown verb: " & Cmd.verb, vbExclamation
+                MsgBoxW "Error! RestoreBackup (SERVICE): unknown verb: " & Cmd.Verb, vbExclamation
+                RestoreBackup = False
+            End If
+        
+        Case TASK_BASED
+        
+            If Cmd.ObjType = OBJ_TASK Then
+                
+                TaskPath = Cmd.Args
+                
+                If Cmd.Verb = VERB_ENABLE Then
+
+                    EnableTask TaskPath
+                    bRebootRequired = True
+                    RestoreBackup = True
+                    
+                ElseIf Cmd.Verb = VERB_DISABLE Then
+                
+                    DisableTask TaskPath
+                    bRebootRequired = True
+                    RestoreBackup = True
+                Else
+                    MsgBoxW "Error! RestoreBackup (TASK): unknown verb: " & Cmd.Verb, vbExclamation
+                    RestoreBackup = False
+                End If
+            Else
+                MsgBoxW "Error! RestoreBackup (TASK): unknown object type: " & Cmd.ObjType, vbExclamation
                 RestoreBackup = False
             End If
         
@@ -2338,34 +2416,38 @@ Public Function RestoreBackup(sItem As String) As Boolean
             sTarget = tBackupList.cLastCMD.ReadParam(lCustomID, "target")
             sCommandLine = tBackupList.cLastCMD.ReadParam(lCustomID, "commandline")
         
-            If Cmd.verb = VERB_WMI_CONSUMER Then
+            If Cmd.Verb = VERB_WMI_CONSUMER Then
                 If Cmd.ObjType = OBJ_WMI_CONSUMER Then
                     O25 = UnpackO25_Entry(Cmd.Args)
                     If RecoverO25Item(O25) Then
                         RestoreBackup = True
                     End If
                 Else
-                    MsgBoxW "Error! RestoreBackup: unknown object type: " & Cmd.ObjType, vbExclamation
+                    MsgBoxW "Error! RestoreBackup (CUSTOM): unknown object type: " & Cmd.ObjType, vbExclamation
                     RestoreBackup = False
                 End If
                 
-            ElseIf Cmd.verb = VERB_RESTART_SYSTEM Then
+            ElseIf Cmd.Verb = VERB_RESTART_SYSTEM Then
                 If Cmd.ObjType = OBJ_OS Then
                     bRebootRequired = True
                     RestoreBackup = True
                 End If
                 
-            ElseIf Cmd.verb = VERB_BITS_JOB Then
+            ElseIf Cmd.Verb = VERB_BITS_JOB Then
                 lCustomID = CLng(Cmd.Args)
                 If RestoreBitsJob(sName, sURL, sTarget, sCommandLine) Then
                     RestoreBackup = True
                 End If
+                
+            ElseIf Cmd.Verb = VERB_APPLOCKER Then
+                EnableApplocker
+                RestoreBackup = True
             Else
-                MsgBoxW "Error! RestoreBackup: unknown verb: " & Cmd.verb, vbExclamation
+                MsgBoxW "Error! RestoreBackup (CUSTOM): unknown verb: " & Cmd.Verb, vbExclamation
                 RestoreBackup = False
             End If
         Case Else
-            MsgBoxW "Oh! I forgot to implement this recovery type: " & Cmd.RecovType & ". Remind me about this.", vbExclamation
+            MsgBoxW "Oh! I forgot to implement this recovery type: " & Cmd.RecovType & ". Remind me about it.", vbExclamation
             RestoreBackup = False
         End Select
         
@@ -2490,7 +2572,7 @@ Private Sub BackupExtractCommand(Cmd As BACKUP_COMMAND)
     If InStr(Cmd.Full, " ") <> 0 Then
         Part = Split(Cmd.Full, " ", 4)
         If UBound(Part) >= 0 Then Cmd.RecovType = MapStringToRecoveryType(Part(0))
-        If UBound(Part) >= 1 Then Cmd.verb = MapStringToRecoveryVerb(Part(1))
+        If UBound(Part) >= 1 Then Cmd.Verb = MapStringToRecoveryVerb(Part(1))
         If UBound(Part) >= 2 Then Cmd.ObjType = MapStringToRecoveryObject(Part(2))
         If UBound(Part) >= 3 Then Cmd.Args = Part(3)
     End If
@@ -2525,6 +2607,8 @@ Private Function MapRecoveryTypeToString(RecovType As ENUM_CURE_BASED) As String
         sRet = "INI_BASED"
     ElseIf RecovType And SERVICE_BASED Then
         sRet = "SERVICE_BASED"
+    ElseIf RecovType And TASK_BASED Then
+        sRet = "TASK_BASED"
     ElseIf RecovType And CUSTOM_BASED Then
         sRet = "CUSTOM_BASED"
     Else
@@ -2542,6 +2626,8 @@ Private Function MapStringToRecoveryType(sRecovType As String) As ENUM_CURE_BASE
         RecovType = INI_BASED
     ElseIf sRecovType = "SERVICE_BASED" Then
         RecovType = SERVICE_BASED
+    ElseIf sRecovType = "TASK_BASED" Then
+        RecovType = TASK_BASED
     ElseIf sRecovType = "CUSTOM_BASED" Then
         RecovType = CUSTOM_BASED
     Else
@@ -2571,6 +2657,16 @@ Private Function MapRecoveryVerbToString(RecovVerb As ENUM_RESTORE_VERBS) As Str
         sRet = "VERB_RESTART_SYSTEM"
     ElseIf RecovVerb And VERB_BITS_JOB Then
         sRet = "VERB_BITS_JOB"
+    ElseIf RecovVerb And VERB_APPLOCKER Then
+        sRet = "VERB_APPLOCKER"
+    ElseIf RecovVerb And VERB_ENABLE Then
+        sRet = "VERB_ENABLE"
+    ElseIf RecovVerb And VERB_DISABLE Then
+        sRet = "VERB_DISABLE"
+    ElseIf RecovVerb And VERB_START Then
+        sRet = "VERB_START"
+    ElseIf RecovVerb And VERB_STOP Then
+        sRet = "VERB_STOP"
     Else
         MsgBoxW "Error! Unknown VerbType mapping! - " & RecovVerb, vbExclamation
     End If
@@ -2598,6 +2694,16 @@ Private Function MapStringToRecoveryVerb(sRecovVerb As String) As ENUM_RESTORE_V
         ret = VERB_RESTART_SYSTEM
     ElseIf sRecovVerb = "VERB_BITS_JOB" Then
         ret = VERB_BITS_JOB
+    ElseIf sRecovVerb = "VERB_APPLOCKER" Then
+        ret = VERB_APPLOCKER
+    ElseIf sRecovVerb = "VERB_ENABLE" Then
+        ret = VERB_ENABLE
+    ElseIf sRecovVerb = "VERB_DISABLE" Then
+        ret = VERB_DISABLE
+    ElseIf sRecovVerb = "VERB_START" Then
+        ret = VERB_START
+    ElseIf sRecovVerb = "VERB_STOP" Then
+        ret = VERB_STOP
     Else
         MsgBoxW "Error! Unknown VerbType mapping! - " & sRecovVerb, vbExclamation
     End If
@@ -2621,6 +2727,8 @@ Private Function MapRecoveryObjectToString(RecovObject As ENUM_RESTORE_OBJECT_TY
         sRet = "OBJ_OS"
     ElseIf RecovObject And OBJ_REG_METADATA Then
         sRet = "OBJ_REG_METADATA"
+    ElseIf RecovObject And OBJ_TASK Then
+        sRet = "OBJ_TASK"
     Else
         MsgBoxW "Error! Unknown ObjectType mapping! - " & RecovObject, vbExclamation
     End If
@@ -2644,6 +2752,8 @@ Private Function MapStringToRecoveryObject(sRecovObject As String) As ENUM_RESTO
         RecovObject = OBJ_OS
     ElseIf sRecovObject = "OBJ_REG_METADATA" Then
         RecovObject = OBJ_REG_METADATA
+    ElseIf sRecovObject = "OBJ_TASK" Then
+        RecovObject = OBJ_TASK
     Else
         MsgBoxW "Error! Unknown ObjectType mapping! - " & sRecovObject, vbExclamation
     End If

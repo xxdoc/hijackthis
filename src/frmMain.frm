@@ -1852,6 +1852,9 @@ Begin VB.Form frmMain
          Begin VB.Menu mnuResultCopyFileName 
             Caption         =   "File Name"
          End
+         Begin VB.Menu mnuResultCopyFileArguments 
+            Caption         =   "File Arguments"
+         End
          Begin VB.Menu mnuResultCopyFileObject 
             Caption         =   "File (as Object)"
          End
@@ -2029,7 +2032,7 @@ Private JumpRegCache()  As FIX_REG_KEY
 Public Sub Test()
 
     'If you need something to test after program started and initialized all required variables, please use this sub.
-
+    
 End Sub
 
 
@@ -2096,8 +2099,7 @@ Private Sub Form_Load()
         End If
         tmrStart.Enabled = True
     End If
-    
-    'ABR_RunBackup
+
 End Sub
 
 Private Sub lstResults_ItemCheck(Item As Integer)
@@ -3087,7 +3089,7 @@ Private Sub FormStart_Stage3()
 
             For i = 0 To dRunFiles.Count - 1
                 sFile = dRunFiles.Keys(i)
-                PrintW hFile, sFile
+                PrintLineW hFile, sFile
             Next
 
             CloseW hFile, True
@@ -3174,7 +3176,7 @@ Private Sub FormStart_Stage3()
                     If nDetects = 0 Then
                         If sURL = "n/a" Then
                             If (hFile3 > 0) Then
-                                PrintW hFile3, sCheckedFile
+                                PrintLineW hFile3, sCheckedFile
                             End If
                         ElseIf Not dClearFiles.Exists(sCheckedFile) Then
                             dClearFiles.Add sCheckedFile, 0
@@ -3182,7 +3184,7 @@ Private Sub FormStart_Stage3()
                             sLine = sCheckedFile & " - " & sURL
 
                             If (hFile1 > 0) Then
-                                PrintW hFile1, sLine
+                                PrintLineW hFile1, sLine
                             End If
                         End If
                     Else
@@ -3192,7 +3194,7 @@ Private Sub FormStart_Stage3()
                             sLine = sCheckedFile & " - [" & CStr(nDetects) & "] - " & sURL
 
                             If (hFile2 > 0) Then
-                                PrintW hFile2, sLine
+                                PrintLineW hFile2, sLine
                             End If
                         End If
                     End If
@@ -3250,7 +3252,7 @@ Private Sub FormStart_Stage3()
 
                             dRunFiles.Remove sFile
                             If hFile3 > 0 Then
-                                PrintW hFile3, sFile
+                                PrintLineW hFile3, sFile
                             End If
                         Else
 
@@ -3382,15 +3384,10 @@ Function ParseVTResult(sLog As String, sFile As String, nDetects As Long, sURL A
     OpenW sLog, FOR_READ, hFile
     
     If hFile > 0 Then
-        sContent = String$(LOFW(hFile), vbNullChar)
-        GetW hFile, 1&, sContent
         CloseW hFile
+        sContent = ReadFileContents(sLog, FileGetTypeBOM(sLog) = CP_UTF16LE)
         
         If Len(sContent) < 2 Then Exit Function
-        
-        If HasBOM_UTF16(sContent) Then
-            sContent = StrConv(Mid$(sContent, 3), vbFromUnicode)
-        End If
         
         sContent = Replace(sContent, vbCr, vbNullString)
         aLine = Split(sContent, vbLf)
@@ -3525,15 +3522,10 @@ Sub ParseFilesXML(dRunFiles As clsTrickHashTable, sLog As String)
     OpenW sLog, FOR_READ, hFile
     
     If hFile > 0 Then
-        sContent = String$(LOFW(hFile), vbNullChar)
-        GetW hFile, 1&, sContent
         CloseW hFile
+        sContent = ReadFileContents(sLog, FileGetTypeBOM(sLog) = CP_UTF16LE)
         
         If Len(sContent) < 2 Then Exit Sub
-        
-        If HasBOM_UTF16(sContent) Then
-            sContent = StrConv(Mid$(sContent, 3), vbFromUnicode)
-        End If
         
         sContent = Replace(sContent, vbCr, vbNullString)
         aLine = Split(sContent, vbLf)
@@ -3682,6 +3674,7 @@ Private Sub LoadResources()
             
             With g_TasksWL(i)
                 .OSver = Val(Columns(0))
+                If .OSver = 11 Then .OSver = 10
 
                 'select appropriate version from DB
                 If .OSver = OSver.MajorMinor Then
@@ -5017,6 +5010,9 @@ Private Sub cmdScan_Click()
         
         iPrevListIndex = 0
         
+        ' pre-cache to prevent CPU indicators distortion by own process
+        g_iCpuUsage = CLng(OSver.CpuUsage)
+        
         StartScan '<<<<<<<-------- Main scan routine
         
         If txtNothing.Visible Or Not bAutoLog Then UpdateProgressBar "Finish"
@@ -5580,6 +5576,8 @@ Private Sub LoadSettings(Optional nRun As Long)
         sFileVals(i) = EnvironW(sFileVals(i))
     Next
     
+    g_sLastSearch = RegReadHJT("LastSearch", vbNullString)
+    
     ' move registry settings from old key to new
     If bUseOldKey And OSver.IsElevated Then
         SaveSettings
@@ -5955,6 +5953,7 @@ Sub SaveSettings()
     RegSaveHJT "DefSearchPage", Encode64(Crypt(g_DEFSEARCHPAGE))
     RegSaveHJT "DefSearchAss", Encode64(Crypt(g_DEFSEARCHASS))
     RegSaveHJT "DefSearchCust", Encode64(Crypt(g_DEFSEARCHCUST))
+    RegSaveHJT "LastSearch", g_sLastSearch
     RegSaveHJT "LogEnvVars", Abs(CLng(bLogEnvVars))
     RegSaveHJT "CalcMD5", Abs(CLng(g_bCheckSum)) 'CalcMD5 - for backward compatibility, actual meaning is "Calc CheckSum"
     Select Case g_eUseHashType
@@ -6407,6 +6406,10 @@ Private Sub mnuResultCopyRegKey_Click() ' Context menu => Copy => Registry Key
     result = GetSelected_OrCheckedItemResult()
     If AryPtr(result.Reg) Then
         ClipboardSetText BuildPath(Reg.GetHiveNameByHandle(result.Reg(0).Hive), result.Reg(0).Key)
+    ElseIf AryPtr(result.Jump) Then
+        If AryPtr(result.Jump(0).Registry) Then
+            ClipboardSetText BuildPath(Reg.GetHiveNameByHandle(result.Jump(0).Registry(0).Hive), result.Jump(0).Registry(0).Key)
+        End If
     End If
 End Sub
 
@@ -6415,6 +6418,10 @@ Private Sub mnuResultCopyRegParam_Click() ' Context menu => Copy => Registry Par
     result = GetSelected_OrCheckedItemResult()
     If AryPtr(result.Reg) Then
         ClipboardSetText result.Reg(0).Param
+    ElseIf AryPtr(result.Jump) Then
+        If AryPtr(result.Jump(0).Registry) Then
+            ClipboardSetText result.Jump(0).Registry(0).Param
+        End If
     End If
 End Sub
 
@@ -6423,6 +6430,22 @@ Private Sub mnuResultCopyFilePath_Click() ' Context menu => Copy => File Path
     result = GetSelected_OrCheckedItemResult()
     If AryPtr(result.File) Then
         ClipboardSetText result.File(0).Path
+    ElseIf AryPtr(result.Jump) Then
+        If AryPtr(result.Jump(0).File) Then
+            ClipboardSetText result.Jump(0).File(0).Path
+        End If
+    End If
+End Sub
+
+Private Sub mnuResultCopyFileArguments_Click() ' Context menu => Copy => File Argument
+    Dim result As SCAN_RESULT
+    result = GetSelected_OrCheckedItemResult()
+    If AryPtr(result.File) Then
+        ClipboardSetText result.File(0).Arguments
+    ElseIf AryPtr(result.Jump) Then
+        If AryPtr(result.Jump(0).File) Then
+            ClipboardSetText result.Jump(0).File(0).Arguments
+        End If
     End If
 End Sub
 
@@ -6431,15 +6454,27 @@ Private Sub mnuResultCopyFileName_Click() ' Context menu => Copy => File Name
     result = GetSelected_OrCheckedItemResult()
     If AryPtr(result.File) Then
         ClipboardSetText GetFileName(result.File(0).Path, True)
+    ElseIf AryPtr(result.Jump) Then
+        If AryPtr(result.Jump(0).File) Then
+            ClipboardSetText GetFileName(result.Jump(0).File(0).Path, True)
+        End If
     End If
 End Sub
 
 Private Sub mnuResultCopyFileObject_Click() ' Context menu => Copy => File (as Object)
     Dim result As SCAN_RESULT
+    Dim sFile As String
     result = GetSelected_OrCheckedItemResult()
     If AryPtr(result.File) Then
-        If FileExists(result.File(0).Path) Then
-            Call ShellExecute(g_HwndMain, StrPtr("copy"), StrPtr(result.File(0).Path), 0&, 0&, 1)
+        sFile = result.File(0).Path
+    ElseIf AryPtr(result.Jump) Then
+        If AryPtr(result.Jump(0).File) Then
+            sFile = result.Jump(0).File(0).Path
+        End If
+    End If
+    If sFile <> "" Then
+        If FileExists(sFile) Then
+            Call ShellExecute(g_HwndMain, StrPtr("copy"), StrPtr(sFile), 0&, 0&, 1)
         End If
     End If
 End Sub
@@ -6667,7 +6702,6 @@ Private Sub TextBox_SetUnlimitSize(txt As TextBox, Optional iMaxSize As Long)
     If iMaxSize <> 0 Then iSize = iMaxSize + 2
     
     SendMessage txt.hwnd, EM_LIMITTEXT, iSize, ByVal 0&
-    SendMessage txt.hwnd, &H400 + 21, iSize, ByVal 0&
 End Sub
 
 Private Sub TextBox_SetMargin(txt As TextBox, left_margin As Long, right_margin As Long)

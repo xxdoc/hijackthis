@@ -988,18 +988,18 @@ Function GetFilePathByPID(pid As Long) As String
     If hProc <> 0 Then
     
         If bIsWinVistaAndNewer Then
-            cnt = MAX_PATH_W + 1
+            cnt = MAX_PATH_W \ 2
             Call QueryFullProcessImageName(hProc, 0&, StrPtr(MAX_PATH_W_BUF), VarPtr(cnt))
         End If
         
         If 0 <> Err.LastDllError Or Not bIsWinVistaAndNewer Then     'Win 2008 Server (x64) can cause Error 128 if path contains space characters
         
-            cnt = GetModuleFileNameEx(hProc, 0&, StrPtr(MAX_PATH_W_BUF), MAX_PATH_W)
+            cnt = GetModuleFileNameEx(hProc, 0&, StrPtr(MAX_PATH_W_BUF), MAX_PATH_W \ 2)
         End If
         
         If ERROR_PARTIAL_COPY = Err.LastDllError Or cnt = 0 Then     'because GetModuleFileNameEx cannot access to that information for 64-bit processes on WOW64
 
-            cnt = GetProcessImageFileName(hProc, StrPtr(MAX_PATH_W_BUF), MAX_PATH_W)
+            cnt = GetProcessImageFileName(hProc, StrPtr(MAX_PATH_W_BUF), MAX_PATH_W \ 2)
             
             If cnt <> 0 Then
                 ProcPath = Left$(MAX_PATH_W_BUF, cnt)
@@ -1658,16 +1658,11 @@ ErrorHandler:
     If inIDE Then Stop: Resume Next
 End Function
 
-Public Function SetProcessIOPriority(lPID As Long, dwPriority As Long) 'required SeIncreaseBasePriorityPrivilege 'XP SP3+
+Public Function SetProcessIOPriority(lPID As Long, dwPriority As Long) 'required SeIncreaseBasePriorityPrivilege 'Vista
     Dim hProc&, lret&, bRequirement As Boolean
     If lPID = 0 Or lPID = 4 Then Exit Function
     
-    If OSver.IsWindowsXPOrGreater Then
-        bRequirement = True
-        If OSver.MajorMinor = 5.1 And OSver.SPVer < 3 Then bRequirement = False
-    End If
-    
-    If bRequirement Then
+    If OSver.IsWindowsVistaOrGreater Then
         hProc = OpenProcess(PROCESS_SET_INFORMATION, 0, lPID)
         If hProc <> 0 Then
             lret = NtSetInformationProcess(hProc, ProcessIoPriority, VarPtr(dwPriority), 4&)

@@ -461,7 +461,7 @@ Private Const FILE_NAMED_STREAMS As Long = &H40000
 'Private Const FILE_SHARE_WRITE = &H2
 
 Private bQuickScan As Boolean, bScanFolder As Boolean, bAbortScanNow As Boolean
-Private bIgnoreEncryptable As Boolean, bCalcMD5 As Boolean, bQueryUnload As Boolean
+Private bIgnoreEncryptable As Boolean, bCalcHash As Boolean, bQueryUnload As Boolean
 Private sSafeStreams$()
 
 Private Sub cmdExit_Click()
@@ -476,7 +476,8 @@ End Sub
 Private Sub cmdScanFolder_Click()
     Dim sPath$, sNTFSDrives$(), i&
     'Select a folder to scan:
-    sPath = BrowseForFolder(Translate(194))
+    'sPath = BrowseForFolder(Translate(194))
+    sPath = OpenFolderDialog(Translate(194), Desktop, Me.hwnd)
     If sPath <> vbNullString Then
         sNTFSDrives = Split(GetNTFSDrives(), "|")
         For i = 0 To UBound(sNTFSDrives)
@@ -705,7 +706,7 @@ Private Sub cmdScan_Click()
     bScanFolder = IIf(optScanLocation(2), True, False)
     sScanFolder = txtScanFolder.Text
     bIgnoreEncryptable = IIf(chkIgnoreEncryptable.Value = 1, True, False)
-    bCalcMD5 = IIf(chkCalcMD5.Value = 1, True, False)
+    bCalcHash = IIf(chkCalcMD5.Value = 1, True, False)
     
     'Abort scan
     cmdScan.Caption = Translate(2208)
@@ -956,7 +957,7 @@ Private Sub EnumADSInFile(sFilePath$, Optional bIsFolder As Boolean = False)
                Or Not bIgnoreEncryptable Then
                 sStreamName = Mid$(sStreamName, 2)
                 sStreamName = Left$(sStreamName, InStr(sStreamName, ":") - 1)
-                If bCalcMD5 Then
+                If bCalcHash Then
                     lstADSFound.AddItem sFilePath & " : " & sStreamName & "  (" & uFSI.StreamSize & " bytes, CheckSum: " & GetFileCheckSum(sFilePath & ":" & sStreamName, uFSI.StreamSize, True) & ")"
                 Else
                     lstADSFound.AddItem sFilePath & " : " & sStreamName & "  (" & uFSI.StreamSize & " bytes)"

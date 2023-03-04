@@ -10,6 +10,10 @@ Attribute VB_Name = "modPermissions"
 '
 Option Explicit
 
+'Notes:
+'How to get SDDL:
+'Get-Acl C:\obj | Format-List -Property PSPath, Sddl
+
 'Public Type LUID
 '   lowpart  As Long
 '   highpart As Long
@@ -1067,11 +1071,13 @@ Public Function SetCurrentProcessPrivileges(PrivilegeName As String) As Boolean
                 Exit Function
             End If
         End If
-
-        tp.PrivilegeCount = 1
-        tp.Attributes = SE_PRIVILEGE_ENABLED
-        SetCurrentProcessPrivileges = AdjustTokenPrivileges(hToken, 0&, tp, 0&, 0&, 0&)
-        CloseHandle hToken
+        
+        If hToken <> 0 Then
+            tp.PrivilegeCount = 1
+            tp.Attributes = SE_PRIVILEGE_ENABLED
+            SetCurrentProcessPrivileges = AdjustTokenPrivileges(hToken, 0&, tp, 0&, 0&, 0&)
+            CloseHandle hToken
+        End If
         
         Dbg "PRIVILEGE: " & PrivilegeName & " - " & IIf(SetCurrentProcessPrivileges, "Granted", "FAILURE !!!")
     End If

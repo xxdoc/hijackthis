@@ -11,6 +11,58 @@ Version history:
 ||||||||       1. HiJackThis: changelog         |||||||||||
 ===========================================================
 
+[2.10.0.28] - Mar 02, 2023
+ - Fixed progress bar bug (thanks to @Yashil06 for report).
+
+[2.10.0.26] - Feb 13, 2023
+ - Fixed system reboot on Windows 11.
+
+[2.10.0.25] - Jan 14, 2023
+ - Fixed freeze while fixing O7 - TroubleShooting: (EV).
+ - Whitelists Windows 11 has been updated.
+ - Added detection of Windows Defender policies and restoring AMSI providers.
+
+[2.10.0.24] - Jan 11, 2023
+ - Fixed ignore list operation when "Calculate checksum" option is enabled (thanks to Gordon-Dry for the notification).
+
+[2.10.0.23] - Sep 03, 2022
+ - Context menu: Added button "Copy" - "File Argument".
+ - Search: Save lastly entered phrase after program exits.
+ - ADS Spy: fixed functionality of "Browse" button (thanks to Alexyz21 for report).
+ - Uninstall manager: fixed location of "Remove Software" button.
+
+[2.10.0.22] - Aug 29, 2022
+ - Digital Signature Checker Tool: New buttons "Add folder", "Clear list".
+ - Translation corrected.
+
+[2.10.0.21] - Aug 28, 2022
+ - Added free memory info and total CPU loading*.
+ * loading data may be overestimated on weak processors.
+ - Cut down icon metadata causing false positive detection by Yara rules (VT).
+ - Fixed Hosts template and its ACL permissions according to reference.
+ - O22 - Added -32 prefixes for 32-bit tasks on 64-bit OS.
+ - Tools=>Unlock file/folder: Improved recurvive procedure of reset permissions.
+
+[2.10.0.20] - Aug 02, 2022
+ - Several AppLocker fixes are done (thanks to regist for report, analytics and support):
+ - O7 - AppLocker: Added detection of "ManagedInstaller" rule.
+ - O7 - AppLocker: Fixed hash-based rule displayed one record instead of multiple.
+ - O7 - Applocker: Improved "Fix all" procedure.
+
+[2.10.0.19] - Jul 24, 2022
+ - Whitelist services is updated.
+ - Some adjustment in O4 to show "(Microsoft)" postfix for more cases.
+ - O22 - Tasks_Migrated: Added detection of migrated tasks in Windows 11.
+ - O22 - Tasks: Added detection of tasks in SysWow64.
+ - O22 - Tasks: fixed incorrect decoding of non-English characters by xml parser.
+
+[2.10.0.18] - May 28, 2022
+ - Returned missing buttons in Uninstall Manager ^^
+ - Fixed broken functionality of 01 - Hosts (thanks to Boxersteavee for report).
+ - Improved Hosts file read speed.
+ - Improved registry export speed.
+ - [Backup] CRC32 calculation speed and reliability are improved.
+ 
 [2.10.0.17] - Apr 07, 2022
  - Added new Microsoft certificates.
  - Files unlocker: Added buttons "Add File(s) / Folder(s)".
@@ -1614,4 +1666,4 @@ saved and edited in Wordpad.
 
 [v1.00]
 * Original release, later added copy to clipboard button
-                                                                             
+                                                                                                   

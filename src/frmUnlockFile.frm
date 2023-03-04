@@ -15,7 +15,7 @@ Begin VB.Form frmUnlockFile
       Height          =   492
       Left            =   6720
       TabIndex        =   6
-      Top             =   1200
+      Top             =   600
       Width           =   1572
    End
    Begin VB.CommandButton cmdAddFolder 
@@ -23,7 +23,7 @@ Begin VB.Form frmUnlockFile
       Height          =   492
       Left            =   6720
       TabIndex        =   5
-      Top             =   600
+      Top             =   1200
       Width           =   1572
    End
    Begin VB.CommandButton cmdJump 
@@ -89,15 +89,15 @@ Private Sub cmdAddFile_Click()
     Dim aFile() As String
     Dim i As Long
     For i = 1 To OpenFileDialog_Multi(aFile, Translate(1003), Desktop, Translate(1003) & " (*.*)|*.*", Me.hwnd)
-        txtInput.Text = txtInput.Text & vbCrLf & aFile(i)
+        txtInput.Text = txtInput.Text & IIf(Len(txtInput.Text) = 0, "", vbCrLf) & aFile(i)
     Next
 End Sub
 
 Private Sub cmdAddFolder_Click()
-    Dim aFile() As String
+    Dim aFolder() As String
     Dim i As Long
-    For i = 1 To OpenFolderDialog_Multi(aFile, , Desktop, Me.hwnd)
-        txtInput.Text = txtInput.Text & vbCrLf & aFile(i)
+    For i = 1 To OpenFolderDialog_Multi(aFolder, , Desktop, Me.hwnd)
+        txtInput.Text = txtInput.Text & IIf(Len(txtInput.Text) = 0, "", vbCrLf) & aFolder(i)
     Next
 End Sub
 
@@ -130,7 +130,7 @@ Private Sub cmdGo_Click()
     
     Set sList = New clsStringBuilder
     sList.Append ChrW$(-257)
-    sList.AppendLine "Logfile of Files Unlocker (HJT v." & AppVerString & ")"
+    sList.AppendLine "Logfile of Files Permission Unlocker (HJT v." & AppVerString & ")"
     sList.AppendLine
     sList.AppendLine MakeLogHeader()
     sList.AppendLine "Logging started at:      " & TimeStarted
@@ -145,7 +145,9 @@ Private Sub cmdGo_Click()
     
     For Each vFile In aFiles
     
-        vFile = Trim$(vFile)
+        vFile = Trim$(UnQuote(CStr(vFile)))
+        
+        If StrEndWith(CStr(vFile), "\") Then vFile = Left$(vFile, Len(vFile) - 1)
     
         If Len(vFile) <> 0 Then
             
@@ -157,12 +159,8 @@ Private Sub cmdGo_Click()
                 
                 If Recursively And bFolder Then
 
-                    aFolders = ListSubfolders(CStr(vFile))
-                    
-                    For i = 0 To UBoundSafe(aFolders)
-                        Call UnlockMe(aFolders(i))
-                    Next
-                
+                    UnlockSubfolders CStr(vFile), True
+
                 End If
             Else
                 sList.AppendLine "(not found)" & " - " & vFile
@@ -191,6 +189,60 @@ ErrorHandler:
     If inIDE Then Stop: Resume Next
 End Sub
 
+
+Private Sub UnlockSubfolders(Path As String, Optional Recursively As Boolean = False)
+    On Error GoTo ErrorHandler
+    
+    Dim SubPathName     As String
+    Dim PathName        As String
+    Dim hFind           As Long
+    Dim L               As Long
+    Dim lpSTR           As Long
+    Dim fd              As WIN32_FIND_DATA
+    
+    Do
+        If hFind <> 0& Then
+            If FindNextFile(hFind, fd) = 0& Then FindClose hFind: Exit Do
+        Else
+            hFind = FindFirstFile(StrPtr(Path & "\*"), fd)
+            If hFind = INVALID_HANDLE_VALUE Then Exit Do
+        End If
+        
+        L = fd.dwFileAttributes And FILE_ATTRIBUTE_REPARSE_POINT
+        Do While L <> 0&
+            If FindNextFile(hFind, fd) = 0& Then FindClose hFind: hFind = 0: Exit Do
+            L = fd.dwFileAttributes And FILE_ATTRIBUTE_REPARSE_POINT
+        Loop
+    
+        If hFind <> 0& Then
+            lpSTR = VarPtr(fd.dwReserved1) + 4&
+            PathName = Space$(lstrlen(lpSTR))
+            lstrcpy StrPtr(PathName), lpSTR
+            
+            If fd.dwFileAttributes And vbDirectory Then
+                If PathName <> "." Then
+                    If PathName <> ".." Then
+                        SubPathName = Path & "\" & PathName
+                        
+                        Call UnlockMe(SubPathName)
+                        
+                        If Recursively Then
+                            Call UnlockSubfolders(SubPathName, True)
+                        End If
+                    End If
+                End If
+            End If
+        End If
+        
+    Loop While hFind
+    
+    Exit Sub
+ErrorHandler:
+    ErrorMsg Err, "UnlockSubfolders", "Folder:", Path
+    Resume Next
+End Sub
+
+
 Private Sub UnlockMe(sObject As String)
 
     Dim SDDL_Before As String
@@ -200,6 +252,8 @@ Private Sub UnlockMe(sObject As String)
     SDDL_Before = GetFileStringSD(sObject)
     
     bSuccess = TryUnlock(sObject, False)
+    
+    SetFileAttributes StrPtr(sObject), FILE_ATTRIBUTE_ARCHIVE
     
     '[OK], [Fail]
     sList.AppendLine IIf(bSuccess, Translate(2406), Translate(2408)) & " - " & sObject
@@ -232,7 +286,7 @@ Private Sub cmdJump_Click()
     End If
     
     sFiles = Replace$(sFiles, vbCr, vbNullString)
-    aFiles = Split(sFiles, vbLf)
+    aFiles = Split(TrimEx(sFiles, vbLf), vbLf)
     
     OpenAndSelectFile aFiles(0)
 End Sub
@@ -268,16 +322,10 @@ Private Sub Form_Resize()
     txtInput.Height = Me.Height - 2010
     chkRecur.Top = Me.Height - 1300
     cmdGo.Top = Me.Height - 1300
-    'cmdExit.Top = Me.Height - 1300
     Me.cmdAddFile.Left = Me.Width - 1900
     Me.cmdAddFolder.Left = Me.Width - 1900
     Me.cmdJump.Left = Me.Width - 1900
     Me.cmdJump.Visible = Me.ScaleHeight > 2200
-    'Me.cmdExit.Visible = Me.ScaleHeight >= 3240
-    
-    'Me.cmdAddFile.Visible = False
-    'Me.cmdAddFolder.Visible = False
-    
 End Sub
 
 Private Sub txtInput_KeyDown(KeyCode As Integer, Shift As Integer)
