@@ -4,14 +4,15 @@ Attribute VB_Name = "modMain_2"
 '
 ' Core check / Fix Engine
 '
-' (part 2: O25 - O26)
+' (part 2: O25 - O27)
 
 '
-' O25, O26 by Alex Dragokas
+' O25, O26, O27 by Alex Dragokas
 '
 
 'O25 - Windows Management Instrumentation (WMI) event consumers
 'O26 - Image File Execution Options (IFEO) and System Tools hijack
+'O27 - Account & Remote Desktop Protocol
 
 Option Explicit
 
@@ -93,7 +94,7 @@ Public Sub CheckO25Item()
     Dim cmdExecute As String, cmdWorkDir As String, cmdArguments As String, bRunInteractively As Boolean
     
     Dim result As SCAN_RESULT
-    Dim Stady As Single, ComeBack As Boolean, NoConsumer As Boolean, NoFilter As Boolean, bOtherConsumerClass As Boolean
+    Dim ComeBack As Boolean, NoConsumer As Boolean, NoFilter As Boolean, bOtherConsumerClass As Boolean
     Dim bDangerScript As Boolean
     
     If GetServiceRunState("winmgmt") <> SERVICE_RUNNING Then
@@ -111,18 +112,15 @@ Public Sub CheckO25Item()
     
     'connecting to namespace 'root\subscription' for future use
     On Error Resume Next
-    Stady = 0
     Set objTimerNamespace = CreateObject("winmgmts:{impersonationLevel=Impersonate, (Security, Backup)}!\\.\root\subscription")
     If Err.Number <> 0 Then
         On Error GoTo ErrorHandler:
-        Stady = 1
         Set objTimerNamespace = GetObject("winmgmts:{impersonationLevel=Impersonate, (Security, Backup)}!\\.\root\subscription")
     End If
     On Error GoTo ErrorHandler:
     
     'get all namespaces for current machine
     
-    Stady = 2
     'Call WMI_GetNamespaces("Root", aNameSpaces)
     'let's concentrate on actual malware method
     ReDim aNameSpaces(1)
@@ -132,13 +130,11 @@ Public Sub CheckO25Item()
 
         'connecting to namespace
 
-        Stady = 3
         Set objService = GetObject("winmgmts:{impersonationLevel=Impersonate, (Security, Backup)}!\\.\" & aNameSpaces(i))
 
         If Not bAutoLogSilent Then DoEvents
     
         'get binding info ( Filter <-> Consumer )
-        Stady = 4
         Set colBindings = objService.ExecQuery("SELECT * FROM __FilterToConsumerBinding", "WQL", 16 + 32)
         
         For Each objBinding In colBindings
@@ -163,7 +159,6 @@ Public Sub CheckO25Item()
             If 0 <> Len(FilterName) And 0 <> Len(ConsumerName) Then
             
                 'connecting to consumer's own namespace
-                Stady = 5
                 If StrComp(ConsumerNameSpace, aNameSpaces(i), 1) = 0 Then
                     'if consumer's namespace is a same
                     Set objServiceConsumer = objService
@@ -172,7 +167,6 @@ Public Sub CheckO25Item()
                     Set objServiceConsumer = GetObject("winmgmts:{impersonationLevel=Impersonate, (Security, Backup)}!\\.\" & ConsumerNameSpace)
                 End If
                 
-                Stady = 6
                 On Error Resume Next
                 Set objConsumer = objServiceConsumer.Get(ConsumerPath)
                 On Error GoTo ErrorHandler:
@@ -196,7 +190,6 @@ Public Sub CheckO25Item()
                     
                     bOtherConsumerClass = False
                     
-                    Stady = 7
                     If StrComp(ConsumerClassName, "ActiveScriptEventConsumer", 1) = 0 Then
                     
                         result.O25.Consumer.Type = O25_CONSUMER_ACTIVE_SCRIPT
@@ -204,7 +197,6 @@ Public Sub CheckO25Item()
                         'Debug.Print objConsumer.ScriptingEngine    'language (engine)
                         'Debug.Print objConsumer.ScriptFileName     'external file
                         'Debug.Print objConsumer.ScriptText         'embedded script code
-                        Stady = 8
                         If Not IsNull(objConsumer.ScriptFilename) Then sScriptFile = objConsumer.ScriptFilename
                         If Not IsNull(objConsumer.ScriptText) Then sScriptText = objConsumer.ScriptText
                         If Not IsNull(objConsumer.ScriptingEngine) Then sScriptEngine = objConsumer.ScriptingEngine
@@ -223,8 +215,7 @@ Public Sub CheckO25Item()
                         End If
 
                     ElseIf StrComp(ConsumerClassName, "CommandLineEventConsumer", 1) = 0 Then
-                        Stady = 9
-                        
+                    
                         result.O25.Consumer.Type = O25_CONSUMER_COMMAND_LINE
                         
                         'Example:
@@ -236,11 +227,8 @@ Public Sub CheckO25Item()
                         'debug.print objConsumer.WorkingDirectory       'Work Dir.
                         ComeBack = True
                         If Not IsNull(objConsumer.ExecutablePath) Then cmdExecute = objConsumer.ExecutablePath
-                        Stady = 9.1
                         If Not IsNull(objConsumer.WorkingDirectory) Then cmdWorkDir = objConsumer.WorkingDirectory
-                        Stady = 9.2
                         If Not IsNull(objConsumer.CommandLineTemplate) Then cmdArguments = objConsumer.CommandLineTemplate
-                        Stady = 9.3
                         If Not IsNull(objConsumer.RunInteractively) Then bRunInteractively = objConsumer.RunInteractively
                         If Not IsNull(objConsumer.KillTimeout) Then lKillTimeout = CLng(Val(objConsumer.KillTimeout))
                         
@@ -253,7 +241,6 @@ Public Sub CheckO25Item()
                         ComeBack = False
                         
 '                    ElseIf StrComp(ConsumerClassName, "LogFileEventConsumer", 1) = 0 Then
-'                        Stady = 10
 '                        'Debug.Print objConsumer.FileName    'Where information logged
 '                        'Debug.Print objConsumer.Text        'What kind of information logged
 '
@@ -264,7 +251,6 @@ Public Sub CheckO25Item()
 '                            ", InfoType=" & """" & sConsumerText & """"
 '
 '                    ElseIf StrComp(ConsumerClassName, "NTEventLogEventConsumer", 1) = 0 Then
-'                        Stady = 11
 '                        'Debug.Print objConsumer.SourceName
 '                        If Not IsNull(objConsumer.SourceName) Then
 '                            sAdditionalInfo = "LogSourceName=" & """" & objConsumer.SourceName & """"
@@ -285,7 +271,6 @@ Public Sub CheckO25Item()
 '                        'Debug.Print objConsumer.Subject
 '                        'Debug.Print objConsumer.ToLine
 '                    Else
-'                        Stady = 12
 '                        'other consumers -> Show Namespace + ClassName
 '                        sAdditionalInfo = "ClassName=" & """" & ConsumerNameSpace & ":" & ConsumerClassName & """"
                     Else
@@ -298,7 +283,6 @@ Public Sub CheckO25Item()
                 
                 'connecting to filter's own namespace
                 
-                Stady = 13
                 If StrComp(FilterNameSpace, aNameSpaces(i), 1) = 0 Then
                     'if consumer's namespace is a same
                     Set objServiceFilter = objService
@@ -307,14 +291,12 @@ Public Sub CheckO25Item()
                     Set objServiceFilter = GetObject("winmgmts:{impersonationLevel=Impersonate, (Security, Backup)}!\\.\" & FilterNameSpace)
                 End If
                 
-                Stady = 14
                 On Error Resume Next
                 Set objFilter = objServiceFilter.Get(FilterPath)
                 On Error GoTo ErrorHandler:
                 
                 If Not (objFilter Is Nothing) Then
                 
-                    Stady = 15
                     If Not IsNull(objFilter.Query) Then sFilterQuery = objFilter.Query
                 
                     'receives events from timer ?
@@ -328,7 +310,6 @@ Public Sub CheckO25Item()
                             
                             Set objTimer = Nothing
                             
-                            Stady = 16
                             On Error Resume Next
                             sTimerClassName = "__IntervalTimerInstruction"
                             Set objTimer = objTimerNamespace.Get(sTimerClassName & ".TimerId=" & """" & sTimerName & """")
@@ -361,7 +342,6 @@ Public Sub CheckO25Item()
                         End If
                     
                     Else
-                        Stady = 17
                         'if another event source -> print its name
                         sEventName = ExtractEventName(sFilterQuery)
                         If 0 <> Len(sEventName) Then
@@ -372,7 +352,6 @@ Public Sub CheckO25Item()
                 End If
             
                 'WhiteList
-                Stady = 18
                 'If Not (StrComp(ConsumerClassName, "NTEventLogEventConsumer", 1) = 0 And StrComp(FilterName, "SCM Event Log Filter", 1) = 0) Then
                 
                 bDangerScript = True
@@ -387,7 +366,8 @@ Public Sub CheckO25Item()
                                     If Len(FindOnPath("KernCap.vbs")) = 0 Then bDangerScript = False
                                 End If
                             
-                            ElseIf FilterName = "BVTFilter" And sEventName = "__InstanceModificationEvent WITHIN 60 WHERE TargetInstance ISA ""Win32_Processor"" AND TargetInstance.LoadPercentage > 99" Then
+                            'ElseIf FilterName = "BVTFilter" And sEventName = "__InstanceModificationEvent WITHIN 60 WHERE TargetInstance ISA ""Win32_Processor"" AND TargetInstance.LoadPercentage > 99" Then
+                            ElseIf FilterName = "BVTFilter" And sEventName = Caes_Decode("`bNuBEnCtxbLCJINJJ_V^_rk\go VJWMPW 73 j]\k` sH[RRctahkZi`d LXH ""fzG01xkUTJN^`^c"" tIA UdwnnEVCJMvKBF.kVJOwTcVZem\dd > 80") Then
                         
                                 bDangerScript = False
                             End If
@@ -416,7 +396,14 @@ Public Sub CheckO25Item()
                             IIf(NoFilter, " (no filter)", FilterName) & " - " & _
                             sAdditionalInfo
                         
-                    If g_bCheckSum And 0 <> Len(sScriptFile) Then sHit = sHit & GetFileCheckSum(sScriptFile)
+                    If 0 <> Len(sScriptFile) Then
+                    
+                        SignVerifyJack sScriptFile, result.SignResult
+                        
+                        sHit = sHit & FormatSign(result.SignResult)
+                        
+                        If g_bCheckSum Then sHit = sHit & GetFileCheckSum(sScriptFile)
+                    End If
                         
                     If Not IsOnIgnoreList(sHit) Then
                         With result
@@ -481,9 +468,9 @@ Public Sub CheckO25Item()
     Exit Sub
 ErrorHandler:
     If i >= 1 And i <= UBound(aNameSpaces) Then
-        ErrorMsg Err, "modMain2_CheckO25Item", "Namespace: " & aNameSpaces(i), "Stady: " & Stady
+        ErrorMsg Err, "modMain2_CheckO25Item", "Namespace: " & aNameSpaces(i)
     Else
-        ErrorMsg Err, "modMain2_CheckO25Item", "Stady: " & Stady
+        ErrorMsg Err, "modMain2_CheckO25Item"
     End If
     If inIDE Then Stop: Resume Next
     If ComeBack Then Resume Next
@@ -495,7 +482,7 @@ Function ExtractEventName(sQuery As String) As String
     Dim pos As Long
     pos = InStr(1, sQuery, "from", 1)
     If pos <> 0 Then
-        ExtractEventName = Mid$(sQuery, pos + 5)
+        ExtractEventName = mid$(sQuery, pos + 5)
     End If
 End Function
 
@@ -505,7 +492,7 @@ Private Sub ShutdownScriptEngine()
     
     For Each vProc In Array("cmd.exe", "wscript.exe", "cscript.exe", "mshta.exe", "powershell.exe")
         If ProcessExist(vProc, True) Then
-            Proc.ProcessClose ProcessName:=CStr(vProc), Async:=False, TimeOutMs:=1000, SendCloseMsg:=True
+            Proc.ProcessClose ProcessName:=CStr(vProc), Async:=False, TimeoutMs:=1000, SendCloseMsg:=True
         End If
     Next
 End Sub
@@ -752,10 +739,10 @@ Sub ExtractNameSpaceAndClassNameFromString(sComplexString As String, out_NameSpa
         If pos <> 0 Then
             pos2 = InStr(pos, sComplexString, ":")
             If pos2 <> 0 Then
-                out_NameSpace = Mid$(sComplexString, pos + 1, pos2 - pos - 1)
+                out_NameSpace = mid$(sComplexString, pos + 1, pos2 - pos - 1)
                 pos3 = InStr(pos2, sComplexString, ".Name", 1)
                 If pos3 <> 0 Then
-                    out_ClassName = Mid$(sComplexString, pos2 + 1, pos3 - pos2 - 1)
+                    out_ClassName = mid$(sComplexString, pos2 + 1, pos3 - pos2 - 1)
                 End If
             End If
         End If
@@ -780,9 +767,9 @@ Function GetStringInsideQt(sStr As String) As String
     If pos <> 0 Then
         pos2 = InStr(pos + 1, sStr, """")
         If pos = 0 Then
-            GetStringInsideQt = Mid$(sStr, pos + 1)
+            GetStringInsideQt = mid$(sStr, pos + 1)
         Else
-            GetStringInsideQt = Mid$(sStr, pos + 1, pos2 - pos - 1)
+            GetStringInsideQt = mid$(sStr, pos + 1, pos2 - pos - 1)
         End If
     End If
     Exit Function
@@ -811,9 +798,9 @@ Public Sub CheckO26Item()
     Const FLG_APPLICATION_VERIFIER As Long = &H100&
     
     Dim sKeys$(), sSubkeys$(), i&, j&, sFile$, sArgs$, sHit$, sData$, result As SCAN_RESULT
-    Dim bDisabled As Boolean, vGFlag As Variant
+    Dim bDisabled As Boolean, sGFlag As String
     Dim bPerUser As Boolean, aTmp() As String, sAlias As String
-    Dim bSafe As Boolean, bMicrosoft As Boolean, sOrigLine As String
+    Dim bSafe As Boolean, sOrigLine As String
     
     If bIsWinVistaAndNewer Then
         If IsProcedureAvail("VerifierIsPerUserSettingsEnabled", "Verifier.dll") Then
@@ -837,7 +824,7 @@ Public Sub CheckO26Item()
     
     Do While HE.MoveNext
             
-        sAlias = IIf(bIsWin32, "O26", IIf(HE.Redirected, "O26-32", "O26"))
+        sAlias = BitPrefix("O26", HE)
         
         sKeys = Split(Reg.EnumSubKeys(HE.Hive, HE.Key, HE.Redirected), "|")    'for each image
         
@@ -851,13 +838,13 @@ Public Sub CheckO26Item()
                 sFile = FormatFileMissing(sFile, sArgs)
                 
                 bSafe = False
-                bMicrosoft = IsMicrosoftFile(sFile)
+                SignVerifyJack sFile, result.SignResult
                 
                 'check by safe list
                 If bHideMicrosoft Then
                     If StrComp(sKeys(i), "taskmgr.exe", 1) = 0 Then
                         If InStr(1, GetFileProperty(sFile, "FileDescription"), "Process Explorer", 1) <> 0 Then
-                            If bMicrosoft Then
+                            If result.SignResult.isMicrosoftSign Then
                                 bSafe = True
                             End If
                         End If
@@ -876,8 +863,10 @@ Public Sub CheckO26Item()
                 
                 If (Not bSafe) Or bIgnoreAllWhitelists Then
                     
+                    SignVerifyJack sFile, result.SignResult
+                    
                     sHit = sAlias & " - Debugger: " & HE.HiveNameAndSID & "\..\" & sKeys(i) & ": [Debugger] = " & _
-                        ConcatFileArg(sFile, sArgs) & IIf(bMicrosoft, " (Microsoft)", vbNullString)
+                        ConcatFileArg(sFile, sArgs) & FormatSign(result.SignResult)
                     
                     If g_bCheckSum Then sHit = sHit & GetFileCheckSum(sFile)
                     
@@ -886,6 +875,7 @@ Public Sub CheckO26Item()
                             .Section = "O26"
                             .HitLineW = sHit
                             AddRegToFix .Reg, REMOVE_VALUE, HE.Hive, HE.Key & "\" & sKeys(i), "Debugger", , HE.Redirected
+                            AddJumpFile .Jump, JUMP_FILE, sFile
                             .CureType = REGISTRY_BASED
                         End With
                         AddToScanResults result
@@ -901,21 +891,17 @@ Public Sub CheckO26Item()
             If Len(sData) <> 0 Then
                 
                 bDisabled = False
-                vGFlag = Reg.GetString(HE.Hive, HE.Key & "\" & sKeys(i), "GlobalFlag", HE.Redirected)
-        
-                If IsNumeric(vGFlag) Then
-                    If Not CBool(CLng(vGFlag) And FLG_APPLICATION_VERIFIER) Then bDisabled = True
-                Else
-                    If CStr(vGFlag) <> "0x100" Then bDisabled = True
-                End If
+                sGFlag = Reg.GetString(HE.Hive, HE.Key & "\" & sKeys(i), "GlobalFlag", HE.Redirected)
                 
+                If 0 = (HexStringToNumber(sGFlag) And FLG_APPLICATION_VERIFIER) Then bDisabled = True
+
                 SplitIntoPathAndArgs sData, sFile, sArgs, bIsRegistryData:=True
                 sFile = FormatFileMissing(sFile, sArgs)
                 
-                bMicrosoft = IsMicrosoftFile(sFile)
+                SignVerifyJack sFile, result.SignResult
                 
                 sHit = sAlias & " - Debugger: " & HE.HiveNameAndSID & "\..\" & _
-                    sKeys(i) & ": [VerifierDlls] = " & ConcatFileArg(sFile, sArgs) & IIf(bMicrosoft, " (Microsoft)", vbNullString) & _
+                    sKeys(i) & ": [VerifierDlls] = " & ConcatFileArg(sFile, sArgs) & FormatSign(result.SignResult) & _
                     IIf(bDisabled, " (disabled)", vbNullString)
                 
                 If g_bCheckSum Then sHit = sHit & GetFileCheckSum(sFile)
@@ -928,6 +914,7 @@ Public Sub CheckO26Item()
                         If Not bDisabled Then
                             AddRegToFix .Reg, REMOVE_KEY, HE.Hive, HE.Key & "\" & sKeys(i), , , HE.Redirected
                         End If
+                        AddJumpFile .Jump, JUMP_FILE, sFile
                         .CureType = REGISTRY_BASED
                     End With
                     AddToScanResults result
@@ -954,7 +941,9 @@ Public Sub CheckO26Item()
                     
                     sFile = FormatFileMissing(sFile)
                     
-                    sHit = sAlias & " - Debugger Global hook: [VerifierProviders] = " & sFile
+                    SignVerifyJack sFile, result.SignResult
+                    
+                    sHit = sAlias & " - Debugger Global hook: [VerifierProviders] = " & sFile & FormatSign(result.SignResult)
                     
                     If g_bCheckSum Then sHit = sHit & GetFileCheckSum(sFile)
                     
@@ -966,6 +955,8 @@ Public Sub CheckO26Item()
                             AddRegToFix .Reg, REPLACE_VALUE Or TRIM_VALUE, _
                                 HE.Hive, HE.Key & "\" & "{ApplicationVerifierGlobalSettings}", "VerifierProviders", , HE.Redirected, , _
                                 sOrigLine, vbNullString, " "
+                            
+                            AddJumpFile .Jump, JUMP_FILE, sFile
                             
                             .CureType = REGISTRY_BASED
                         End With
@@ -989,8 +980,10 @@ Public Sub CheckO26Item()
             sFile = Reg.GetString(HKCU, "Software\Microsoft\Windows\CurrentVersion\PackagedAppXDebug\" & sKeys(i), vbNullString)
             
             sFile = FormatFileMissing(sFile)
-                    
-            sHit = sAlias & " - UWP Debugger: " & sKeys(i) & " (default) = " & sFile
+            
+            SignVerifyJack sFile, result.SignResult
+            
+            sHit = sAlias & " - UWP Debugger: " & sKeys(i) & " (default) = " & sFile & FormatSign(result.SignResult)
             
             If g_bCheckSum Then sHit = sHit & GetFileCheckSum(sFile)
             
@@ -999,6 +992,7 @@ Public Sub CheckO26Item()
                     .Section = "O26"
                     .HitLineW = sHit
                     AddRegToFix .Reg, REMOVE_KEY, HKCU, "Software\Microsoft\Windows\CurrentVersion\PackagedAppXDebug\" & sKeys(i)
+                    AddJumpFile .Jump, JUMP_FILE, sFile
                     .CureType = REGISTRY_BASED
                 End With
                 AddToScanResults result
@@ -1012,8 +1006,10 @@ Public Sub CheckO26Item()
                 sFile = Reg.GetString(HKCU, "Software\Classes\ActivatableClasses\Package\" & sKeys(i) & "\DebugInformation\" & sSubkeys(j), "DebugPath")
                 
                 sFile = FormatFileMissing(sFile)
-                        
-                sHit = sAlias & " - UWP Debugger: " & sKeys(i) & " [DebugPath] = " & sFile
+                
+                SignVerifyJack sFile, result.SignResult
+                
+                sHit = sAlias & " - UWP Debugger: " & sKeys(i) & " [DebugPath] = " & sFile & FormatSign(result.SignResult)
                 
                 If g_bCheckSum Then sHit = sHit & GetFileCheckSum(sFile)
                 
@@ -1022,6 +1018,7 @@ Public Sub CheckO26Item()
                         .Section = "O26"
                         .HitLineW = sHit
                         AddRegToFix .Reg, REMOVE_KEY, HKCU, "Software\Classes\ActivatableClasses\Package\" & sKeys(i) & "\DebugInformation"
+                        AddJumpFile .Jump, JUMP_FILE, sFile
                         .CureType = REGISTRY_BASED
                     End With
                     AddToScanResults result
@@ -1120,7 +1117,7 @@ Public Sub CheckO26ToolsHiJack()
                 Else
                     bUseSFC = True
                     
-                    If IsMicrosoftFile(sFile) Then
+                    If SignVerifyJack(sFile, result.SignResult) And result.SignResult.isMicrosoftSign Then
                         bSafe = True
                     End If
                 End If
@@ -1135,7 +1132,7 @@ Public Sub CheckO26ToolsHiJack()
             Else
                 bUseSFC = True
                 
-                If IsMicrosoftFile(sFile) Then
+                If SignVerifyJack(sFile, result.SignResult) And result.SignResult.isMicrosoftSign Then
             
                     bSafe = True
                 End If
@@ -1147,7 +1144,7 @@ Public Sub CheckO26ToolsHiJack()
             sFile = FormatFileMissing(sFile)
             
             sHit = "O26 - Tools: " & "HKLM\" & "SOFTWARE\Microsoft\Windows NT\CurrentVersion\Accessibility\ATs\" & aKey(i) & _
-                " [StartExe] = " & sFile
+                " [StartExe] = " & sFile & FormatSign(result.SignResult)
             
             If g_bCheckSum Then sHit = sHit & GetFileCheckSum(sFile)
             
@@ -1173,7 +1170,6 @@ Public Sub CheckO26ToolsHiJack()
     Dim sBackupPath As String
     Dim sCleanupPath As String
     Dim sDefragPath As String
-    Dim sSigner As String
     
     If OSver.IsWindows10OrGreater Then
         sBackupPath = vbNullString
@@ -1187,8 +1183,12 @@ Public Sub CheckO26ToolsHiJack()
         sBackupPath = "%SystemRoot%\system32\sdclt.exe"
         sCleanupPath = "%SystemRoot%\System32\cleanmgr.exe /D %c"
         sDefragPath = "%systemroot%\system32\dfrgui.exe"
+    ElseIf OSver.IsWindowsVistaOrGreater Then
+        sBackupPath = "%SystemRoot%\system32\sdclt.exe"
+        sCleanupPath = "%SystemRoot%\System32\cleanmgr.exe /D %c"
+        sDefragPath = "%systemroot%\system32\dfrgui.exe"
     ElseIf OSver.IsWindowsXPOrGreater Then
-        sBackupPath = "%SystemRoot%\system32\ntbackup.exe"
+        sBackupPath = "%SystemRoot%\system32\sdclt.exe"
         sCleanupPath = "%SystemRoot%\System32\cleanmgr.exe /D %c"
         sDefragPath = "%SystemRoot%\system32\dfrg.msc %c:"
     Else
@@ -1220,8 +1220,8 @@ Public Sub CheckO26ToolsHiJack()
         SplitIntoPathAndArgs sData, sFile, sArgs, bIsRegistryData:=True
         sFile = FormatFileMissing(sFile, sArgs)
         
+        WipeSignResult result.SignResult
         bSafe = True
-        sSigner = vbNullString
         
         If StrComp(EnvironW(sData), EnvironW(dSafe.Items(i)), 1) <> 0 Then bSafe = False
         
@@ -1230,16 +1230,17 @@ Public Sub CheckO26ToolsHiJack()
                 bSafe = False
             Else
                 If StrEndWith(sFile, ".exe") Then
-                    If Not IsMicrosoftFileEx(sFile, sSigner) Then bSafe = False
+                    SignVerifyJack sFile, result.SignResult
+                    If Not result.SignResult.isMicrosoftSign Then bSafe = False
                 End If
             End If
         End If
         
         If Not bSafe Then
             
-            sHit = "O26 - Tools: " & "HKLM\" & sKey & " (default) = " & ConcatFileArg(sFile, sArgs)
+            sHit = "O26 - Tools: " & "HKLM\" & sKey & " (default) = " & ConcatFileArg(sFile, sArgs) & FormatSign(result.SignResult)
             
-            If Len(sSigner) <> 0 Then sHit = sHit & " " & sSigner
+            If bDebugMode Then sHit = sHit & " (expected: " & dSafe.Items(i) & ")"
             
             If g_bCheckSum Then sHit = sHit & GetFileCheckSum(sFile)
             
@@ -1266,5 +1267,358 @@ ErrorHandler:
 End Sub
 
 Public Sub FixO26Item(sItem$, result As SCAN_RESULT)
+    FixIt result
+End Sub
+
+Public Sub CheckO27Item()
+    On Error GoTo ErrorHandler:
+    AppendErrorLogCustom "CheckO27Item - Begin"
+    
+    CheckO27Item_RDP
+    
+    Dim lData&
+    Dim sHit$, result As SCAN_RESULT
+    Dim HE As clsHiveEnum:      Set HE = New clsHiveEnum
+    Dim DC As clsDataChecker:   Set DC = New clsDataChecker
+    
+    HE.Init HE_HIVE_HKLM, , HE_REDIR_NO_WOW
+    HE.AddKey "SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System"
+    
+    DC.AddValueData "dontdisplaylastusername", 0
+    
+    'O27 - Account: (Other)
+    Do While HE.MoveNext
+        Do While DC.MoveNext
+            lData = Reg.GetDword(HE.Hive, HE.Key, DC.ValueName, HE.Redirected)
+            
+            If Not DC.ContainsData(lData) Then
+                sHit = "O27 - Account: (Other) " & HE.KeyAndHivePhysical & ": " & "[" & DC.ValueName & "] = " & Reg.StatusCodeDescOnFail(lData)
+                
+                If Not IsOnIgnoreList(sHit) Then
+                    With result
+                        .Section = "O27"
+                        .HitLineW = sHit
+                        AddRegToFix .Reg, RESTORE_VALUE, HE.Hive, HE.Key, DC.ValueName, DC.DataLong, HE.Redirected, REG_RESTORE_DWORD
+                        .CureType = REGISTRY_BASED
+                    End With
+                    AddToScanResults result
+                End If
+            End If
+        Loop
+    Loop
+    
+    'O27 - Account: (RDP Group)
+    Dim sRdpSid As String, sRdpGroup As String
+    sRdpSid = "S-1-5-32-555"
+    sRdpGroup = MapSIDToUsername(sRdpSid)
+    Dim i As Long
+    For i = 0 To UBound(g_LocalUserNames)
+        If IsUserMembershipInGroup(g_LocalUserNames(i), sRdpGroup) Then
+            sHit = "O27 - Account: (RDP Group) User '" & g_LocalUserNames(i) & "' is a member of Remote desktop group"
+            
+            If Not IsOnIgnoreList(sHit) Then
+                With result
+                    .Section = "O27"
+                    .HitLineW = sHit
+                    AddCustomToFix .Custom, CUSTOM_ACTION_REMOVE_GROUP_MEMBERSHIP, sRdpGroup, , , g_LocalUserNames(i)
+                    .CureType = CUSTOM_BASED
+                End With
+                AddToScanResults result
+            End If
+        End If
+    Next
+    
+    'O27 - Account: (AutoLogon)
+    Call CheckAutoLogon
+    
+    'O27 - Account: (Missing)
+    Dim sidList() As String
+    Dim aProfiles() As String
+    Dim sProfilePath As String
+    Dim sKey As String
+    
+    sKey = "SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList"
+    
+    For i = 1 To Reg.EnumSubKeysToArray(HKLM, sKey, sidList)
+        
+        sProfilePath = Reg.GetString(HKLM, sKey & "\" & sidList(i), "ProfileImagePath")
+        ArrayAddStr aProfiles, sProfilePath
+        
+        If Not FolderExists(sProfilePath) Then
+            sHit = "O27 - Account: (Missing) HKLM\..\ProfileList\" & sidList(i) & " [ProfileImagePath] = " & sProfilePath & " " & STR_FOLDER_MISSING
+            
+            If Not IsOnIgnoreList(sHit) Then
+                With result
+                    .Section = "O27"
+                    .HitLineW = sHit
+                    AddRegToFix .Reg, REMOVE_KEY, HKLM, sKey & "\" & sidList(i)
+                    .CureType = REGISTRY_BASED
+                End With
+                AddToScanResults result
+            End If
+        End If
+    Next
+    
+    'O27 - Account: (Bad profile)
+    If Len(ProfilesDir) <> 0 Then
+        Dim aFolders() As String
+        Dim sName As String
+        Dim aWhiteUsers(3) As String
+        aWhiteUsers(0) = "Default"
+        aWhiteUsers(1) = "Public"
+        aWhiteUsers(2) = "All Users"
+        aWhiteUsers(3) = "Default User"
+        
+        aFolders = ListSubfolders(ProfilesDir) '%SystemDrive%\Users\*
+        
+        For i = 0 To UBound(aFolders)
+            sName = GetFileName(aFolders(i), True)
+            If Not InArray(sName, aWhiteUsers, , , vbTextCompare) Then
+                If Not InArray(aFolders(i), aProfiles, , , vbTextCompare) Then
+                    sHit = "O27 - Account: (Bad profile) Folder is not referenced by any of user SIDs: " & aFolders(i)
+                    If Not IsOnIgnoreList(sHit) Then
+                        With result
+                            .Section = "O27"
+                            .HitLineW = sHit
+                            AddFileToFix .File, REMOVE_FOLDER, aFolders(i)
+                            .CureType = FILE_BASED
+                        End With
+                        AddToScanResults result
+                    End If
+                End If
+            End If
+        Next
+    End If
+    
+    'O27 - Account: (Hidden)
+    Dim aValue() As String
+    sKey = "SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon\" & Caes_Decode("TsjjrlyPtvJRMUVAv\P_uZfi") 'SpecialAccounts\UserList"
+    For i = 1 To Reg.EnumValuesToArray(HKLM, sKey, aValue(), False)
+        sHit = "O27 - Account: (Hidden) User '" & aValue(i) & "' is invisible on logon screen"
+        If Not IsOnIgnoreList(sHit) Then
+            With result
+                .Section = "O27"
+                .HitLineW = sHit
+                AddRegToFix .Reg, REMOVE_VALUE, HKLM, sKey, aValue(i)
+                .CureType = REGISTRY_BASED
+            End With
+            AddToScanResults result
+        End If
+    Next
+    
+    AppendErrorLogCustom "CheckO27Item - End"
+    Exit Sub
+ErrorHandler:
+    ErrorMsg Err, "CheckO27Item"
+    If inIDE Then Stop: Resume Next
+End Sub
+
+Public Sub CheckO27Item_RDP()
+    On Error GoTo ErrorHandler:
+    
+    Dim lData&
+    Dim sHit$, result As SCAN_RESULT
+    Dim HE As clsHiveEnum:      Set HE = New clsHiveEnum
+    Dim DC As clsDataChecker:   Set DC = New clsDataChecker
+    
+    HE.Init HE_HIVE_HKLM, , HE_REDIR_NO_WOW
+    HE.AddKey "SYSTEM\CurrentControlSet\Control\Terminal Server"
+    
+    DC.AddValueData "AllowRemoteRPC", 0
+    DC.AddValueData "fDenyTSConnections", 1
+    If (Not OSver.IsServer) And OSver.IsWindows7OrGreater Then
+        DC.AddValueData "fSingleSessionPerUser", 1
+    End If
+    
+    'O27 - RDP: (Other)
+    Do While HE.MoveNext
+        Do While DC.MoveNext
+            lData = Reg.GetDword(HE.Hive, HE.Key, DC.ValueName, HE.Redirected)
+            
+            If Not DC.ContainsData(lData) Then
+                sHit = "O27 - RDP: (Other) " & HE.KeyAndHivePhysical & ": " & "[" & DC.ValueName & "] = " & Reg.StatusCodeDescOnFail(lData)
+                
+                If Not IsOnIgnoreList(sHit) Then
+                    With result
+                        .Section = "O27"
+                        .HitLineW = sHit
+                        AddRegToFix .Reg, RESTORE_VALUE, HE.Hive, HE.Key, DC.ValueName, DC.DataLong, HE.Redirected, REG_RESTORE_DWORD
+                        .CureType = REGISTRY_BASED
+                    End With
+                    AddToScanResults result
+                End If
+            End If
+        Loop
+    Loop
+    
+    'https://learn.microsoft.com/en-us/troubleshoot/windows-server/remote/shadow-terminal-server-session
+    
+    HE.Clear: DC.Clear
+    
+    HE.AddKey "SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services"
+    HE.AddKey "SYSTEM\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp"
+    
+    '0 - Disable shadow
+    '1 - Full access with user's permission
+    DC.AddValueData "Shadow", Array(0, 1)
+    
+    Do While HE.MoveNext
+        Do While DC.MoveNext
+            lData = Reg.GetDword(HE.Hive, HE.Key, DC.ValueName, HE.Redirected)
+            
+            If Not DC.ContainsData(lData) Then
+                sHit = "O27 - RDP: (Other) " & HE.KeyAndHivePhysical & ": " & "[" & DC.ValueName & "] = " & Reg.StatusCodeDescOnFail(lData)
+                
+                If Not IsOnIgnoreList(sHit) Then
+                    With result
+                        .Section = "O27"
+                        .HitLineW = sHit
+                        AddRegToFix .Reg, RESTORE_VALUE, HE.Hive, HE.Key, DC.ValueName, DC.DataLong, HE.Redirected, REG_RESTORE_DWORD
+                        .CureType = REGISTRY_BASED
+                    End With
+                    AddToScanResults result
+                End If
+            End If
+        Loop
+    Loop
+    
+    If GetServiceRunState("MpsSvc") = SERVICE_RUNNING Then
+        CheckO27Item_Firewall
+    End If
+    
+    Exit Sub
+ErrorHandler:
+    ErrorMsg Err, "CheckO27Item_RDP"
+    If inIDE Then Stop: Resume Next
+End Sub
+    
+Public Sub CheckO27Item_Firewall()
+    On Error GoTo ErrorHandler:
+    
+    'O27 - RDP: (Port)
+    Dim sHit$, result As SCAN_RESULT
+    Dim pFwNetFwPolicy2 As New NetFwPolicy2
+    Dim pFwRules As INetFwRules
+    Dim pFwRule As NetFwRule
+    Dim sProtocol As String
+    Dim sService As String
+    Dim sApp As String
+    Dim Stage As Long
+    
+    Stage = 1
+    Set pFwRules = pFwNetFwPolicy2.Rules
+    
+    If GetServiceRunState("MpsSvc") <> SERVICE_RUNNING Then
+        AddWarning "Firewall service (MpsSvc) is not running. O27 port check is skipped."
+        Exit Sub
+    End If
+    
+    Stage = 2
+    'When MpsSvc not running, pFwRules throw an error: "There are no more endpoints available from the endpoint mapper"
+    For Each pFwRule In pFwRules
+        Stage = 3
+        If pFwRule.Enabled Then
+            Stage = 4
+            If pFwRule.Action = NET_FW_ACTION_ALLOW Then
+                Stage = 5
+                If pFwRule.direction = NET_FW_RULE_DIR_IN Then
+                    Stage = 6
+                    'Win11 has RdpSa.exe
+                    'Also, sometimes 3389 opened system-wide
+                    'If StrComp(GetFileName(pFwRule.ApplicationName, True), "svchost.exe", 1) = 0 Then
+                        'If FW_IsPortInRange(3389, pFwRule.LocalPorts) Then
+                        If StrComp("3389", pFwRule.LocalPorts) = 0 Then
+                            Stage = 7
+                            sService = pFwRule.serviceName
+                            sApp = pFwRule.ApplicationName
+                            
+                            If Len(sService) = 0 Then sService = "(no service)"
+                            If Len(sApp) = 0 Then sApp = "(all applications)"
+                            
+                            sHit = "O27 - RDP: (Port) 3389 " & FW_GetProtocolName(pFwRule.Protocol) & " opened as inbound - " & _
+                                sService & " - (" & pFwRule.Name & ") - " & sApp
+                            
+                            If Not IsOnIgnoreList(sHit) Then
+                                With result
+                                    .Section = "O27"
+                                    .HitLineW = sHit
+                                    AddCustomToFix .Custom, CUSTOM_ACTION_FIREWALL_RULE, pFwRule.Name
+                                    .CureType = CUSTOM_BASED
+                                End With
+                                AddToScanResults result
+                            End If
+                        End If
+                    'End If
+                End If
+            End If
+        End If
+    Next
+    
+    Exit Sub
+ErrorHandler:
+    ErrorMsg Err, "CheckO27Item_Firewall", "Stage: " & Stage
+    If inIDE Then Stop: Resume Next
+End Sub
+
+Private Function FW_GetProtocolName(iProtocol As Long) As String
+    Select Case iProtocol
+    Case 6
+        FW_GetProtocolName = "TCP"
+    Case 17
+        FW_GetProtocolName = "UDP"
+    Case Else
+        FW_GetProtocolName = "Other"
+    End Select
+End Function
+
+'strPorts example: "3306,3310,3315-3320", "*", "3306"
+Private Function FW_IsPortInRange(port As Long, strPorts As String) As Boolean
+    On Error GoTo ErrorHandler:
+    '// TODO: support Port name aliases, e.g. RPC-EPMap
+    If Len(strPorts) = 0 Then Exit Function
+    If strPorts = "*" Then FW_IsPortInRange = True: Exit Function
+    Dim vRange, pos As Long, minValue As Long, maxValue As Long, tmp1 As String, tmp2 As String
+    For Each vRange In Split(strPorts, ",")
+        pos = InStr(1, vRange, "-")
+        If pos = 0 Then
+            If IsNumeric(vRange) Then
+                If CLng(vRange) = port Then FW_IsPortInRange = True: Exit Function
+            End If
+        Else
+            tmp1 = Left$(vRange, pos - 1)
+            tmp2 = mid$(vRange, pos + 1)
+            If IsNumeric(tmp1) And IsNumeric(tmp1) Then
+                minValue = CLng(tmp1)
+                maxValue = CLng(tmp2)
+                If port >= minValue And port <= maxValue Then FW_IsPortInRange = True: Exit Function
+            End If
+        End If
+    Next
+    Exit Function
+ErrorHandler:
+    ErrorMsg Err, "FW_IsPortInRange", strPorts
+    If inIDE Then Stop: Resume Next
+End Function
+
+Public Function FW_RuleSetState(sRuleName As String, bEnabled As Boolean) As Boolean
+    On Error GoTo ErrorHandler:
+    Dim pFwNetFwPolicy2 As New NetFwPolicy2
+    Dim pFwRules As INetFwRules
+    Dim pFwRule As NetFwRule
+    
+    Set pFwRules = pFwNetFwPolicy2.Rules
+    
+    For Each pFwRule In pFwRules
+        If StrComp(pFwRule.Name, sRuleName, vbTextCompare) = 0 Then
+            pFwRule.Enabled = bEnabled
+            FW_RuleSetState = True
+        End If
+    Next
+    Exit Function
+ErrorHandler:
+    ErrorMsg Err, "FW_RuleSetState"
+End Function
+
+Public Sub FixO27Item(sItem$, result As SCAN_RESULT)
     FixIt result
 End Sub

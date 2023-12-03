@@ -198,16 +198,24 @@ Public Sub CheckForUpdate(bSilentIfNoUpdates As Boolean, bSilentReplace As Boole
     
     sThisVersion = AppVerString
     
-    Dim lReturnCode As Long, sErrorMsg As String, bRet As Boolean
+    Dim lReturnCode As Long, sErrorMsg As String, bRet As Boolean, sVersionURL As String
     
     'sNewVersion = GetUrl("https://github.com/dragokas/hijackthis/raw/devel/src/HiJackThis-update.txt")
     'sNewVersion = GetUrl("https://raw.githubusercontent.com/dragokas/hijackthis/devel/src/HiJackThis-update.txt")
     
     If bUseTestVersion Then
-        bRet = GetUrl2_Str("https://dragokas.com/tools/HiJackThis-update-test.txt", sNewVersion, lReturnCode, sErrorMsg)
+        sVersionURL = "https://dragokas.com/tools/HiJackThis-update-test.txt"
     Else
-        bRet = GetUrl2_Str("https://dragokas.com/tools/HiJackThis-update.txt", sNewVersion, lReturnCode, sErrorMsg)
+        sVersionURL = "https://dragokas.com/tools/HiJackThis-update.txt"
     End If
+    
+    Dbg "Current version is: " & sThisVersion
+    Dbg "Query update URL: " & sVersionURL
+    
+    bRet = GetUrl2_Str(sVersionURL, sNewVersion, lReturnCode, sErrorMsg)
+    
+    Dbg "Update URL returned: " & bRet & " (Code: " & lReturnCode & " , ErrMsg: " & sErrorMsg & ")"
+    Dbg "Update URL content: " & sNewVersion
     
     If (Not bRet) Or (Not IsVersion(sNewVersion)) Then
     
@@ -217,27 +225,30 @@ Public Sub CheckForUpdate(bSilentIfNoUpdates As Boolean, bSilentReplace As Boole
             'Unable to connect to the Internet. Do you want to open download page?
             If MsgBoxW(Translate(1005) & vbCrLf & _
                 "(Code: " & lReturnCode & ", msg: " & sErrorMsg & ")" & vbCrLf & vbCrLf & _
-                Translate(1015), vbYesNo Or vbExclamation, "HiJackThis") = vbNo Then
+                Translate(1015), vbYesNo Or vbExclamation, g_AppName) = vbNo Then
                     Exit Sub
             End If
         End If
     Else
+        Dbg "Current version is (Long): " & ConvertVersionToNumber(sThisVersion)
+        Dbg " Latest version is (Long): " & ConvertVersionToNumber(sNewVersion)
+    
         If ConvertVersionToNumber(sThisVersion) >= ConvertVersionToNumber(sNewVersion) Then
             If Not bSilentIfNoUpdates Then
                 'You have the most fresh version.
-                MsgBoxW Translate(1013), vbInformation, "HiJackThis"
+                MsgBoxW Translate(1013), vbInformation, g_AppName
             End If
             Exit Sub
         Else
             If Not bSilentIfNoUpdates Then
                 If bSilentReplace Then
                     'Update is available. Do you want to close and update the program?
-                    If MsgBoxW(Translate(1014) & vbCrLf & Translate(1028), vbYesNo Or vbInformation, "HiJackThis") = vbNo Then
+                    If MsgBoxW(Translate(1014) & vbCrLf & Translate(1028), vbYesNo Or vbInformation, g_AppName) = vbNo Then
                         Exit Sub
                     End If
                 Else
                     'Update is available. Do you want to open download page?
-                    If MsgBoxW(Translate(1014) & vbCrLf & Translate(1015), vbYesNo Or vbInformation, "HiJackThis") = vbNo Then
+                    If MsgBoxW(Translate(1014) & vbCrLf & Translate(1015), vbYesNo Or vbInformation, g_AppName) = vbNo Then
                         Exit Sub
                     End If
                 End If
@@ -246,13 +257,12 @@ Public Sub CheckForUpdate(bSilentIfNoUpdates As Boolean, bSilentReplace As Boole
     End If
     
     If bUseTestVersion Then
-        sUpdateUrl = "https://dragokas.com/tools/HiJackThis_test.zip"
+        sUpdateUrl = "https://dragokas.com/tools/" & Caes_Decode("IlOhlvawzLtQDTW.aR[") 'HiJackThis_test.zip
     Else
-        sUpdateUrl = "https://dragokas.com/tools/HiJackThis.zip"
+        sUpdateUrl = "https://dragokas.com/tools/" & Caes_Decode("IlOhlvawzL.WHQ") 'HiJackThis.zip"
     End If
     
-    'sUpdateUrl = "http://sourceforge.net/projects/hjt/"
-    'sUpdateUrl = "https://github.com/dragokas/hijackthis/raw/devel/binary/HiJackThis.exe"
+    Dbg "Query ZIP update URL: " & sUpdateUrl
     
     If bSilentReplace And Not (Not bSilentIfNoUpdates And bNoConnection) Then
         If Not bNoConnection Then
@@ -355,6 +365,8 @@ Public Function GetUrl2_Str( _
     Dim b() As Byte
 
     GetUrl2_Str = GetUrl2(sURL, s_outRequest, b, False, s_outResultCode, s_outErrorMsg)
+    
+    Dbg "Get URL returned: " & GetUrl2_Str & " (Code: " & s_outResultCode & " , ErrMsg: " & s_outErrorMsg & ")"
 
 End Function
 
@@ -382,8 +394,8 @@ Public Function GetUrl2( _
     
     sURL = NormalizeInetProtocol(sURL)
     
-    Dim Frm As Form
-    Set Frm = frmMain
+    Dim frm As Form
+    Set frm = frmMain
     
     Dim cInet As clsHttpHelps
     Set cInet = New clsHttpHelps
@@ -392,19 +404,19 @@ Public Function GetUrl2( _
         .AutomatiRedirection = True
         .RequestMethod = cGET
         .TimeOut = 5000
-        .UseProxy = Frm.optProxyManual.Value
-        .UseProxyIE = Frm.optProxyIE.Value
+        .UseProxy = frm.optProxyManual.Value
+        .UseProxyIE = frm.optProxyIE.Value
         
         If .UseProxy Then
-            .ProxyAddress = Frm.txtUpdateProxyHost.Text & ":" & Frm.txtUpdateProxyPort.Text
-            .UseProxySocks4 = Frm.chkSocks4.Value
+            .ProxyAddress = frm.txtUpdateProxyHost.Text & ":" & frm.txtUpdateProxyPort.Text
+            .UseProxySocks4 = frm.chkSocks4.Value
         End If
         If .UseProxy Or .UseProxyIE Then
-            .UseProxyAuthorization = Frm.chkUpdateUseProxyAuth.Value
+            .UseProxyAuthorization = frm.chkUpdateUseProxyAuth.Value
             
             If .UseProxyAuthorization Then
-                .ProxyUser = Frm.txtUpdateProxyLogin.Text
-                .ProxyPass = Frm.txtUpdateProxyPass.Text
+                .ProxyUser = frm.txtUpdateProxyLogin.Text
+                .ProxyPass = frm.txtUpdateProxyPass.Text
             End If
         End If
         .UserAgent = "Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:60.0) Gecko/20100101 Firefox/60.0"
@@ -462,8 +474,8 @@ Public Sub ParseHTTPResponse(szResponse As String)
     
         curPos = curPos + endDataPos + 14
     
-        szDataId = Mid$(szResponse, startIDPos, endIDPos - startIDPos)
-        szData = Mid$(szResponse, startDataPos, endDataPos - startDataPos)
+        szDataId = mid$(szResponse, startIDPos, endIDPos - startIDPos)
+        szData = mid$(szResponse, startDataPos, endDataPos - startDataPos)
     
         Select Case szDataId
             Case "REPORT_URL"
@@ -488,7 +500,7 @@ Function URLEncode(ByVal Text As String) As String
     URLEncode = Text
     
     For i = Len(URLEncode) To 1 Step -1
-        acode = Asc(Mid$(URLEncode, i, 1))
+        acode = Asc(mid$(URLEncode, i, 1))
         Select Case acode
             Case 48 To 57, 65 To 90, 97 To 122
                 ' don't touch alphanumeric chars
@@ -497,7 +509,7 @@ Function URLEncode(ByVal Text As String) As String
                 Mid$(URLEncode, i, 1) = "+"
             Case Else
                 ' replace punctuation chars with "%hex"
-                URLEncode = Left$(URLEncode, i - 1) & "%" & Hex$(acode) & Mid$ _
+                URLEncode = Left$(URLEncode, i - 1) & "%" & Hex$(acode) & mid$ _
                     (URLEncode, i + 1)
         End Select
     Next
@@ -523,7 +535,7 @@ Public Sub AddTriageObj(sName$, sType$, sFile$, Optional sCLSID$, Optional sCode
     If Not FileExists(sFile) Then Exit Sub
     If InStr(sFile, "\") = 0 Then Exit Sub
     'sPath = Left$(sFile, InStrRev(sFile, "\") - 1)
-    sFilename = Mid$(sFile, InStrRev(sFile, "\") + 1)
+    sFilename = mid$(sFile, InStrRev(sFile, "\") + 1)
     sFilesize = CStr(FileLen(sFile))
     sMD5 = GetFileMD5(sFile, , True)
     
@@ -548,38 +560,40 @@ Public Sub AddTriageObj(sName$, sType$, sFile$, Optional sCLSID$, Optional sCode
 End Sub
 
 Public Function GetTriage$()
-    Dim hInternet&, hConnect&, sURL$, sUserAgent$, sPost$
-    Dim hRequest&, sResponse$, sBuffer$, lBufferLen&, sHeaders$
-    sURL = "https://www.spywareguide.com/report/triage.php"
-    sUserAgent = "StartupList v" & AppVerString
-    sPost = Mid$(URLEncode(Join(sTriageObj, "&")), 2)
-    If sPost = vbNullString Then Exit Function
-    sHeaders = "Accept: text/html,text/plain" & vbCrLf & _
-               "Accept-Charset: ISO-8859-1,utf-8" & vbCrLf & _
-               "Content-Type: application/x-www-form-urlencoded" & vbCrLf & _
-               "Content-Length: " & Len(sPost)
-    
-    hInternet = InternetOpen(StrPtr(sUserAgent), INTERNET_OPEN_TYPE_DIRECT, 0&, 0&, 0)
-    If hInternet = 0 Then Exit Function
+'Dead service!
 
-    hConnect = InternetConnect(hInternet, StrPtr("www.spywareguide.com"), 80, 0&, 0&, INTERNET_SERVICE_HTTP, 0, 0)
-    If hConnect > 0 Then
-        hRequest = HttpOpenRequest(hConnect, StrPtr("POST"), StrPtr("/report/triage.php"), StrPtr("HTTP/1.1"), 0&, ByVal 0, INTERNET_FLAG_RELOAD, 0)
-        If hRequest > 0 Then
-            HttpSendRequest hRequest, StrPtr(sHeaders), Len(sHeaders), ByVal StrPtr(sPost), Len(sPost)
-            sResponse = vbNullString
-            Do
-                sBuffer = Space$(1024)
-                InternetReadFileString hRequest, sBuffer, Len(sBuffer), lBufferLen
-                sBuffer = Left$(sBuffer, lBufferLen)
-                sResponse = sResponse & sBuffer
-            Loop Until lBufferLen = 0
-            GetTriage = sResponse
-            InternetCloseHandle hRequest
-        End If
-        InternetCloseHandle hConnect
-    End If
-    InternetCloseHandle hInternet
+'    Dim hInternet&, hConnect&, sURL$, sUserAgent$, sPost$
+'    Dim hRequest&, sResponse$, sBuffer$, lBufferLen&, sHeaders$
+'    sURL = "https://www.spywareguide.com/report/triage.php"
+'    sUserAgent = "StartupList v" & AppVerString
+'    sPost = mid$(URLEncode(Join(sTriageObj, "&")), 2)
+'    If sPost = vbNullString Then Exit Function
+'    sHeaders = "Accept: text/html,text/plain" & vbCrLf & _
+'               "Accept-Charset: ISO-8859-1,utf-8" & vbCrLf & _
+'               "Content-Type: application/x-www-form-urlencoded" & vbCrLf & _
+'               "Content-Length: " & Len(sPost)
+'
+'    hInternet = InternetOpen(StrPtr(sUserAgent), INTERNET_OPEN_TYPE_DIRECT, 0&, 0&, 0)
+'    If hInternet = 0 Then Exit Function
+'
+'    hConnect = InternetConnect(hInternet, StrPtr("www.spywareguide.com"), 80, 0&, 0&, INTERNET_SERVICE_HTTP, 0, 0)
+'    If hConnect > 0 Then
+'        hRequest = HttpOpenRequest(hConnect, StrPtr("POST"), StrPtr("/report/triage.php"), StrPtr("HTTP/1.1"), 0&, ByVal 0, INTERNET_FLAG_RELOAD, 0)
+'        If hRequest > 0 Then
+'            HttpSendRequest hRequest, StrPtr(sHeaders), Len(sHeaders), ByVal StrPtr(sPost), Len(sPost)
+'            sResponse = vbNullString
+'            Do
+'                sBuffer = Space$(1024)
+'                InternetReadFileString hRequest, sBuffer, Len(sBuffer), lBufferLen
+'                sBuffer = Left$(sBuffer, lBufferLen)
+'                sResponse = sResponse & sBuffer
+'            Loop Until lBufferLen = 0
+'            GetTriage = sResponse
+'            InternetCloseHandle hRequest
+'        End If
+'        InternetCloseHandle hConnect
+'    End If
+'    InternetCloseHandle hInternet
 End Function
 
 Public Function DownloadFile(sURL$, sTarget$, Optional bSilent As Boolean) As Boolean
@@ -752,7 +766,7 @@ Public Function DownloadUnzipAndRun( _
         sToolsDir = GetToolsDir()
         If Not FolderExists(sToolsDir) Then MkDirW sToolsDir
         UnpackZIP ArcPath, sToolsDir
-        DeleteFileWEx StrPtr(ArcPath)
+        DeleteFilePtr StrPtr(ArcPath)
         'Downloading is completed. Run the program?
         If Not bSilent Then
             bRun = MsgBoxW(Translate(1026), vbYesNo, GetFileName(FileName)) = vbYes
@@ -775,7 +789,7 @@ Public Function DownloadUnzipAndRun( _
     End If
 End Function
 
-Private Function DownloadAndUpdateSelf(ZipURL As String, bSilent As Boolean) As Boolean
+Public Function DownloadAndUpdateSelf(ZipURL As String, bSilent As Boolean) As Boolean
     
     Dim ArcPath     As String
     Dim ExePath     As String
@@ -783,9 +797,14 @@ Private Function DownloadAndUpdateSelf(ZipURL As String, bSilent As Boolean) As 
     Dim bData()     As Byte
     Dim bDownloaded As Boolean
     Dim hFile       As Long
+    Dim sUnpackDir  As String
     
-    ArcPath = GetEmptyName(BuildPath(TempCU, GetFileName(Replace$(ZipURL, "/", "\"), True)))
-    ExePath = BuildPath(TempCU, "HiJackThis.exe")
+    sUnpackDir = TempCU & "\HiJackThis"
+    DeleteFolder sUnpackDir
+    MkDirW sUnpackDir
+    
+    ArcPath = GetEmptyName(BuildPath(sUnpackDir, GetFileName(Replace$(ZipURL, "/", "\"), True)))
+    ExePath = BuildPath(sUnpackDir, "HiJackThis.exe")
     
     'If DownloadFile(ZipURL, ArcPath, True) Then bDownloaded = True
     
@@ -793,35 +812,44 @@ Private Function DownloadAndUpdateSelf(ZipURL As String, bSilent As Boolean) As 
     If GetUrl2_Arr(ZipURL, bData) Then
         If AryPtr(bData) Then
         
+            'create ZIP from URL data
             If OpenW(ArcPath, FOR_OVERWRITE_CREATE, hFile) Then
                 PutW hFile, 1, VarPtr(bData(0)), UBound(bData) + 1, False
                 CloseW hFile
                 bDownloaded = True
             Else
                 If Not bSilent Then
-                    MsgBoxW "Cannot open file to write: " & ArcPath, vbExclamation, "HiJackThis"
+                    MsgBoxW "Cannot open file to write: " & ArcPath, vbExclamation, g_AppName
                 End If
             End If
         End If
     End If
     
     If bDownloaded Then
-        UnpackZIP ArcPath, GetParentDir(ArcPath)
+        UnpackZIP ArcPath, sUnpackDir
+        
+        DeleteFilePtr StrPtr(ArcPath)
         
         If FileExists(ExePath) Then
         
             'checking digital signature
-            SignVerify ExePath, SV_PreferInternalSign, SignResult
+            SignVerify ExePath, SV_PreferInternalSign Or SV_AllowExpired, SignResult
             
             If IsDragokasSign(SignResult) Then
                 
-                If FileExists(AppPath(True) & ".bak") Then DeleteFileWEx StrPtr(AppPath(True) & ".bak"), , True
+                If FileExists(AppPath(True) & ".bak") Then DeleteFilePtr StrPtr(AppPath(True) & ".bak"), , True
                 
                 'replacing ...
                 'move self
                 If 0 = MoveFile(StrPtr(AppPath(True)), StrPtr(AppPath(True) & ".bak")) Then
                 
                     'if failed, use cmd.exe method
+                    
+                    'until we have better code ^^
+                    MoveFileEx StrPtr(AppPath & "\VBCCR17.OCX"), StrPtr(AppPath & "\VBCCR17.OCX.bak"), MOVEFILE_REPLACE_EXISTING
+                    MoveFileEx StrPtr(AppPath & "\apps\VBCCR17.OCX"), StrPtr(AppPath & "\apps\VBCCR17.OCX.bak"), MOVEFILE_REPLACE_EXISTING
+                    
+                    CopyFolderContents sUnpackDir, AppPath
                     
                     frmMain.ReleaseMutex
                     
@@ -837,10 +865,16 @@ Private Function DownloadAndUpdateSelf(ZipURL As String, bSilent As Boolean) As 
                 Else
                     'move new
                     If 0 <> MoveFile(StrPtr(ExePath), StrPtr(AppPath(True))) Then
+                        
+                        MoveFileEx StrPtr(AppPath & "\VBCCR17.OCX"), StrPtr(AppPath & "\VBCCR17.OCX.bak"), MOVEFILE_REPLACE_EXISTING
+                        MoveFileEx StrPtr(AppPath & "\apps\VBCCR17.OCX"), StrPtr(AppPath & "\apps\VBCCR17.OCX.bak"), MOVEFILE_REPLACE_EXISTING
+                        
+                        CopyFolderContents sUnpackDir, AppPath
+                        
                         DownloadAndUpdateSelf = True
                     Else
                         If Not bSilent Then
-                            MsgBoxW "Cannot move updated file on self!", vbExclamation, "HiJackThis"
+                            MsgBoxW "Cannot move updated file on self!", vbExclamation, g_AppName
                         End If
                         'revert own filename
                         Call MoveFile(StrPtr(AppPath(True) & ".bak"), StrPtr(AppPath(True)))
@@ -848,29 +882,26 @@ Private Function DownloadAndUpdateSelf(ZipURL As String, bSilent As Boolean) As 
                 End If
             Else
                 If Not bSilent Then
-                    MsgBoxW "Unpacked file is damaged! Try update again.", vbExclamation, "HiJackThis"
+                    MsgBoxW "Unpacked file is damaged! Try update again.", vbExclamation, g_AppName
                 End If
             End If
         Else
             If Not bSilent Then
-                MsgBoxW "Cannot unpack the update! Try again.", vbExclamation, "HiJackThis"
+                MsgBoxW "Cannot unpack the update! HiJackThis.exe is missing. Try again.", vbExclamation, g_AppName
             End If
         End If
     Else
         If Not bSilent Then
-            MsgBoxW "Cannot download the update! Try again.", vbExclamation, "HiJackThis"
+            MsgBoxW "Failed to download the update! Try again.", vbExclamation, g_AppName
         End If
     End If
-    
-    'clear
-    If FileExists(ArcPath) Then DeleteFileWEx StrPtr(ArcPath)
     
 End Function
 
 Public Function IsDragokasFile(sFile As String) As Boolean
 
     Dim SignResult  As SignResult_TYPE
-    SignVerify sFile, SV_PreferInternalSign, SignResult
+    SignVerify sFile, SV_PreferInternalSign Or SV_AllowExpired, SignResult
     IsDragokasFile = IsDragokasSign(SignResult)
     
 End Function
@@ -880,14 +911,8 @@ Public Function IsDragokasSign(SignResult As SignResult_TYPE) As Boolean
     If (SignResult.isSelfSigned And StrComp(SignResult.HashRootCert, "05F1F2D5BA84CDD6866B37AB342969515E3D912E", 1) = 0) Then
         IsDragokasSign = True
     ElseIf (SignResult.isLegit) Then
-        If Date < #7/24/2023# Then
-            If StrComp(SignResult.HashFinalCert, "1B78EF517E81A07D1C1C4C6ADFA66A2B7C3269C3", 1) = 0 Then
-                IsDragokasSign = True
-            End If
-        Else
-            If InStr(1, SignResult.SubjectName, "Stanislav Polshyn", 1) <> 0 Then
-                IsDragokasSign = True
-            End If
+        If StrComp(SignResult.HashFinalCert, "1B78EF517E81A07D1C1C4C6ADFA66A2B7C3269C3", 1) = 0 Then
+            IsDragokasSign = True
         End If
     End If
 End Function

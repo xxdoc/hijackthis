@@ -85,10 +85,6 @@ Option Explicit
 'Private Const SOCKET_ERROR As Long = -1
 'Private Const REG_OPTION_NON_VOLATILE As Long = 0
 
-Private sKeyNameSpace As String
-Private sKeyProtocol As String
-
-
 ' ---------------------------------------------------------------------------------------------------
 ' StartupList2 routine
 ' ---------------------------------------------------------------------------------------------------
@@ -124,7 +120,7 @@ Public Function EnumWinsockProtocol$()
     
     WSACleanup
     
-    If sEnumProt <> vbNullString Then EnumWinsockProtocol = Mid$(sEnumProt, 2)
+    If sEnumProt <> vbNullString Then EnumWinsockProtocol = mid$(sEnumProt, 2)
     
     Exit Function
 ErrorHandler:
@@ -165,7 +161,7 @@ Public Function EnumWinsockNameSpace$()
 
     WSACleanup
     
-    If sEnumNamespace <> vbNullString Then EnumWinsockNameSpace = Mid$(sEnumNamespace, 2)
+    If sEnumNamespace <> vbNullString Then EnumWinsockNameSpace = mid$(sEnumNamespace, 2)
 
     Exit Function
 ErrorHandler:
@@ -216,28 +212,27 @@ End Function
 ' HJT main routine
 ' ---------------------------------------------------------------------------------------------------
 
-Public Sub GetLSPCatalogNames()
-    sKeyNameSpace = "System\CurrentControlSet\Services\WinSock2\Parameters"
-    sKeyProtocol = "System\CurrentControlSet\Services\WinSock2\Parameters"
-    
-    sKeyNameSpace = sKeyNameSpace & "\" & Reg.GetString(HKEY_LOCAL_MACHINE, sKeyNameSpace, "Current_NameSpace_Catalog")
-    sKeyProtocol = sKeyProtocol & "\" & Reg.GetString(HKEY_LOCAL_MACHINE, sKeyProtocol, "Current_Protocol_Catalog")
-End Sub
-
 Public Sub CheckLSP()
     On Error GoTo ErrorHandler:
     
     AppendErrorLogCustom "CheckLSP - Begin"
     
     Dim lNumNameSpace&, lNumProtocol&, i&
-    Dim sFile$, hKey&, sHit$, sDummy$, sFindFile$
+    Dim sFile$, hKey&, sHit$, sFindFile$
     Dim oUnknFile As clsTrickHashTable
     Dim oMissingFile As clsTrickHashTable
     Dim bSafe As Boolean, result As SCAN_RESULT
-    Dim bIsMicrosoftFile As Boolean
+    Dim sKeyNameSpace As String
+    Dim sKeyProtocol As String
     
     Set oUnknFile = New clsTrickHashTable    'for removing duplicate records
     Set oMissingFile = New clsTrickHashTable
+    
+    sKeyNameSpace = "System\CurrentControlSet\Services\WinSock2\Parameters"
+    sKeyProtocol = "System\CurrentControlSet\Services\WinSock2\Parameters"
+    
+    sKeyNameSpace = sKeyNameSpace & "\" & Reg.GetString(HKEY_LOCAL_MACHINE, sKeyNameSpace, "Current_NameSpace_Catalog")
+    sKeyProtocol = sKeyProtocol & "\" & Reg.GetString(HKEY_LOCAL_MACHINE, sKeyProtocol, "Current_Protocol_Catalog")
     
     lNumNameSpace = Reg.GetDword(HKEY_LOCAL_MACHINE, sKeyNameSpace, "Num_Catalog_Entries")
     lNumProtocol = Reg.GetDword(HKEY_LOCAL_MACHINE, sKeyProtocol, "Num_Catalog_Entries")
@@ -282,18 +277,13 @@ Public Sub CheckLSP()
                     sHit = "O10 - Hijacked Internet access by CommonName"
                     If Not IsOnIgnoreList(sHit) Then AddToScanResultsSimple "O10", sHit
                 Else
-                    sDummy = Mid$(sFile, InStrRev(sFile, "\") + 1)
-                    
-                    bSafe = False
-                    If InStr(1, sSafeLSPFiles, "*" & sDummy & "*", vbTextCompare) <> 0 Then
-                        If IsMicrosoftFile(sFile) Then bSafe = True
-                    End If
+                    bSafe = IsMicrosoftFile(sFile)
                     
                     If Not bSafe Or Not bHideMicrosoft Then
                         If Not oUnknFile.Exists(sFile) Then
-                            bIsMicrosoftFile = IsMicrosoftFile(sFile)
                             oUnknFile.Add sFile, 0
-                            sHit = "O10 - Unknown file in Winsock LSP: " & sFile & IIf(bIsMicrosoftFile, " (Microsoft)", vbNullString)
+                            SignVerifyJack sFile, result.SignResult
+                            sHit = "O10 - Unknown file in Winsock LSP: " & sFile & FormatSign(result.SignResult)
                             If g_bCheckSum Then sHit = sHit & GetFileCheckSum(sFile)
                             If Not IsOnIgnoreList(sHit) Then
                                 With result
@@ -340,18 +330,13 @@ Public Sub CheckLSP()
                     sHit = "O10 - Hijacked Internet access by CommonName"
                     If Not IsOnIgnoreList(sHit) Then AddToScanResultsSimple "O10", sHit
                 Else
-                    sDummy = LCase$(Mid$(sFile, InStrRev(sFile, "\") + 1))
-                    
-                    bSafe = False
-                    If InStr(1, sSafeLSPFiles, "*" & sDummy & "*", vbTextCompare) <> 0 Then
-                        If IsMicrosoftFile(sFile) Then bSafe = True
-                    End If
+                    bSafe = IsMicrosoftFile(sFile)
                     
                     If Not bSafe Or Not bHideMicrosoft Then
                         If Not oUnknFile.Exists(sFile) Then
-                            bIsMicrosoftFile = IsMicrosoftFile(sFile)
                             oUnknFile.Add sFile, 0
-                            sHit = "O10 - Unknown file in Winsock LSP: " & sFile & IIf(bIsMicrosoftFile, " (Microsoft)", vbNullString)
+                            SignVerifyJack sFile, result.SignResult
+                            sHit = "O10 - Unknown file in Winsock LSP: " & sFile & FormatSign(result.SignResult)
                             If g_bCheckSum Then sHit = sHit & GetFileCheckSum(sFile)
                             If Not IsOnIgnoreList(sHit) Then
                                 With result
@@ -387,7 +372,7 @@ ErrorHandler:
     If inIDE Then Stop: Resume Next
 End Sub
 
-Public Sub FixLSP()
+Public Sub FixLSP() 'FixO10
     On Error GoTo ErrorHandler:
     
     If Not bSeenLSPWarning Then
@@ -396,10 +381,25 @@ Public Sub FixLSP()
         '       "from https://www.foolishit.com/vb6-projects/winsockreset/" & vbCrLf & vbCrLf & _
         '       "Would you like to visit that site?"
         
-        If vbYes = MsgBoxW(Translate(580), vbExclamation Or vbYesNo) Then
-            ShellExecute 0&, StrPtr("open"), StrPtr("https://www.d7xtech.com/vb6-projects/winsockreset/"), 0&, 0&, 1
-        End If
         bSeenLSPWarning = True
+        
+        Dim sTool As String
+        Dim sSite As String
+        Dim sMsg As String
+        If OSver.IsWindows8OrGreater Then
+            'HiJackThis cannot repair O10 Winsock LSP entries.
+            MsgBoxW Translate(581), vbExclamation
+            Exit Sub
+        Else
+            sTool = "WinsockReset"
+            sSite = Caes_Decode("iwywB://NPR.C4[YLLS.R``") & "/vb6-projects/winsockreset/" 'https://www.d7xtech.com
+        End If
+        sMsg = Replace$(Translate(580), "{1}", sTool)
+        sMsg = Replace$(sMsg, "{2}", sSite)
+        If vbYes = MsgBoxW(sMsg, vbExclamation Or vbYesNo) Then
+            ShellExecute 0&, StrPtr("open"), StrPtr(sSite), 0&, 0&, 1
+        End If
+        
     End If
     Exit Sub
 ErrorHandler:
@@ -439,7 +439,7 @@ End Sub
 '               InStr(1, sFile, "newdot", vbTextCompare) > 0 Or _
 '               InStr(1, sFile, "cnmib.dll", vbTextCompare) > 0 Then
 '                'it's New.Net/WebHancer/CN! Kill it!
-'                DeleteFileWEx StrPtr(sFile)  ' error 53 = file not found
+'                DeleteFilePtr StrPtr(sFile)  ' error 53 = file not found
 '                If FileExists(sFile) Then
 '                    If InStr(1, sFile, "webhdll.dll", vbTextCompare) > 0 Then
 '                        MsgBoxW "The WebHancer Agent is currently active and can't be deleted. Use Ad-Aware from www.lavasoft.nu to remove it safely.", vbExclamation
@@ -479,7 +479,7 @@ End Sub
 '               InStr(1, sFile, "newdotnet", vbTextCompare) > 0 Or _
 '               InStr(1, sFile, "cnmib.dll", vbTextCompare) > 0 Then
 '                'it's New.Net/WebHancer/CN! Kill it!
-'                DeleteFileWEx StrPtr(sFile)  ' error 53 = file not found
+'                DeleteFilePtr StrPtr(sFile)  ' error 53 = file not found
 '                If FileExists(sFile) Then
 '                    If InStr(1, sFile, "webhdll.dll", vbTextCompare) > 0 Then
 '                        MsgBoxW "The WebHancer Agent is currently active and can't be deleted. Use Ad-Aware from www.lavasoft.nu to remove it safely.", vbExclamation

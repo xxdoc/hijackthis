@@ -66,6 +66,11 @@ End Enum
     Dim SERVICE_ACCEPT_TRIGGEREVENT, SERVICE_ACCEPT_USERMODEREBOOT
 #End If
 
+Private Enum SERVICE_SAFEMODE_TYPE
+    SERVICE_SAFEMODE_MINIMAL
+    SERVICE_SAFEMODE_NETWORK
+End Enum
+
 Private Type SERVICE_STATUS
     ServiceType             As Long
     CurrentState            As Long
@@ -140,6 +145,8 @@ Public Function IsServiceWow64(sServiceName As String, Optional sCustomKey As St
             cData = 4
             If ERROR_SUCCESS = RegQueryValueExLong(hKey, StrPtr("WOW64"), 0&, REG_DWORD, lData, cData) Then
                 IsServiceWow64 = (lData = 1)
+                '//TODO: What is 0x14c ?
+                'https://cyberark-customers.force.com/s/article/00005148
             End If
         End If
     End If
@@ -196,18 +203,16 @@ Public Function StopService(sServiceName As String) As Boolean
     If Not IsServiceExists(sServiceName) Then StopService = True: Exit Function
     
     If bIsWin64 And FolderExists(sWinDir & "\sysnative") And OSver.MajorMinor >= 6 Then
-        NetPath = sWinDir & "\sysnative\net.exe"
+        'net.exe
+        NetPath = sWinDir & "\sysnative\" & Caes_Decode("ohy.nIr")
     Else
-        NetPath = sWinDir & "\system32\net.exe"
+        NetPath = sWinDir & "\system32\" & Caes_Decode("ohy.nIr")
     End If
     
     ServState = GetServiceRunState(sServiceName)
     
     If ServState <> SERVICE_STOPPED Then
-                
-        'this does the same as AboutBuster: run NET STOP on the
-        'service. if the API way wouldn't crash VB everytime, I'd use that. :/
-                
+
         If Proc.ProcessRun(NetPath, "STOP """ & sServiceName & """ /y", , vbHide) Then
             Proc.WaitForTerminate , , , 15000
         End If
@@ -243,10 +248,11 @@ Public Function StartService(sServiceName As String, Optional bWait As Boolean =
     If Not IsServiceExists(sServiceName) Then StartService = False: Exit Function
     
     If bIsWin64 And FolderExists(sWinDir & "\sysnative") And OSver.MajorMinor >= 6 Then
-        NetPath = sWinDir & "\sysnative\net.exe"
+        'net.exe
+        NetPath = sWinDir & "\sysnative\" & Caes_Decode("ohy.nIr")
         CmdPath = sWinDir & "\sysnative\cmd.exe"
     Else
-        NetPath = sWinDir & "\system32\net.exe"
+        NetPath = sWinDir & "\system32\" & Caes_Decode("ohy.nIr")
         CmdPath = sWinDir & "\system32\cmd.exe"
     End If
     
@@ -261,7 +267,7 @@ Public Function StartService(sServiceName As String, Optional bWait As Boolean =
         Else
             'async mode
             'cmd.exe /c "start "" net.exe start "service""
-            Proc.ProcessRun CmdPath, "/d /c START """" net.exe start """ & sServiceName & """""", , vbHide
+            Proc.ProcessRun CmdPath, "/d /c START """" " & Caes_Decode("ohy.nIr") & " start """ & sServiceName & """""", , vbHide
         End If
     End If
     
@@ -316,7 +322,6 @@ Public Function DeleteNTService(sServiceName As String, Optional AllowReboot As 
         End If
     End If
     
-    'I wish everything this hard was this simple :/
     Dim hSCManager&, hService&
     hSCManager = OpenSCManager(0&, 0&, SC_MANAGER_CREATE_SERVICE)
     If hSCManager <> 0 Then
@@ -428,11 +433,16 @@ ErrorHandler:
     If inIDE Then Stop: Resume Next
 End Function
 
-Public Function CleanServiceFileName(sFilename As String, sServiceName As String, Optional sCustomKey As String) As String
+Public Function CleanServiceFileName( _
+    sFilename As String, _
+    sServiceName As String, _
+    Optional sCustomKey As String, _
+    Optional bIsDriver As Boolean) As String
+    
     On Error GoTo ErrorHandler:
     
     Dim sFile As String, ext As String, sBuf As String
-    Dim j As Long, pos As Long
+    Dim j As Long, pos As Long, sTmp As String
 
     sFile = sFilename
 
@@ -444,9 +454,9 @@ Public Function CleanServiceFileName(sFilename As String, sServiceName As String
                 j = InStr(2, sFile, """") - 2
                 
                 If j > 0 Then
-                    sFile = Mid$(sFile, 2, j)
+                    sFile = mid$(sFile, 2, j)
                 Else
-                    sFile = Mid$(sFile, 2)
+                    sFile = mid$(sFile, 2)
                 End If
             End If
             
@@ -469,11 +479,11 @@ Public Function CleanServiceFileName(sFilename As String, sServiceName As String
             j = InStr(1, sFile, ".exe ", vbTextCompare) + 3 ' mark -> '.exe' + space
             If j < Len(sFile) And j > 3 Then sFile = Left$(sFile, j)
             
-            If Left$(sFile, 4) = "\??\" Then sFile = Mid$(sFile, 5)
+            If Left$(sFile, 4) = "\??\" Then sFile = mid$(sFile, 5)
             If Left$(sFile, 1) = "\" Then sFile = SysDisk & sFile
             
             'add .exe if not specified
-            If Len(sFile) > 3 Then ext = Mid$(sFile, Len(sFile) - 3)
+            If Len(sFile) > 3 Then ext = mid$(sFile, Len(sFile) - 3)
             
             If Not FileExists(sFile) Then
                 If StrComp(ext, ".exe", 1) <> 0 And _
@@ -495,11 +505,23 @@ Public Function CleanServiceFileName(sFilename As String, sServiceName As String
             'wow64 correction
             If Len(sServiceName) <> 0 Then
                 If IsServiceWow64(sServiceName, sCustomKey) Then
-                    sFile = Replace$(sFile, sWinSysDir, sWinSysDirWow64, , , vbTextCompare)
+                    '//TODO:
+                    'but nldrv.sys loads \System32\ anyway for some reason regardless of WOW64 == 1
+                    
+                    If bIsDriver Then 'temporarily walkaround
+                        sTmp = sFile
+                        sFile = Replace$(sFile, sWinSysDir, sWinSysDirWow64, , , vbTextCompare)
+                        If Not FileExists(sFile) Then
+                            If FileExists(sTmp) Then sFile = sTmp
+                        End If
+                    Else
+                        sFile = Replace$(sFile, sWinSysDir, sWinSysDirWow64, , , vbTextCompare)
+                    End If
+                    
                 End If
             End If
             
-            If Mid$(sFile, 2, 1) <> ":" Then 'if not fully qualified path
+            If mid$(sFile, 2, 1) <> ":" Then 'if not fully qualified path
                 If InStr(sFile, "\") = 0 Then
                     sBuf = FindOnPath(sFile)
                     If 0 <> Len(sBuf) Then sFile = sBuf
@@ -634,5 +656,57 @@ Public Function RunScheduler_Service(bWait As Boolean, bAskBeforeLaunch As Boole
                 End If
             End If
         End If
+    End If
+End Function
+
+Private Function IsSafemodeServiceEx( _
+    serviceName As String, _
+    safeModeType As SERVICE_SAFEMODE_TYPE, _
+    isDriver As Boolean, _
+    Optional driverGroupName As String) As Boolean
+    
+    Dim sEntryType As String
+    sEntryType = Reg.GetString(HKEY_LOCAL_MACHINE, "SYSTEM\CurrentControlSet\Control\SafeBoot\" & _
+        IIf(safeModeType = SERVICE_SAFEMODE_MINIMAL, "Minimal", "Network") & _
+        "\" & serviceName)
+    If isDriver Then
+        If StrComp(sEntryType, "Driver", 1) = 0 Then
+            IsSafemodeServiceEx = True
+        Else
+            If Len(driverGroupName) <> 0 Then
+                sEntryType = Reg.GetString(HKEY_LOCAL_MACHINE, "SYSTEM\CurrentControlSet\Control\SafeBoot\" & _
+                    IIf(safeModeType = SERVICE_SAFEMODE_MINIMAL, "Minimal", "Network") & _
+                    "\" & driverGroupName)
+                If StrComp(sEntryType, "Driver Group", 1) = 0 Then
+                    IsSafemodeServiceEx = True
+                End If
+            End If
+        End If
+    Else
+        If StrComp(sEntryType, "Service", 1) = 0 Then
+            IsSafemodeServiceEx = True
+        End If
+    End If
+End Function
+
+Public Function IsSafemodeService(serviceName As String) As Boolean
+
+    If IsSafemodeServiceEx(serviceName, SERVICE_SAFEMODE_NETWORK, False) Then
+        IsSafemodeService = True
+        Exit Function
+    End If
+    If IsSafemodeServiceEx(serviceName, SERVICE_SAFEMODE_MINIMAL, False) Then
+        IsSafemodeService = True
+    End If
+End Function
+
+Public Function IsSafemodeDriver(driverName As String, Optional driverGroupName As String) As Boolean
+
+    If IsSafemodeServiceEx(driverName, SERVICE_SAFEMODE_NETWORK, True, driverGroupName) Then
+        IsSafemodeDriver = True
+        Exit Function
+    End If
+    If IsSafemodeServiceEx(driverName, SERVICE_SAFEMODE_MINIMAL, True, driverGroupName) Then
+        IsSafemodeDriver = True
     End If
 End Function

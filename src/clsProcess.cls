@@ -42,7 +42,7 @@ Private Type PROCESS_INFORMATION
     hProcess As Long
     hThread As Long
     dwProcessId As Long
-    dwThreadId As Long
+    dwThreadID As Long
 End Type
 
 Private Type STARTUPINFO
@@ -100,12 +100,12 @@ End Type
 Private Declare Function CreateToolhelp32Snapshot Lib "kernel32.dll" (ByVal lFlags As Long, ByVal lProcessID As Long) As Long
 Private Declare Function Process32First Lib "kernel32.dll" Alias "Process32FirstW" (ByVal hSnapshot As Long, uProcess As PROCESSENTRY32) As Long
 Private Declare Function Process32Next Lib "kernel32.dll" Alias "Process32NextW" (ByVal hSnapshot As Long, uProcess As PROCESSENTRY32) As Long
-Private Declare Function GetWindowThreadProcessId Lib "user32.dll" (ByVal hwnd As Long, lpdwProcessId As Long) As Long
+Private Declare Function GetWindowThreadProcessId Lib "user32.dll" (ByVal hWnd As Long, lpdwProcessId As Long) As Long
 Private Declare Function OpenProcess Lib "kernel32.dll" (ByVal dwDesiredAccess As Long, ByVal bInheritHandle As Long, ByVal dwProcessId As Long) As Long
 Private Declare Function WaitForSingleObject Lib "kernel32.dll" (ByVal hHandle As Long, ByVal dwMilliseconds As Long) As Long
 Private Declare Function GetExitCodeProcess Lib "kernel32.dll" (ByVal hProcess As Long, lpExitCode As Long) As Long
 Private Declare Function CloseHandle Lib "kernel32.dll" (ByVal hObject As Long) As Long
-Private Declare Function PostMessage Lib "user32.dll" Alias "PostMessageA" (ByVal hwnd As Long, ByVal wMsg As Long, ByVal wParam As Long, ByVal lParam As Long) As Long
+Private Declare Function PostMessage Lib "user32.dll" Alias "PostMessageA" (ByVal hWnd As Long, ByVal wMsg As Long, ByVal wParam As Long, ByVal lParam As Long) As Long
 Private Declare Function CreateProcess Lib "kernel32.dll" Alias "CreateProcessW" (ByVal lpApplicationName As Long, ByVal lpCommandLine As Long, lpProcessAttributes As Any, lpThreadAttributes As Any, ByVal bInheritHandles As Long, ByVal dwCreationFlags As Long, lpEnvironment As Any, ByVal lpCurrentDirectory As Long, lpStartupInfo As STARTUPINFO, lpProcessInformation As PROCESS_INFORMATION) As Long
 Private Declare Function TerminateProcess Lib "kernel32.dll" (ByVal hProcess As Long, ByVal uExitCode As Long) As Long
 Private Declare Function CommandLineToArgvW Lib "shell32.dll" (ByVal lpCmdLine As Long, pNumArgs As Long) As Long
@@ -123,7 +123,7 @@ Private Declare Function DuplicateTokenEx Lib "Advapi32.dll" (ByVal hExistingTok
 Private Declare Function GetShellWindow Lib "user32.dll" () As Long
 Private Declare Function CreateProcessWithTokenW Lib "Advapi32.dll" (ByVal hToken As Long, ByVal dwLogonFlags As Long, ByVal lpApplicationName As Long, ByVal lpCommandLine As Long, ByVal dwCreationFlags As Long, ByVal lpEnvironment As Long, ByVal lpCurrentDirectory As Long, lpStartupInfo As STARTUPINFO, lpProcessInfo As PROCESS_INFORMATION) As Long
 Private Declare Function IUnknown_QueryService Lib "Shlwapi.dll" (ByVal pUnk As IUnknown, ByRef guidService As Any, ByRef riid As Any, ByRef ppvOut As Any) As Long
-Private Declare Function EndTask Lib "user32.dll" (ByVal hwnd As Long, ByVal fShutDown As Long, ByVal fForce As Long) As Long
+Private Declare Function EndTask Lib "user32.dll" (ByVal hWnd As Long, ByVal fShutDown As Long, ByVal fForce As Long) As Long
 Private Declare Function CreatePipe Lib "kernel32" (phReadPipe As Long, phWritePipe As Long, lpPipeAttributes As SECURITY_ATTRIBUTES, ByVal nSize As Long) As Long
 Private Declare Function PeekNamedPipe Lib "kernel32" (ByVal hNamedPipe As Long, lpBuffer As Any, ByVal nBufferSize As Long, lpBytesRead As Long, lpTotalBytesAvail As Long, lpBytesLeftThisMessage As Any) As Long
 Private Declare Function ReadFile Lib "kernel32" (ByVal hFile As Long, lpBuffer As Any, ByVal nNumberOfBytesToRead As Long, lpNumberOfBytesRead As Long, lpOverlapped As Any) As Long
@@ -158,6 +158,7 @@ Private inIDE   As Boolean
 Private PipeIn  As PIPE
 Private PipeOut As PIPE
 Private mIdent  As String
+Private m_StatusCode As Long
 
 Public Property Get pid() As Long
     pid = pi.dwProcessId
@@ -168,11 +169,11 @@ Public Property Let pid(lPID As Long)
 End Property
 
 Public Property Get ThreadId() As Long
-    ThreadId = pi.dwThreadId
+    ThreadId = pi.dwThreadID
 End Property
 
 Public Property Let ThreadId(lTID As Long)
-    pi.dwThreadId = lTID
+    pi.dwThreadID = lTID
 End Property
 
 Public Property Get HandleProc() As Long
@@ -198,6 +199,32 @@ End Property
 Public Property Let Identifier(sIdent As String)
     mIdent = sIdent
 End Property
+
+Public Function IsAlive() As Boolean
+    If ExitCode() = STILL_ACTIVE Then
+        IsAlive = True
+    End If
+End Function
+
+Public Function ExitCode() As Long
+    Dim iExit As Long
+    If pi.hProcess <> 0 Then
+        GetExitCodeProcess pi.hProcess, iExit
+        ExitCode = iExit
+    Else
+        ExitCode = -1
+    End If
+End Function
+
+Public Sub CloseStdIn()
+    If PipeIn.hWrite <> 0 Then CloseHandle (PipeIn.hWrite): PipeIn.hWrite = 0
+    If PipeIn.hRead <> 0 Then CloseHandle (PipeIn.hRead): PipeIn.hRead = 0
+End Sub
+
+Public Sub CloseStdOut()
+    If PipeOut.hWrite <> 0 Then CloseHandle (PipeOut.hWrite): PipeOut.hWrite = 0
+    If PipeOut.hRead <> 0 Then CloseHandle (PipeOut.hRead): PipeOut.hRead = 0
+End Sub
 
 Function IsRunned(Optional ByRef ProcessName As String, Optional ByRef ProcessID As Long) As Boolean
     ' Запущен ли процесс, указанный по имени или ProcessID
@@ -257,14 +284,14 @@ Function WaitForTerminate( _
                         Optional ByVal WindowHandle As Long, _
                         Optional ByVal ProcessHandle As Long, _
                         Optional ByVal FreezeThread As Boolean, _
-                        Optional ByVal TimeOutMs As Long, _
+                        Optional ByVal TimeoutMs As Long, _
                         Optional ByVal ProcessID As Long) As Long
                         ' Ожидает завершения процесса                           'Thanks for help to Catstail (Б. Файфель)
     
     On Error GoTo ErrorHandler:
     
     AppendErrorLogCustom "WaitForTerminate - Begin", "WndHandle: " & WindowHandle, "ProcessHandle: " & ProcessHandle, "FreezeThread? " & FreezeThread, _
-        "TimeOutMs: " & TimeOutMs, "PID: " & ProcessID
+        "TimeOutMs: " & TimeoutMs, "PID: " & ProcessID
     
     ' FreezeThread, если true - заморозит текущий поток на время, пока отслеживаемый процесс не будет закрыт
     ' TimeOut, если FreezeThread = false, задает время таймаута ожидания завершения процесса.
@@ -273,7 +300,7 @@ Function WaitForTerminate( _
     Dim iExit       As Long
     Dim hProc       As Long
     Dim iResult     As Long
-    Dim dwThreadId  As Long
+    Dim dwThreadID  As Long
     Dim hThread     As Long
     Dim InitialTime As Single
     Dim DeadTime    As Single
@@ -295,7 +322,7 @@ Function WaitForTerminate( _
         
     ElseIf WindowHandle <> 0 Then
         ' получаем PID процесса
-        dwThreadId = GetWindowThreadProcessId(ByVal WindowHandle, ProcessID)
+        dwThreadID = GetWindowThreadProcessId(ByVal WindowHandle, ProcessID)
         '::: Получаем хэндл процесса
         hProc = OpenProcess(IIf(bIsWinVistaOrLater, PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_QUERY_INFORMATION) Or SYNCHRONIZE, False, ProcessID)
         bNewHandle = True
@@ -322,8 +349,8 @@ Function WaitForTerminate( _
        '::: Пробуем получить код завершения
        GetExitCodeProcess hProc, iExit
        InitialTime = Timer
-       DeadTime = InitialTime + TimeOutMs / 1000
-       bTimeOutON = (TimeOutMs <> INFINITE)
+       DeadTime = InitialTime + TimeoutMs / 1000
+       bTimeOutON = (TimeoutMs <> INFINITE)
        '::: Если процесс все еще в состоянии выполнения,
        '::: не дадим системе зависнуть
        Do While (iExit = STILL_ACTIVE) And IIf(bTimeOutON, DeadTime > Timer, True)
@@ -393,7 +420,7 @@ Public Function ProcessClose( _
                             Optional ByVal WindowHandle As Long, _
                             Optional ProcessName As String, _
                             Optional Async As Boolean, _
-                            Optional TimeOutMs As Long = INFINITE, _
+                            Optional TimeoutMs As Long = INFINITE, _
                             Optional ByVal ProcessID As Long, _
                             Optional SendCloseMsg As Boolean) As Long
                             'Возвращаемое значение = ExitCode процесса, или -1 в случае неудачи
@@ -401,12 +428,12 @@ Public Function ProcessClose( _
     On Error GoTo ErrorHandler:
 
     AppendErrorLogCustom "ProcessClose - Begin", "WindowHandle: " & WindowHandle, "ProcessName: " & ProcessName, "Async? " & Async, _
-        "TimeOutMs: " & TimeOutMs, "PID: " & ProcessID, "SendCloseMsg? " & SendCloseMsg
+        "TimeOutMs: " & TimeoutMs, "PID: " & ProcessID, "SendCloseMsg? " & SendCloseMsg
 
     Dim lr               As Long
     Dim hThread          As Long
     Dim hProc            As Long
-    Dim dwThreadId       As Long
+    Dim dwThreadID       As Long
     Dim pid()            As Long
     Dim i                As Long
     Dim ProcNameCur      As String
@@ -422,7 +449,7 @@ Public Function ProcessClose( _
         End If
         
         If Not Async Then
-            If TimeOutMs = INFINITE Then
+            If TimeoutMs = INFINITE Then
                 For i = 1 To UBound(pid)
                     ProcNameCur = vbNullString
                     Call IsRunned(ProcNameCur, pid(i)) 'get name by PID
@@ -439,7 +466,7 @@ Public Function ProcessClose( _
                         Exit For ' get only 1 process
                     End If
                 Next
-                If ProcessID <> 0 Then Call WaitForTerminate(, , False, TimeOutMs, ProcessID)
+                If ProcessID <> 0 Then Call WaitForTerminate(, , False, TimeoutMs, ProcessID)
             End If
         End If
         
@@ -448,12 +475,12 @@ Public Function ProcessClose( _
         Exit Function
         
     ElseIf WindowHandle <> 0 Then
-        dwThreadId = GetWindowThreadProcessId(ByVal WindowHandle, ProcessID)
+        dwThreadID = GetWindowThreadProcessId(ByVal WindowHandle, ProcessID)
         lr = PostMessage(WindowHandle, WM_CLOSE, 0, 0)                           ' WM_CLOSE главному окну
         Call WaitForTerminate(, hProc, False, 1000)                              ' подождём 1 сек.
         lr = PostMessage(WindowHandle, WM_QUIT, 0, 0)                            ' WM_QUIT главному окну
         If Not Async Then
-            lr = WaitForTerminate(WindowHandle, , False, TimeOutMs)              ' ожидание, без замораживания текущего потока
+            lr = WaitForTerminate(WindowHandle, , False, TimeoutMs)              ' ожидание, без замораживания текущего потока
         Else
             lr = WaitForTerminate(WindowHandle, , False, 500)
         End If
@@ -461,11 +488,13 @@ Public Function ProcessClose( _
             EndTask WindowHandle, False, True
         End If
         If IsRunned(, ProcessID) Then
-            hProc = OpenProcess(PROCESS_TERMINATE, False, ProcessID)
+            hProc = OpenProcess(PROCESS_TERMINATE Or SYNCHRONIZE, False, ProcessID)
+            If hProc = 0 Then hProc = OpenProcess(PROCESS_TERMINATE, False, ProcessID)
         End If
         
     ElseIf ProcessID <> 0 Then
-        hProc = OpenProcess(PROCESS_TERMINATE, False, ProcessID)
+        hProc = OpenProcess(PROCESS_TERMINATE Or SYNCHRONIZE, False, ProcessID)
+        If hProc = 0 Then hProc = OpenProcess(PROCESS_TERMINATE, False, ProcessID)
     
     Else
         hThread = pi.hThread
@@ -478,9 +507,12 @@ Public Function ProcessClose( _
             hThread = GetWindowThreadProcessId(ByVal WindowHandle, ProcessID)
             If (WindowHandle <> 0) Then
                 lr = PostMessage(WindowHandle, WM_CLOSE, 0, 0)                           ' WM_CLOSE главному окну
-            End If
-            If (hProc <> 0) Then
-                Call WaitForTerminate(, hProc, False, 1000)
+                If (hProc = 0) Then
+                    hProc = OpenProcess(SYNCHRONIZE, False, ProcessID)
+                End If
+                If (hProc <> 0) Then
+                    Call WaitForTerminate(, hProc, False, 1000)
+                End If
             End If
         End If
     End If
@@ -488,7 +520,7 @@ Public Function ProcessClose( _
     If hProc <> 0 Then
         TerminateProcess hProc, 0
         If Not (Async) Then
-            ProcessClose = WaitForTerminate(, hProc, False, TimeOutMs)
+            ProcessClose = WaitForTerminate(, hProc, False, TimeoutMs)
         End If
     End If
     
@@ -517,7 +549,7 @@ Public Function ProcessRun( _
                             Optional ByVal CurrentDirectory As String = vbNullString, _
                             Optional WindowStyle As SHOWWINDOW_FLAGS = SW_SHOWNORMAL, _
                             Optional CloseHandles As Boolean = False, _
-                            Optional bReadConsole As Boolean) As Long
+                            Optional bReadConsole As Boolean) As Boolean
     
     On Error GoTo ErrorHandler:
     AppendErrorLogCustom "ProcessRun - Begin", "FileName: " & FileName, "CommandLine: " & CommandLine, "CurDir: " & CurrentDirectory, _
@@ -525,12 +557,16 @@ Public Function ProcessRun( _
     
     Const STARTF_USESHOWWINDOW      As Long = 1
     Const NORMAL_PRIORITY_CLASS     As Long = &H20
+    Const PIPE_BUFFER_SIZE          As Long = 64 * 1024&
     
-    Dim n           As Long
+    Dim N           As Long
     Dim lr          As Long
     Dim CMDLine     As String
     Dim argc        As Long
     Dim argv()      As String
+    Dim iLastErr    As Long
+    
+    AppendErrorLogCustom "Parsing command line"
     
     If Len(FileName) <> 0 Then
     
@@ -540,8 +576,8 @@ Public Function ProcessRun( _
         
             ParseCommandLine CommandLine, argc, argv        ' Разбиваем аргументы командной строки на составляющие
             
-            For n = 1 To argc
-                CMDLine = CMDLine & " " & argv(n)
+            For N = 1 To argc
+                CMDLine = CMDLine & " " & argv(N)
             Next
         End If
         
@@ -564,9 +600,13 @@ Public Function ProcessRun( _
         Attr.lpSecurityDescriptor = 0
         Attr.bInheritHandle = True
         
-        If CreatePipe(PipeIn.hRead, PipeIn.hWrite, Attr, 0) <> 0 Then
+        AppendErrorLogCustom "CreatePipe1"
+        
+        If CreatePipe(PipeIn.hRead, PipeIn.hWrite, Attr, PIPE_BUFFER_SIZE) <> 0 Then
     
-            If CreatePipe(PipeOut.hRead, PipeOut.hWrite, Attr, 0) <> 0 Then
+            AppendErrorLogCustom "CreatePipe2"
+    
+            If CreatePipe(PipeOut.hRead, PipeOut.hWrite, Attr, PIPE_BUFFER_SIZE) <> 0 Then
       
                 si.hStdInput = PipeIn.hRead
                 si.hStdOutput = PipeOut.hWrite
@@ -575,6 +615,8 @@ Public Function ProcessRun( _
             End If
         End If
     End If
+    
+    AppendErrorLogCustom "CreateProcess"
     
     If si.hStdOutput <> 0 Then
     
@@ -588,6 +630,8 @@ Public Function ProcessRun( _
                 StrPtr(CurrentDirectory), _
                 si, _
                 pi)
+        
+        iLastErr = Err.LastDllError
         
         If PipeOut.hWrite <> 0 Then
             CloseHandle PipeOut.hWrite: PipeOut.hWrite = 0
@@ -604,16 +648,19 @@ Public Function ProcessRun( _
                     StrPtr(CurrentDirectory), _
                     si, _
                     pi)
+                    
+        iLastErr = Err.LastDllError
     End If
     
-    ProcessRun = lr    ' not 0 is SUCCESS
+    ProcessRun = CBool(lr)    ' not 0 is SUCCESS
+    m_StatusCode = Err.LastDllError
     
     If CloseHandles Then
         If pi.hProcess <> 0 Then CloseHandle pi.hProcess: pi.hProcess = 0
         If pi.hThread <> 0 Then CloseHandle pi.hThread: pi.hThread = 0
     End If
     
-    AppendErrorLogCustom "ProcessRun - End"
+    AppendErrorLogCustom "ProcessRun - End. Return: " & lr & ". LastError = " & iLastErr
     Exit Function
 ErrorHandler:
     ErrorMsg Err, "clsProcess_ProcessRun", "FileName:", FileName, "CommandLine:", CommandLine
@@ -647,7 +694,7 @@ Public Function ProcessRunUnelevated( _
     Dim lShellPID   As Long
     Dim hWndShell   As Long
     Dim hProcShell  As Long
-    Dim n           As Long
+    Dim N           As Long
     Dim lr          As Long
     Dim CMDLine     As String
     Dim argc        As Long
@@ -658,8 +705,8 @@ Public Function ProcessRunUnelevated( _
     If CommandLine <> vbNullString Then                 ' Если есть аргументы, их тоже добавляем в кавычках
     
         ParseCommandLine CommandLine, argc, argv        ' Разбиваем аргументы командной строки на составляющие
-        For n = 1 To argc
-            CMDLine = CMDLine & " """ & argv(n) & """"
+        For N = 1 To argc
+            CMDLine = CMDLine & " """ & argv(N) & """"
         Next
     End If
     
@@ -682,7 +729,7 @@ Public Function ProcessRunUnelevated( _
     End If
     
     If Not ProcessExist("explorer.exe", True) Then
-        Debug.Print "ProcessRunUnelevated. No explorer process found."
+        If inIDE Then Debug.Print "ProcessRunUnelevated. No explorer process found."
         Exit Function
     End If
     
@@ -757,7 +804,7 @@ Public Function ProcessRunUnelevated2( _
 
     Dim IShellBrowser As IUnknown, IShellView As IUnknown, Obj As Object, ShellFolderView As Object
     Dim IID_IDispatch(3&) As Long, IID_IShellBrowser(3&) As Long, SID_STopLevelBrowser(3&) As Long
-    Dim hwnd As Long, RV As Variant, v(2&) As Variant, VT(2&) As Integer, pv(2&) As Long
+    Dim hWnd As Long, RV As Variant, v(2&) As Variant, VT(2&) As Integer, pv(2&) As Long
     
     Dim vOperation As Variant:          vOperation = vbNullString 'by default - open
     Dim vCommandLine As Variant:        vCommandLine = CommandLine
@@ -765,7 +812,7 @@ Public Function ProcessRunUnelevated2( _
     Dim vWindowStyle As Variant:        vWindowStyle = WindowStyle
     
     On Error Resume Next
-    Set Obj = CreateObject("Shell.Application").Windows.FindWindowSW(Empty, Empty, SWC_DESKTOP, hwnd, SWFO_NEEDDISPATCH)
+    Set Obj = CreateObject("Shell.Application").Windows.FindWindowSW(Empty, Empty, SWC_DESKTOP, hWnd, SWFO_NEEDDISPATCH)
     On Error GoTo 0
     If Not (Obj Is Nothing) Then
       If CLSIDFromString(StrPtr("{4C96BE40-915C-11CF-99D3-00AA004AE837}"), SID_STopLevelBrowser(0&)) = NOERROR Then
@@ -812,7 +859,11 @@ Public Function ConsoleWrite(ByVal sData As String) As Boolean
         If lBytesWrote = LenB(sData) Then ConsoleWrite = True
     End If
 End Function
- 
+
+Public Function GetConsoleReadSize() As Long
+    PeekNamedPipe PipeOut.hRead, ByVal 0&, 0&, ByVal 0&, GetConsoleReadSize, ByVal 0&
+End Function
+
 Public Function ConsoleRead() As String
     Dim buf As String, Count As Long
     
@@ -823,6 +874,23 @@ Public Function ConsoleRead() As String
             ConsoleRead = ConvertCodePage(StrPtr(StrConv(buf, vbUnicode)), CP_DOS, CP_UTF16LE)
         End If
     End If
+End Function
+
+Public Function ConsoleReadUntilDeath(Optional iTimeoutMs As Long = INFINITE) As String
+    Const DELAY_INTERVAL As Long = 400
+    Dim sText As String
+    Dim iElapsed As Long
+    Me.CloseStdIn
+    Do
+        While GetConsoleReadSize() <> 0
+            sText = sText & ConsoleRead()
+        Wend
+        Sleep 100 'gives system a time to dealloc process
+        If Not IsAlive() Then Exit Do
+        SleepNoLock DELAY_INTERVAL
+        iElapsed = iElapsed + DELAY_INTERVAL
+    Loop While (iElapsed < iTimeoutMs) Or (iTimeoutMs = INFINITE)
+    ConsoleReadUntilDeath = sText
 End Function
 
 Private Sub ParseCommandLine(Line As String, argc As Long, argv() As String)
@@ -843,7 +911,7 @@ Private Sub ParseCommandLine(Line As String, argc As Long, argv() As String)
         argv(Index) = Space$(strLen)
         lstrcpyn StrPtr(argv(Index)), strAdr, strLen + 1
     Next
-    GlobalFree ptr
+    LocalFree ptr
     Exit Sub
 ErrorHandler:
     ErrorMsg Err, "clsProcess_ParseCommandLine", "Line:", Line
@@ -855,7 +923,7 @@ Private Function TrimNull(s$) As String
 End Function
 
 Private Sub Class_Initialize()
-    inIDE = (App.LogMode = 0)
+    Debug.Assert MakeTrue(inIDE)
 End Sub
 
 Public Function IsArrDimmed(vArray As Variant) As Boolean
@@ -908,3 +976,13 @@ Private Function StringFromPtrW(ptr As Long) As String
     End If
 End Function
 
+'returns Win API Status code of 'ProcessRun' requested in this class
+'
+Public Property Get StatusCode() As Long
+    StatusCode = m_StatusCode
+End Property
+
+Private Function MakeTrue(ByRef bValue As Boolean) As Boolean
+    MakeTrue = True
+    bValue = True
+End Function

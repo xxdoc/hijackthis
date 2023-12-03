@@ -37,6 +37,7 @@ End Enum
 Public Enum ENUM_CUSTOM_RESTORE_VERBS 'values should coerce with ENUM_RESTORE_VERBS !
     BACKUP_BITS_JOB = 2 ^ 9
     BACKUP_APPLOCKER = 2 ^ 10
+    BACKUP_CUSTOM_OBJECT_BASED = 2 ^ 17
 End Enum
 
 Public Enum ENUM_SERVICE_RESTORE_VERBS 'values should coerce with ENUM_RESTORE_VERBS !
@@ -69,6 +70,11 @@ Private Enum ENUM_RESTORE_VERBS 'WARNING: re-enumeration of values is forbidden 
     VERB_DISABLE = 2 ^ 12
     VERB_START = 2 ^ 13
     VERB_STOP = 2 ^ 14
+    VERB_REMOVE = 2 ^ 15
+    VERB_ADD = 2 ^ 16
+    VERB_OBJECT_BASED = 2 ^ 17
+    
+    VERB_MAX = VERB_OBJECT_BASED 'set it same as a previous member!
 End Enum
 
 Private Enum ENUM_RESTORE_OBJECT_TYPES 'WARNING: re-enumeration of values is forbidden !!!
@@ -82,6 +88,8 @@ Private Enum ENUM_RESTORE_OBJECT_TYPES 'WARNING: re-enumeration of values is for
     OBJ_REG_METADATA = 2 ^ 7
     OBJ_FIX_CUSTOM = 2 ^ 8
     OBJ_TASK = 2 ^ 9
+    OBJ_USER_GROUP_MEMBERSHIP = 2 ^ 10
+    OBJ_FIREWALL_RULE = 2 ^ 11
 End Enum
 
 Private Type BACKUP_COMMAND
@@ -206,6 +214,7 @@ Dim HE_Uniq As clsHiveEnum
 Public Sub InitBackupIni()
     If cBackupIni Is Nothing Then
         Set cBackupIni = New clsIniFile
+        LIST_BACKUP_FILE = BuildPath(AppPath(), "Backups\List.ini")
         cBackupIni.InitFile LIST_BACKUP_FILE, CP_UTF16LE
         tBackupList.Total = cBackupIni.ReadParam("main", "Total", 0)
         tBackupList.LastFixID = cBackupIni.ReadParam("main", "LastFixID", 0)
@@ -245,7 +254,7 @@ Public Function MakeBackup(result As SCAN_RESULT) As Boolean
     
     Dim aFiles() As String
     Dim lRegID As Long
-    Dim i As Long, j As Long, n As Long
+    Dim i As Long, j As Long, N As Long
     Dim ActionMask As Long
     Dim aSubKeys() As String
     Dim MyReg As FIX_REG_KEY
@@ -260,6 +269,8 @@ Public Function MakeBackup(result As SCAN_RESULT) As Boolean
         InitBackupIni
     End If
     
+    'this causes all backups go under the single line in "Backups" windows
+    'if something is required to be located as a separare line, please duplicate a call to UpdateBackupEntry()
     UpdateBackupEntry result
     
     With result
@@ -288,8 +299,8 @@ Public Function MakeBackup(result As SCAN_RESULT) As Boolean
                         'enum all files
                         aFiles = ListFiles(.File(i).Path, , True)
                         If AryItems(aFiles) Then
-                            For n = 0 To UBound(aFiles)
-                                MakeBackup = MakeBackup And BackupFile(result, aFiles(n))
+                            For N = 0 To UBound(aFiles)
+                                MakeBackup = MakeBackup And BackupFile(result, aFiles(N))
                             Next
                         End If
                         ActionMask = ActionMask - REMOVE_FOLDER
@@ -357,7 +368,7 @@ Public Function MakeBackup(result As SCAN_RESULT) As Boolean
                     With .Reg(i)
                         If (.ActionType And REMOVE_KEY) Or (.ActionType And BACKUP_KEY) Then
                             'whole key
-                            BackupKey result, .Hive, .Key, , .Redirected, False
+                            BackupKey result, .Hive, .key, , .Redirected, False
                         ElseIf (.ActionType And RESTORE_KEY_PERMISSIONS) Or (.ActionType And RESTORE_KEY_PERMISSIONS_RECURSE) Then
                             'permissions only
                             MyReg.Hive = .Hive
@@ -365,19 +376,19 @@ Public Function MakeBackup(result As SCAN_RESULT) As Boolean
                             MyReg.ActionType = .ActionType
                             If (.ActionType And RESTORE_KEY_PERMISSIONS_RECURSE) Then
                                 
-                                For j = 1 To Reg.EnumSubKeysToArray(.Hive, .Key, aSubKeys(), .Redirected, False, True)
-                                    MyReg.Key = aSubKeys(j)
+                                For j = 1 To Reg.EnumSubKeysToArray(.Hive, .key, aSubKeys(), .Redirected, False, True)
+                                    MyReg.key = aSubKeys(j)
                                     lRegID = BackupAllocReg(MyReg, True)
                                     BackupAddCommand REGISTRY_BASED, VERB_RESTORE_REG_KEY, OBJ_REG_METADATA, lRegID
                                 Next
                             End If
                             'root key self
-                            MyReg.Key = .Key
+                            MyReg.key = .key
                             lRegID = BackupAllocReg(MyReg, True)
                             BackupAddCommand REGISTRY_BASED, VERB_RESTORE_REG_KEY, OBJ_REG_METADATA, lRegID
                         Else
                             'parameter
-                            BackupKey result, .Hive, .Key, .Param, .Redirected, False
+                            BackupKey result, .Hive, .key, .Param, .Redirected, False
                         End If
                     End With
                 Next
@@ -389,7 +400,7 @@ Public Function MakeBackup(result As SCAN_RESULT) As Boolean
                 For i = 0 To UBound(.Service)
                     With .Service(i)
                         If ((.ActionType And DELETE_SERVICE) Or (.ActionType And DISABLE_SERVICE)) Then
-                            BackupServiceState result, .ServiceName
+                            BackupServiceState result, .serviceName
                         End If
                     End With
                 Next
@@ -424,7 +435,6 @@ Public Function MakeBackup(result As SCAN_RESULT) As Boolean
                 For i = 0 To UBound(.Custom)
                     With .Custom(i)
                         If (.ActionType And CUSTOM_ACTION_O25) Then
-                            UpdateBackupEntry result
                             BackupAddCommand CUSTOM_BASED, VERB_WMI_CONSUMER, OBJ_WMI_CONSUMER, PackO25_Entry(result.O25)
                         End If
                         If (.ActionType And CUSTOM_ACTION_BITS) Then
@@ -432,6 +442,12 @@ Public Function MakeBackup(result As SCAN_RESULT) As Boolean
                         End If
                         If (.ActionType And CUSTOM_ACTION_APPLOCKER) Then
                             BackupCustom result, result.Custom(i), BACKUP_APPLOCKER
+                        End If
+                        If (.ActionType And CUSTOM_ACTION_REMOVE_GROUP_MEMBERSHIP) Then
+                            BackupCustom result, result.Custom(i), BACKUP_CUSTOM_OBJECT_BASED Or VERB_REMOVE, OBJ_USER_GROUP_MEMBERSHIP
+                        End If
+                        If (.ActionType And CUSTOM_ACTION_FIREWALL_RULE) Then
+                            BackupCustom result, result.Custom(i), BACKUP_CUSTOM_OBJECT_BASED Or VERB_DISABLE, OBJ_FIREWALL_RULE
                         End If
                     End With
                 Next
@@ -709,14 +725,14 @@ Private Function BackupAllocReg(FixReg As FIX_REG_KEY, Optional bBackupMetadata 
         If bIni Then
             'ini
             sPath = EnvironUnexpand(.IniFile)
-            sData = IniGetString(.IniFile, .Key, .Param)
+            sData = IniGetString(.IniFile, .key, .Param)
             sDataDec = sData
             sData = HexStringW(sData)
         Else
             'reg
             lHive = .Hive
 
-            sData = CStr(Reg.GetData(.Hive, .Key, .Param, .Redirected, True, True, lParamType))
+            sData = CStr(Reg.GetData(.Hive, .key, .Param, .Redirected, True, True, lParamType))
             sDataDec = sData
             
             'If Reg.Param = "" And lParamType = 0 Then 'if default value and not set
@@ -745,11 +761,11 @@ Private Function BackupAllocReg(FixReg As FIX_REG_KEY, Optional bBackupMetadata 
             tBackupList.cLastCMD.WriteParam lRegID, "redir", CLng(.Redirected)
             tBackupList.cLastCMD.WriteParam lRegID, "empty", CLng(bEmpty)
             If bBackupMetadata Then
-                tBackupList.cLastCMD.WriteParam lRegID, "DateM", ConvertDateToUSFormat(Reg.GetKeyTime(lHive, .Key, .Redirected))
-                tBackupList.cLastCMD.WriteParam lRegID, "SD", GetRegKeyStringSD(lHive, .Key, .Redirected)
+                tBackupList.cLastCMD.WriteParam lRegID, "DateM", ConvertDateToUSFormat(Reg.GetKeyTime(lHive, .key, .Redirected))
+                tBackupList.cLastCMD.WriteParam lRegID, "SD", GetRegKeyStringSD(lHive, .key, .Redirected)
             End If
         End If
-        tBackupList.cLastCMD.WriteParam lRegID, "key", .Key
+        tBackupList.cLastCMD.WriteParam lRegID, "key", .key
         
         If Not bPermOnly Then
             tBackupList.cLastCMD.WriteParam lRegID, "param", .Param
@@ -788,7 +804,7 @@ Private Function BackupAllocCustom(FixCustom As FIX_CUSTOM) As Long
         tBackupList.cLastCMD.WriteParam lCustomID, "name", FixCustom.Name
         tBackupList.cLastCMD.WriteParam lCustomID, "id", FixCustom.id
         tBackupList.cLastCMD.WriteParam lCustomID, "url", FixCustom.URL
-        tBackupList.cLastCMD.WriteParam lCustomID, "target", FixCustom.Target
+        tBackupList.cLastCMD.WriteParam lCustomID, "target", FixCustom.TargetOrUser
         tBackupList.cLastCMD.WriteParam lCustomID, "commandline", FixCustom.CommandLine
     End With
     
@@ -814,18 +830,18 @@ ErrorHandler:
     If inIDE Then Stop: Resume Next
 End Sub
 
-Private Sub BackupServiceState(result As SCAN_RESULT, ServiceName As String)
+Private Sub BackupServiceState(result As SCAN_RESULT, serviceName As String)
     On Error GoTo ErrorHandler
     
-    If Len(ServiceName) = 0 Then Exit Sub
+    If Len(serviceName) = 0 Then Exit Sub
     
     UpdateBackupEntry result
     
-    BackupAddCommand SERVICE_BASED, VERB_SERVICE_STATE, OBJ_SERVICE, ServiceName
+    BackupAddCommand SERVICE_BASED, VERB_SERVICE_STATE, OBJ_SERVICE, serviceName
     
     Exit Sub
 ErrorHandler:
-    ErrorMsg Err, "BackupServiceState", ServiceName
+    ErrorMsg Err, "BackupServiceState", serviceName
     If inIDE Then Stop: Resume Next
 End Sub
 
@@ -875,7 +891,10 @@ ErrorHandler:
     If inIDE Then Stop: Resume Next
 End Function
 
-Public Function BackupCustom(result As SCAN_RESULT, Entry As FIX_CUSTOM, Optional ByVal Action As ENUM_CUSTOM_RESTORE_VERBS) As Boolean
+Private Function BackupCustom(result As SCAN_RESULT, Entry As FIX_CUSTOM, _
+    ByVal Action As ENUM_CUSTOM_RESTORE_VERBS, _
+    Optional ByVal ObjType As ENUM_RESTORE_OBJECT_TYPES = OBJ_OS) As Boolean
+    
     On Error GoTo ErrorHandler
     
     Dim lCustomID As Long
@@ -883,7 +902,7 @@ Public Function BackupCustom(result As SCAN_RESULT, Entry As FIX_CUSTOM, Optiona
     UpdateBackupEntry result
     
     lCustomID = BackupAllocCustom(Entry)
-    BackupAddCommand CUSTOM_BASED, Action, OBJ_OS, lCustomID
+    BackupAddCommand CUSTOM_BASED, Action, ObjType, lCustomID
     
     Exit Function
 ErrorHandler:
@@ -948,14 +967,14 @@ Public Function BackupKey( _
         For j = 1 To Reg.EnumSubKeysToArray(hHive, sKey, aSubKeys(), bUseWow64, True, True)
             
             For k = 1 To Reg.EnumValuesToArray(hHive, aSubKeys(j), aValues(), bUseWow64)
-                MyReg.Key = aSubKeys(j)
+                MyReg.key = aSubKeys(j)
                 MyReg.Param = aValues(k)
                 lRegID = BackupAllocReg(MyReg)
                 BackupAddCommand REGISTRY_BASED, VERB_RESTORE_REG_VALUE, OBJ_REG_VALUE, lRegID
             Next
             
             'backup default value of the key
-            MyReg.Key = aSubKeys(j)
+            MyReg.key = aSubKeys(j)
             MyReg.Param = vbNullString
             DoBackupMeta = Not HE_Uniq.Uniq_Exists(hHive, aSubKeys(j), , bUseWow64)
             lRegID = BackupAllocReg(MyReg, DoBackupMeta)
@@ -964,7 +983,7 @@ Public Function BackupKey( _
         Next
         
         'backup default value of the root key
-        MyReg.Key = sKey
+        MyReg.key = sKey
         MyReg.Param = vbNullString
         DoBackupMeta = Not HE_Uniq.Uniq_Exists(hHive, sKey, , bUseWow64)
         lRegID = BackupAllocReg(MyReg, DoBackupMeta)
@@ -974,7 +993,7 @@ Public Function BackupKey( _
         'backup values of root key
         
         For k = 1 To Reg.EnumValuesToArray(hHive, sKey, aValues(), bUseWow64)
-            MyReg.Key = sKey
+            MyReg.key = sKey
             MyReg.Param = aValues(k)
             lRegID = BackupAllocReg(MyReg)
             BackupAddCommand REGISTRY_BASED, VERB_RESTORE_REG_VALUE, OBJ_REG_VALUE, lRegID
@@ -995,7 +1014,7 @@ Public Function BackupKey( _
 '            End If
 '        End If
         
-        MyReg.Key = sKey
+        MyReg.key = sKey
         MyReg.Param = sValue
         DoBackupMeta = Not HE_Uniq.Uniq_Exists(hHive, sKey, , bUseWow64)
         lRegID = BackupAllocReg(MyReg, DoBackupMeta)
@@ -1038,7 +1057,7 @@ Public Function ABR_CreateBackup(bForceIgnoreDays As Boolean) As Boolean
     ' - либо добавить новую секцию с неинициализированнми данными и "добить" ее чтобы SizeOfImage был равен упаковываемому.
     '
     
-    Const sMarker As String = "Backup created via 'HiJackThis Fork' using 'Autobackup registry (ABR)' by D.Kuznetsov"
+    Const sMarker As String = "Backup created via 'HijackThis+' using 'Autobackup registry (ABR)' by D.Kuznetsov"
     
     If Not OSver.IsElevated Then Exit Function
     
@@ -1072,7 +1091,7 @@ Public Function ABR_CreateBackup(bForceIgnoreDays As Boolean) As Boolean
             aDate_Folder(i) = GetFileName(aDate_Folder(i))
             If aDate_Folder(i) Like "####-##-##" Then
                 On Error Resume Next
-                dBackup = DateSerial(CLng(Mid$(aDate_Folder(i), 1, 4)), CLng(Mid$(aDate_Folder(i), 6, 2)), CLng(Mid$(aDate_Folder(i), 9, 2)))
+                dBackup = DateSerial(CLng(mid$(aDate_Folder(i), 1, 4)), CLng(mid$(aDate_Folder(i), 6, 2)), CLng(mid$(aDate_Folder(i), 9, 2)))
                 If Err.Number = 0 Then
                     On Error GoTo ErrorHandler:
                     If dLastBackup < dBackup Then dLastBackup = dBackup
@@ -1121,12 +1140,15 @@ Public Function ABR_CreateBackup(bForceIgnoreDays As Boolean) As Boolean
         Reg.FlushAll
         
         If inIDE Then
-            sUtilPath = BuildPath(AppPath(), "abr.exe")
-            UnpackResource 302, sUtilPath
+            sUtilPath = BuildPath(AppPath(), "apps\abr.exe")
+            UnpackCryptedFile 302, sUtilPath
         Else
-            sUtilPath = AppPath(True)
-            DisableWER
-            g_WER_Disabled = True
+            sUtilPath = BuildPath(AppPath(), "apps\abr.exe")
+            If Not CheckConsistencyABR(sUtilPath) Then
+                sUtilPath = AppPath(True)
+                DisableWER
+                g_WER_Disabled = True
+            End If
         End If
         
         '  аргументы процесса задаём в соответствии с документацией к ABR
@@ -1143,10 +1165,10 @@ Public Function ABR_CreateBackup(bForceIgnoreDays As Boolean) As Boolean
 
             'note: in contrast to UVs, HJT creates identical restore.exe and restore_x64.exe files
             If OSver.IsWin64 Then
-                Call UnpackResource(304, sBackup_Folder & "\restore_x64.exe")
-                Call UnpackResource(304, sBackup_Folder & "\restore.exe")
+                Call UnpackCryptedFile(304, sBackup_Folder & "\restore_x64.exe")
+                Call UnpackCryptedFile(304, sBackup_Folder & "\restore.exe")
             Else
-                Call UnpackResource(303, sBackup_Folder & "\restore.exe")
+                Call UnpackCryptedFile(303, sBackup_Folder & "\restore.exe")
             End If
             
             ' add to HJT backup list
@@ -1170,7 +1192,7 @@ Public Function ABR_CreateBackup(bForceIgnoreDays As Boolean) As Boolean
                 CloseW hFile, True
             End If
         Else
-            MsgBoxW "Error while creating registry backup (ABR)", vbExclamation, "HiJackThis"
+            MsgBoxW "Error while creating registry backup (ABR)", vbExclamation, g_AppName
         End If
         
     End If
@@ -1185,6 +1207,14 @@ Public Function ABR_CreateBackup(bForceIgnoreDays As Boolean) As Boolean
 ErrorHandler:
     ErrorMsg Err, "ABR_CreateBackup"
     If inIDE Then Stop: Resume Next
+End Function
+
+Private Function CheckConsistencyABR(sPath As String) As Boolean
+    If FileExists(sPath) Then
+        If StrComp(GetFileSHA1(sPath, , True), STR_CONST.SHA1_ABR, vbTextCompare) = 0 Then
+            CheckConsistencyABR = True
+        End If
+    End If
 End Function
 
 Private Sub ABR_RemoveBackupFromListByDate(dDate As Date)
@@ -1596,7 +1626,7 @@ Public Function SRP_Create_API() As Long
         .dwEventType = BEGIN_SYSTEM_CHANGE
         .dwRestorePtType = MODIFY_SETTINGS
         .llSequenceNumber = 0
-        sDescr = "Restore Point by HiJackThis"
+        sDescr = "Restore Point by HijackThis+"
         sDescr = StrConv(sDescr, vbFromUnicode)
         memcpy .szDescription(0), ByVal StrPtr(sDescr), LenB(sDescr)
     End With
@@ -1605,7 +1635,7 @@ Public Function SRP_Create_API() As Long
     
     If (0 = SRSetRestorePoint(rpi, sms)) Then
         If sms.nStatus = ERROR_SERVICE_DISABLED Then
-            Debug.Print "System Restore is turned off."
+            If inIDE Then Debug.Print "System Restore is turned off."
         End If
         'Debug.Print "Failure to create the restore point. Error = " & Err.LastDllError
         MsgBoxW Translate(1556) & " Error = " & Err.LastDllError, vbExclamation
@@ -1616,7 +1646,7 @@ Public Function SRP_Create_API() As Long
     rpi.llSequenceNumber = sms.llSequenceNumber
     
     If (0 = SRSetRestorePoint(rpi, sms)) Then
-        Debug.Print "Failure to end the restore point. Error = " & Err.LastDllError
+        If inIDE Then Debug.Print "Failure to end the restore point. Error = " & Err.LastDllError
     End If
     
     SRP_Create_API = cMath.Int64ToInt(sms.llSequenceNumber)
@@ -1665,8 +1695,8 @@ Private Function SRP_Create() As Boolean 'WMI based
     Reg.SetDwordVal HKEY_LOCAL_MACHINE, "SOFTWARE\Microsoft\Windows NT\CurrentVersion\SystemRestore", "SystemRestorePointCreationFrequency", 0
     bStateAltered = True
     
-    SRP_Create = (S_OK = oSR.CreateRestorePoint("Restore Point by HiJackThis", MODIFY_SETTINGS, BEGIN_SYSTEM_CHANGE))
-    oSR.CreateRestorePoint "Restore Point by HiJackThis", MODIFY_SETTINGS, END_SYSTEM_CHANGE
+    SRP_Create = (S_OK = oSR.CreateRestorePoint("Restore Point by HijackThis+", MODIFY_SETTINGS, BEGIN_SYSTEM_CHANGE))
+    oSR.CreateRestorePoint "Restore Point by HijackThis+", MODIFY_SETTINGS, END_SYSTEM_CHANGE
     
     If SRP_Create Then
         'MsgBoxw "System restore point is successfully created.", vbInformation
@@ -1945,15 +1975,16 @@ End Function
 '    End If
 'End Function
 
-Public Function HasBOM_UTF16(sText As String) As Boolean
-    Dim b1 As Long
-    Dim b2 As Long
-    b1 = AscW(Left$(sText, 1))
-    b2 = AscW(Mid$(sText, 2, 1))
-    '255, 254 - under US Locale
-    '1103, 1102 - other Locales
-    HasBOM_UTF16 = (b1 = 1103 And b2 = 1102) Or (b1 = 255 And b2 = 254)
-End Function
+'not reliable (do not use!)
+'Public Function HasBOM_UTF16(sText As String) As Boolean
+'    Dim b1 As Long
+'    Dim b2 As Long
+'    b1 = AscW(Left$(sText, 1))
+'    b2 = AscW(Mid$(sText, 2, 1))
+'    '255, 254 - under US Locale
+'    '1103, 1102 - ? (not applicable for MBCS)
+'    HasBOM_UTF16 = (b1 = 1103 And b2 = 1102) Or (b1 = 255 And b2 = 254)
+'End Function
 
 Public Sub ListBackups()
     On Error GoTo ErrorHandler:
@@ -1964,7 +1995,7 @@ Public Sub ListBackups()
     Dim lFixID As Long
     Dim sName As String
     Dim sDate As String
-    Dim nTotal As Long
+    Dim NTotal As Long
     Dim aBackupDatesHJT() As String
     
     ReDim aBackupDatesHJT(0)
@@ -1997,13 +2028,13 @@ Public Sub ListBackups()
     Dim aBackupDates() As String
     Dim aIsHJT() As Boolean
     Dim bDoInclude As Boolean
-    nTotal = ABR_EnumBackups(aBackupDates, aIsHJT)
-    If nTotal > 0 Then
+    NTotal = ABR_EnumBackups(aBackupDates, aIsHJT)
+    If NTotal > 0 Then
         If AryItems(aBackupDates) Then
             For i = UBound(aBackupDates) To 0 Step -1
                 bDoInclude = False
                 If aIsHJT(i) Then 'HJT backup?
-                    If Not inArray(aBackupDates(i), aBackupDatesHJT) Then 'not included in "backups" ?
+                    If Not InArray(aBackupDates(i), aBackupDatesHJT) Then 'not included in "backups" ?
                         bDoInclude = True
                     End If
                 Else ' not HJT backup ?
@@ -2011,7 +2042,7 @@ Public Sub ListBackups()
                 End If
                 If bDoInclude Then
                     frmMain.lstBackups.AddItem BackupConcatLine(0&, 0&, _
-                        DateSerial(CLng(Mid$(aBackupDates(i), 1, 4)), CLng(Mid$(aBackupDates(i), 6, 2)), CLng(Mid$(aBackupDates(i), 9, 2))), _
+                        DateSerial(CLng(mid$(aBackupDates(i), 1, 4)), CLng(mid$(aBackupDates(i), 6, 2)), CLng(mid$(aBackupDates(i), 9, 2))), _
                         ABR_BACKUP_TITLE)
                 End If
             Next
@@ -2024,9 +2055,9 @@ Public Sub ListBackups()
     
     'List SRP
     If bShowSRP Then
-        nTotal = SRP_Enum(aSeqNum, aDate, aDescr)
-        If nTotal > 0 Then
-            For i = nTotal - 1 To 0 Step -1
+        NTotal = SRP_Enum(aSeqNum, aDate, aDescr)
+        If NTotal > 0 Then
+            For i = NTotal - 1 To 0 Step -1
                 frmMain.lstBackups.AddItem BackupConcatLine(0&, 0&, BackupFormatDate(aDate(i)), SRP_BACKUP_TITLE & " - " & aSeqNum(i) & " - " & aDescr(i))
             Next
         End If
@@ -2120,7 +2151,7 @@ Public Function RestoreBackup(sItem As String) As Boolean
     Dim lCustomID As Long
     Dim lstIdx As Long
     Dim FixReg As FIX_REG_KEY
-    Dim ServiceName As String
+    Dim serviceName As String
     Dim bRestoreRequired As Boolean
     Dim O25 As O25_ENTRY
     Dim lattrib As Long
@@ -2193,7 +2224,8 @@ Public Function RestoreBackup(sItem As String) As Boolean
         
         Case FILE_BASED
         
-            If Cmd.Verb = VERB_FILE_COPY Then
+            If (Cmd.Verb And VERB_FILE_COPY) <> 0 Then
+                Cmd.Verb = Cmd.Verb - VERB_FILE_COPY
                 If Cmd.ObjType = OBJ_FILE Then
                     lFileID = CLng(Cmd.Args)
                     sBackupFile = tBackupList.cLastCMD.ReadParam(lFileID, "name")
@@ -2271,7 +2303,9 @@ Public Function RestoreBackup(sItem As String) As Boolean
                     RestoreBackup = False
                 End If
                 
-            ElseIf Cmd.Verb = VERB_FILE_REGISTER Then
+            End If
+            If (Cmd.Verb And VERB_FILE_REGISTER) <> 0 Then
+                Cmd.Verb = Cmd.Verb - VERB_FILE_REGISTER
                 If Cmd.ObjType = OBJ_FILE Then
                     lFileID = CLng(Cmd.Args)
                     sSystemFile = EnvironW(tBackupList.cLastCMD.ReadParam(lFileID, "name"))
@@ -2282,14 +2316,17 @@ Public Function RestoreBackup(sItem As String) As Boolean
                         RestoreBackup = False
                     End If
                 End If
-            Else
+            End If
+            
+            If Cmd.Verb <> 0 Then
                 MsgBoxW "Error! RestoreBackup (FILE): unknown verb: " & Cmd.Verb, vbExclamation
                 RestoreBackup = False
             End If
             
         Case REGISTRY_BASED
         
-            If Cmd.Verb = VERB_RESTORE_REG_VALUE Then
+            If (Cmd.Verb And VERB_RESTORE_REG_VALUE) <> 0 Then
+                Cmd.Verb = Cmd.Verb - VERB_RESTORE_REG_VALUE
                 If Cmd.ObjType = OBJ_REG_VALUE Then
                     lRegID = CLng(Cmd.Args)
                     With FixReg
@@ -2300,7 +2337,7 @@ Public Function RestoreBackup(sItem As String) As Boolean
                             If IsEmpty(.DefaultData) Then
                                 'it is an empty default value (or value that should not exist)
                                 'to make default value of a key become empty, we have to delete default value
-                                RestoreBackup = RestoreBackup And Reg.DelVal(.Hive, .Key, .Param, .Redirected)
+                                RestoreBackup = RestoreBackup And Reg.DelVal(.Hive, .key, .Param, .Redirected)
                             Else
                                 Select Case .ParamType
         
@@ -2308,7 +2345,7 @@ Public Function RestoreBackup(sItem As String) As Boolean
                                     .DefaultData = UnHexStringW(CStr(.DefaultData))
                                 End Select
                             
-                                RestoreBackup = RestoreBackup And Reg.SetData(.Hive, .Key, .Param, .ParamType, .DefaultData, .Redirected)
+                                RestoreBackup = RestoreBackup And Reg.SetData(.Hive, .key, .Param, .ParamType, .DefaultData, .Redirected)
                             End If
                         Else
                             RestoreBackup = False
@@ -2319,14 +2356,16 @@ Public Function RestoreBackup(sItem As String) As Boolean
                     RestoreBackup = False
                 End If
             
-            ElseIf Cmd.Verb = VERB_RESTORE_REG_KEY Then
+            End If
+            If (Cmd.Verb And VERB_RESTORE_REG_KEY) <> 0 Then
+                Cmd.Verb = Cmd.Verb - VERB_RESTORE_REG_KEY
                 If Cmd.ObjType = OBJ_REG_METADATA Then
                     lRegID = CLng(Cmd.Args)
                     With FixReg
                         If BackupExtractFixRegKeyByRegID(lRegID, REGISTRY_BASED, FixReg) Then
-                            Call SetRegKeyStringSD(.Hive, .Key, .SD, .Redirected)
+                            Call SetRegKeyStringSD(.Hive, .key, .SD, .Redirected)
                             If .DateM <> dDateNull Then
-                                Call Reg.SetKeyTime(.Hive, .Key, .DateM, .Redirected)
+                                Call Reg.SetKeyTime(.Hive, .key, .DateM, .Redirected)
                             End If
                             RestoreBackup = True
                         End If
@@ -2335,36 +2374,40 @@ Public Function RestoreBackup(sItem As String) As Boolean
                     MsgBoxW "Error! RestoreBackup (REG): unknown object type: " & Cmd.ObjType, vbExclamation
                     RestoreBackup = False
                 End If
-            Else
+            End If
+            If Cmd.Verb <> 0 Then
                 MsgBoxW "Error! RestoreBackup (REG): unknown verb: " & Cmd.Verb, vbExclamation
                 RestoreBackup = False
             End If
             
         Case INI_BASED
         
-            If Cmd.Verb = VERB_RESTORE_INI_VALUE Then
+            If (Cmd.Verb And VERB_RESTORE_INI_VALUE) <> 0 Then
+                Cmd.Verb = Cmd.Verb - VERB_RESTORE_INI_VALUE
                 If Cmd.ObjType = OBJ_FILE Then
                     lRegID = CLng(Cmd.Args)
                      With FixReg
                         If BackupExtractFixRegKeyByRegID(lRegID, INI_BASED, FixReg) Then
                         
-                            RestoreBackup = RestoreBackup And IniSetString(.IniFile, .Key, .Param, UnHexStringW(.DefaultData))
+                            RestoreBackup = RestoreBackup And IniSetString(.IniFile, .key, .Param, UnHexStringW(.DefaultData))
                         End If
                     End With
                 Else
                     MsgBoxW "Error! RestoreBackup (INI): unknown object type: " & Cmd.ObjType, vbExclamation
                     RestoreBackup = False
                 End If
-            Else
+            End If
+            If Cmd.Verb <> 0 Then
                 MsgBoxW "Error! RestoreBackup (INI): unknown verb: " & Cmd.Verb, vbExclamation
                 RestoreBackup = False
             End If
 
         Case SERVICE_BASED
         
-            If Cmd.Verb = VERB_SERVICE_STATE Then
+            If (Cmd.Verb And VERB_SERVICE_STATE) <> 0 Then
+                Cmd.Verb = Cmd.Verb - VERB_SERVICE_STATE
                 If Cmd.ObjType = OBJ_SERVICE Then
-                    ServiceName = Cmd.Args
+                    serviceName = Cmd.Args
 '                    ServiceState = GetServiceRunState(ServiceName)
 '                    If ServiceState <> SERVICE_RUNNING And ServiceState <> SERVICE_START_PENDING Then
 '                        StartService ServiceName, , False
@@ -2375,7 +2418,8 @@ Public Function RestoreBackup(sItem As String) As Boolean
                     MsgBoxW "Error! RestoreBackup (SERVICE): unknown object type: " & Cmd.ObjType, vbExclamation
                     RestoreBackup = False
                 End If
-            Else
+            End If
+            If Cmd.Verb <> 0 Then
                 MsgBoxW "Error! RestoreBackup (SERVICE): unknown verb: " & Cmd.Verb, vbExclamation
                 RestoreBackup = False
             End If
@@ -2386,18 +2430,22 @@ Public Function RestoreBackup(sItem As String) As Boolean
                 
                 TaskPath = Cmd.Args
                 
-                If Cmd.Verb = VERB_ENABLE Then
-
+                If (Cmd.Verb And VERB_ENABLE) <> 0 Then
+                
+                    Cmd.Verb = Cmd.Verb - VERB_ENABLE
                     EnableTask TaskPath
                     bRebootRequired = True
                     RestoreBackup = True
                     
-                ElseIf Cmd.Verb = VERB_DISABLE Then
-                
+                End If
+                If (Cmd.Verb And VERB_DISABLE) <> 0 Then
+                    
+                    Cmd.Verb = Cmd.Verb - VERB_DISABLE
                     DisableTask TaskPath
                     bRebootRequired = True
                     RestoreBackup = True
-                Else
+                End If
+                If Cmd.Verb <> 0 Then
                     MsgBoxW "Error! RestoreBackup (TASK): unknown verb: " & Cmd.Verb, vbExclamation
                     RestoreBackup = False
                 End If
@@ -2415,8 +2463,38 @@ Public Function RestoreBackup(sItem As String) As Boolean
             sURL = tBackupList.cLastCMD.ReadParam(lCustomID, "url")
             sTarget = tBackupList.cLastCMD.ReadParam(lCustomID, "target")
             sCommandLine = tBackupList.cLastCMD.ReadParam(lCustomID, "commandline")
-        
-            If Cmd.Verb = VERB_WMI_CONSUMER Then
+            
+            If (Cmd.Verb And BACKUP_CUSTOM_OBJECT_BASED) <> 0 Then
+                Cmd.Verb = Cmd.Verb - BACKUP_CUSTOM_OBJECT_BASED
+                
+                If Cmd.ObjType = OBJ_USER_GROUP_MEMBERSHIP Then
+                
+                    If (Cmd.Verb And VERB_REMOVE) <> 0 Then
+                        Cmd.Verb = Cmd.Verb - VERB_REMOVE
+                        RestoreBackup = AddUserGroupMembership(sTarget, sName)
+                        
+                    ElseIf (Cmd.Verb And VERB_ADD) <> 0 Then
+                        Cmd.Verb = Cmd.Verb - VERB_ADD
+                        RestoreBackup = RemoveUserGroupMembership(sTarget, sName)
+                    End If
+                    
+                ElseIf Cmd.ObjType = OBJ_FIREWALL_RULE Then
+                    If (Cmd.Verb And VERB_DISABLE) <> 0 Then
+                        Cmd.Verb = Cmd.Verb - VERB_DISABLE
+                        RestoreBackup = FW_RuleSetState(sName, True)
+                    
+                    ElseIf (Cmd.Verb And VERB_ENABLE) <> 0 Then
+                        Cmd.Verb = Cmd.Verb - VERB_ENABLE
+                        RestoreBackup = FW_RuleSetState(sName, False)
+                    End If
+                    
+                Else
+                    MsgBoxW "Error! RestoreBackup (CUSTOM): unknown object type: " & Cmd.ObjType, vbExclamation
+                    RestoreBackup = False
+                End If
+            End If
+            If (Cmd.Verb And VERB_WMI_CONSUMER) <> 0 Then
+                Cmd.Verb = Cmd.Verb - VERB_WMI_CONSUMER
                 If Cmd.ObjType = OBJ_WMI_CONSUMER Then
                     O25 = UnpackO25_Entry(Cmd.Args)
                     If RecoverO25Item(O25) Then
@@ -2426,26 +2504,30 @@ Public Function RestoreBackup(sItem As String) As Boolean
                     MsgBoxW "Error! RestoreBackup (CUSTOM): unknown object type: " & Cmd.ObjType, vbExclamation
                     RestoreBackup = False
                 End If
-                
-            ElseIf Cmd.Verb = VERB_RESTART_SYSTEM Then
+            End If
+            If (Cmd.Verb And VERB_RESTART_SYSTEM) <> 0 Then
+                Cmd.Verb = Cmd.Verb - VERB_RESTART_SYSTEM
                 If Cmd.ObjType = OBJ_OS Then
                     bRebootRequired = True
                     RestoreBackup = True
                 End If
-                
-            ElseIf Cmd.Verb = VERB_BITS_JOB Then
+            End If
+            If (Cmd.Verb And VERB_BITS_JOB) <> 0 Then
+                Cmd.Verb = Cmd.Verb - VERB_BITS_JOB
                 lCustomID = CLng(Cmd.Args)
                 If RestoreBitsJob(sName, sURL, sTarget, sCommandLine) Then
                     RestoreBackup = True
                 End If
-                
-            ElseIf Cmd.Verb = VERB_APPLOCKER Then
-                EnableApplocker
-                RestoreBackup = True
-            Else
+            End If
+            If (Cmd.Verb And VERB_APPLOCKER) <> 0 Then
+                Cmd.Verb = Cmd.Verb - VERB_APPLOCKER
+                RestoreBackup = EnableApplocker()
+            End If
+            If Cmd.Verb <> 0 Then
                 MsgBoxW "Error! RestoreBackup (CUSTOM): unknown verb: " & Cmd.Verb, vbExclamation
                 RestoreBackup = False
             End If
+            
         Case Else
             MsgBoxW "Oh! I forgot to implement this recovery type: " & Cmd.RecovType & ". Remind me about it.", vbExclamation
             RestoreBackup = False
@@ -2479,7 +2561,7 @@ Private Function BackupExtractFixRegKeyByRegID(lRegID As Long, RecovType As ENUM
         
             .IniFile = EnvironW(tBackupList.cLastCMD.ReadParam(lRegID, "path"))
         End If
-        .Key = tBackupList.cLastCMD.ReadParam(lRegID, "key")
+        .key = tBackupList.cLastCMD.ReadParam(lRegID, "key")
         .Param = tBackupList.cLastCMD.ReadParam(lRegID, "param")
         .DefaultData = tBackupList.cLastCMD.ReadParam(lRegID, "data")
         If Len(.Param) = 0 Then
@@ -2531,7 +2613,7 @@ Private Function BackupValidateFileHash(lBackupID As Long, lFileID As Long) As B
     sBackupFile = EnvironW(tBackupList.cLastCMD.ReadParam(lFileID, "name"))
     
     'Local file ?
-    If Mid$(sBackupFile, 2, 1) = ":" Then
+    If mid$(sBackupFile, 2, 1) = ":" Then
         If Not FileExists(sBackupFile) Then
             'Error! Cannot find the local file to apply repair settings:
             MsgBoxW Translate(1576) & " " & sBackupFile, vbCritical
@@ -2635,7 +2717,29 @@ Private Function MapStringToRecoveryType(sRecovType As String) As ENUM_CURE_BASE
     End If
     MapStringToRecoveryType = RecovType
 End Function
+'Can accept "OR" (multiple verbs)
 Private Function MapRecoveryVerbToString(RecovVerb As ENUM_RESTORE_VERBS) As String
+    Dim sRet As String
+    Dim sVerb As String
+    Dim i As Long
+    Dim iTestVerb As Long
+    For i = 0 To 30
+        iTestVerb = 2 ^ i
+        If (iTestVerb <= VERB_MAX) Then
+            If (RecovVerb And iTestVerb) <> 0 Then
+                sVerb = MapRecoveryVerbToStringEx(iTestVerb)
+                If Len(sVerb) = 0 Then
+                    MsgBoxW "Error! Unknown VerbType mapping! - " & iTestVerb & " of " & RecovVerb, vbExclamation
+                Else
+                    sRet = sRet & sVerb & "/"
+                End If
+            End If
+        End If
+    Next
+    If Len(sRet) <> 0 Then sRet = Left$(sRet, Len(sRet) - 1)
+    MapRecoveryVerbToString = sRet
+End Function
+Private Function MapRecoveryVerbToStringEx(RecovVerb As ENUM_RESTORE_VERBS) As String
     Dim sRet$
     If RecovVerb And VERB_FILE_COPY Then
         sRet = "VERB_FILE_COPY"
@@ -2667,12 +2771,27 @@ Private Function MapRecoveryVerbToString(RecovVerb As ENUM_RESTORE_VERBS) As Str
         sRet = "VERB_START"
     ElseIf RecovVerb And VERB_STOP Then
         sRet = "VERB_STOP"
-    Else
-        MsgBoxW "Error! Unknown VerbType mapping! - " & RecovVerb, vbExclamation
+    ElseIf RecovVerb And VERB_STOP Then
+        sRet = "VERB_STOP"
+    ElseIf RecovVerb And VERB_REMOVE Then
+        sRet = "VERB_REMOVE"
+    ElseIf RecovVerb And VERB_ADD Then
+        sRet = "VERB_ADD"
+    ElseIf RecovVerb And VERB_OBJECT_BASED Then
+        sRet = "VERB_OBJECT_BASED"
     End If
-    MapRecoveryVerbToString = sRet
+    MapRecoveryVerbToStringEx = sRet
 End Function
+'Can accept multiple verbs, separated by '/' character
 Private Function MapStringToRecoveryVerb(sRecovVerb As String) As ENUM_RESTORE_VERBS
+    If Len(sRecovVerb) = 0 Then Exit Function
+    Dim vVerb, iVerbs As Long
+    For Each vVerb In Split(sRecovVerb, "/")
+        iVerbs = iVerbs Or MapStringToRecoveryVerbEx(CStr(vVerb))
+    Next
+    MapStringToRecoveryVerb = iVerbs
+End Function
+Private Function MapStringToRecoveryVerbEx(sRecovVerb As String) As ENUM_RESTORE_VERBS
     Dim ret As ENUM_RESTORE_VERBS
     If sRecovVerb = "VERB_FILE_COPY" Then
         ret = VERB_FILE_COPY
@@ -2704,10 +2823,16 @@ Private Function MapStringToRecoveryVerb(sRecovVerb As String) As ENUM_RESTORE_V
         ret = VERB_START
     ElseIf sRecovVerb = "VERB_STOP" Then
         ret = VERB_STOP
+    ElseIf sRecovVerb = "VERB_REMOVE" Then
+        ret = VERB_REMOVE
+    ElseIf sRecovVerb = "VERB_ADD" Then
+        ret = VERB_ADD
+    ElseIf sRecovVerb = "VERB_OBJECT_BASED" Then
+        ret = VERB_OBJECT_BASED
     Else
         MsgBoxW "Error! Unknown VerbType mapping! - " & sRecovVerb, vbExclamation
     End If
-    MapStringToRecoveryVerb = ret
+    MapStringToRecoveryVerbEx = ret
 End Function
 Private Function MapRecoveryObjectToString(RecovObject As ENUM_RESTORE_OBJECT_TYPES) As String
     Dim sRet$
@@ -2729,6 +2854,10 @@ Private Function MapRecoveryObjectToString(RecovObject As ENUM_RESTORE_OBJECT_TY
         sRet = "OBJ_REG_METADATA"
     ElseIf RecovObject And OBJ_TASK Then
         sRet = "OBJ_TASK"
+    ElseIf RecovObject And OBJ_USER_GROUP_MEMBERSHIP Then
+        sRet = "OBJ_USER_GROUP_MEMBERSHIP"
+    ElseIf RecovObject And OBJ_FIREWALL_RULE Then
+        sRet = "OBJ_FIREWALL_RULE"
     Else
         MsgBoxW "Error! Unknown ObjectType mapping! - " & RecovObject, vbExclamation
     End If
@@ -2754,6 +2883,10 @@ Private Function MapStringToRecoveryObject(sRecovObject As String) As ENUM_RESTO
         RecovObject = OBJ_REG_METADATA
     ElseIf sRecovObject = "OBJ_TASK" Then
         RecovObject = OBJ_TASK
+    ElseIf sRecovObject = "OBJ_USER_GROUP_MEMBERSHIP" Then
+        RecovObject = OBJ_USER_GROUP_MEMBERSHIP
+    ElseIf sRecovObject = "OBJ_FIREWALL_RULE" Then
+        RecovObject = OBJ_FIREWALL_RULE
     Else
         MsgBoxW "Error! Unknown ObjectType mapping! - " & sRecovObject, vbExclamation
     End If
@@ -2779,7 +2912,7 @@ Public Function HexStringW(sStr As Variant) As String 'used to serialize and sto
         HexStringW = sStr
     #Else
         For i = 1 To Len(sStr)
-            sOut = sOut & "\u" & Right$("000" & Hex$(AscW(Mid$(sStr, i, 1))), 4)
+            sOut = sOut & "\u" & Right$("000" & Hex$(AscW(mid$(sStr, i, 1))), 4)
         Next
         HexStringW = sOut
     #End If
@@ -2792,7 +2925,7 @@ Public Function UnHexStringW(sStr As Variant) As String 'used to deserialize str
         UnHexStringW = sStr
     #Else
         For i = 1 To Len(sStr) Step 6
-            sOut = sOut & ChrW$(CLng("&H" & Mid$(sStr, i + 2, 4)))
+            sOut = sOut & ChrW$(CLng("&H" & mid$(sStr, i + 2, 4)))
         Next
         UnHexStringW = sOut
     #End If
@@ -2811,13 +2944,13 @@ Public Function CDateEx(sDate$, _
         If posMM = 0 Then posMM = 6
         If posDD = 0 Then posDD = 9
         
-        CDateEx = DateSerial(CLng(Mid$(sDate, posYYYY, 4)), CLng(Mid$(sDate, posMM, 2)), CLng(Mid$(sDate, posDD, 2)))
+        CDateEx = DateSerial(CLng(mid$(sDate, posYYYY, 4)), CLng(mid$(sDate, posMM, 2)), CLng(mid$(sDate, posDD, 2)))
         
         If posHH <> 0 Then
             If posSec <> 0 Then
-                CDateEx = CDateEx + TimeSerial(CLng(Mid$(sDate, posHH, 2)), CLng(Mid$(sDate, posMin, 2)), CLng(Mid$(sDate, posSec, 2)))
+                CDateEx = CDateEx + TimeSerial(CLng(mid$(sDate, posHH, 2)), CLng(mid$(sDate, posMin, 2)), CLng(mid$(sDate, posSec, 2)))
             Else
-                CDateEx = CDateEx + TimeSerial(CLng(Mid$(sDate, posHH, 2)), CLng(Mid$(sDate, posMin, 2)), 0&)
+                CDateEx = CDateEx + TimeSerial(CLng(mid$(sDate, posHH, 2)), CLng(mid$(sDate, posMin, 2)), 0&)
             End If
         End If
     End If

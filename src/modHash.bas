@@ -467,10 +467,10 @@ Public Function CryptV1(sMsg$, Optional doCrypt As Boolean = False) As String  '
     Dim i&, j&, sChar$, iChar&, sOut$
     j = 1
     For i = 1 To Len(sMsg)
-        sChar = Mid$(sMsg, i, 1)
+        sChar = mid$(sMsg, i, 1)
         If doCrypt Then
             'encrypt
-            sChar = Chr$(Asc(sChar) + Asc(Mid$(sProgramVersion, j, 1))) ' <<< OVERFLOW !!!
+            sChar = Chr$(Asc(sChar) + Asc(mid$(sProgramVersion, j, 1))) ' <<< OVERFLOW !!!
             If iChar > 255 Then Exit Function 'Wrong Pass phrase
             If Asc(sChar) > 126 Then
                 'make sure encrypted char is within
@@ -479,7 +479,7 @@ Public Function CryptV1(sMsg$, Optional doCrypt As Boolean = False) As String  '
             End If
         Else
             'decrypt
-            iChar = Asc(sChar) - Asc(Mid$(sProgramVersion, j, 1))
+            iChar = Asc(sChar) - Asc(mid$(sProgramVersion, j, 1))
             If iChar < -94 Then Exit Function 'Wrong Pass phrase
             If iChar < 32 Then
                 'make sure decrypted char is within
@@ -774,7 +774,7 @@ End Sub
 
 '::::::::::: Правый логический сдвиг длинного целого :::::::::::::
 
-Function Shr(n As Long, m As Long) As Long
+Function Shr(N As Long, m As Long) As Long
 
     Dim Q As Long
 
@@ -786,13 +786,13 @@ Function Shr(n As Long, m As Long) As Long
          
          End If
 
-         If (n >= 0) Then
+         If (N >= 0) Then
          
-            Shr = n \ (2& ^ m)
+            Shr = N \ (2& ^ m)
 
          Else
          
-           Q = n And &H7FFFFFFF
+           Q = N And &H7FFFFFFF
            
            Q = Q \ (2& ^ m)
            
@@ -809,17 +809,17 @@ Public Function CalcCRC(stri As String) As String '// Dragokas - добавил перевод
     Dim CRC As Long
     Dim i   As Long
     Dim m   As Long
-    Dim n   As Long
+    Dim N   As Long
 
     CRC = &HFFFFFFFF
 
     For i = 1& To Len(stri)
 
-        m = Asc(Mid$(stri, i&, 1&))
+        m = Asc(mid$(stri, i&, 1&))
 
-        n = (CRC Xor m&) And &HFF&
+        N = (CRC Xor m&) And &HFF&
 
-        CRC = CRC_32_Tab(n&) Xor (Shr(CRC, 8&) And &HFFFFFF)
+        CRC = CRC_32_Tab(N&) Xor (Shr(CRC, 8&) And &HFFFFFF)
 
     Next i
 
@@ -838,7 +838,7 @@ Public Function CalcFileCRC(FileName As String) As String '// Added by Dragokas
 
     Dim CRC     As Long
     Dim i       As Long
-    Dim n       As Long
+    Dim N       As Long
     Dim hFile   As Long
     Dim b()     As Byte
     Dim lSize   As Currency
@@ -868,9 +868,9 @@ Public Function CalcFileCRC(FileName As String) As String '// Added by Dragokas
 
     For i = 0& To UBound(b)
     
-        n = (CRC Xor b(i)) And &HFF&
+        N = (CRC Xor b(i)) And &HFF&
 
-        CRC = CRC_32_Tab(n&) Xor (Shr(CRC, 8&) And &HFFFFFF)
+        CRC = CRC_32_Tab(N&) Xor (Shr(CRC, 8&) And &HFFFFFF)
 
     Next i
 
@@ -978,23 +978,23 @@ Public Function RecoverCRC(ForwardCRC As Long, newCRC As Long) As String
 End Function
 
 Public Function CalcCRCLong(stri As String) As Long
-    Dim CRC&, i&, m&, n&
+    Dim CRC&, i&, m&, N&
 
     'If CRC_32_Tab(1) = 0 Then Make_CRC_32_Table
 
     CRC = -1
 
     For i = 1& To Len(stri)
-        m = Asc(Mid$(stri, i, 1&))
-        n = (CRC Xor m) And &HFF&
-        CRC = (CRC_32_Tab(n) Xor (((CRC And &HFFFFFF00) \ &H100) And &HFFFFFF)) And -1  ' Tab ^ (crc >> 8)
+        m = Asc(mid$(stri, i, 1&))
+        N = (CRC Xor m) And &HFF&
+        CRC = (CRC_32_Tab(N) Xor (((CRC And &HFFFFFF00) \ &H100) And &HFFFFFF)) And -1  ' Tab ^ (crc >> 8)
     Next
 
     CalcCRCLong = -(CRC + 1&)
 End Function
 
 Public Function CalcArrayCRCLong(arr() As Byte, Optional prevValue As Long = -1) As Long
-    Dim CRC&, i&, m&, n&
+    Dim CRC&, i&, m&, N&
 
     'If CRC_32_Tab(1) = 0 Then Make_CRC_32_Table
 
@@ -1002,8 +1002,8 @@ Public Function CalcArrayCRCLong(arr() As Byte, Optional prevValue As Long = -1)
 
     For i = 0& To UBound(arr)
         m = arr(i)
-        n = (CRC Xor m) And &HFF&
-        CRC = (CRC_32_Tab(n) Xor (((CRC And &HFFFFFF00) \ &H100) And &HFFFFFF)) And -1  ' Tab ^ (crc >> 8)
+        N = (CRC Xor m) And &HFF&
+        CRC = (CRC_32_Tab(N) Xor (((CRC And &HFFFFFF00) \ &H100) And &HFFFFFF)) And -1  ' Tab ^ (crc >> 8)
     Next
 
     CalcArrayCRCLong = -(CRC + 1&)
@@ -1017,7 +1017,7 @@ Public Function CalcCRCReverse(stri As String, Optional nextValue As Long = -1) 
     CRC = nextValue
 
     For i = Len(stri) To 1 Step -1
-        m = Asc(Mid$(stri, i, 1&))
+        m = Asc(mid$(stri, i, 1&))
         B3 = ((CRC And &HFF000000) \ &H1000000) And &HFF
         prevValueL = (pTable(B3) Xor m) And &HFF
         prevValueH = Mul(CRC Xor CRC_32_Tab(pTable(B3)), 0, &H100, 0)  ' << 8
@@ -1064,9 +1064,9 @@ End Sub
 'Base64 encoder/decoder by Comintern (vbforums.com)
 
 'Fork by Dragokas
-'fixed bug: Encode64 incorrectly handle 2-bytes strings.
+'fixed bug: Encode_B64 incorrectly handle 2-bytes strings.
 
-Public Sub Base64_Init()
+Public Sub B64_Init()
 
     On Error GoTo ErrorHandler:
 
@@ -1115,11 +1115,11 @@ Public Sub Base64_Init()
 
     Exit Sub
 ErrorHandler:
-    ErrorMsg Err, "Base64_Init"
+    ErrorMsg Err, "B64_Init"
     If inIDE Then Stop: Resume Next
 End Sub
 
-Public Function Encode64(sString As String) As String
+Public Function Encode_B64(sString As String) As String
 
     On Error GoTo ErrorHandler:
 
@@ -1172,15 +1172,15 @@ Public Function Encode64(sString As String) As String
         bOut(lOutSize - 1) = 61
     End If
     
-    Encode64 = StrConv(bOut, vbUnicode)                   'Convert back to a string and return it.
+    Encode_B64 = StrConv(bOut, vbUnicode)                   'Convert back to a string and return it.
 
     Exit Function
 ErrorHandler:
-    ErrorMsg Err, "Encode64"
+    ErrorMsg Err, "Encode_B64"
     If inIDE Then Stop: Resume Next
 End Function
 
-Public Function Decode64(sString As String) As String
+Public Function Decode_B64(sString As String) As String
 
     On Error GoTo ErrorHandler:
 
@@ -1218,11 +1218,100 @@ Public Function Decode64(sString As String) As String
     'sOut = StrConv(bOut, vbUnicode)                     'Convert back to a string.
     sOut = bOut
     If iPad Then sOut = Left$(sOut, Len(sOut) - iPad)   'Chop off any extra bytes.
-    Decode64 = sOut
+    Decode_B64 = sOut
 
     Exit Function
 ErrorHandler:
-    ErrorMsg Err, "Decode64"
+    ErrorMsg Err, "Decode_B64"
     If inIDE Then Stop: Resume Next
 End Function
 
+'Useless for large text
+Public Function Caes_Encode(original As String, Optional initial_seed As Long = 1, Optional stepping As Long = 2) As String
+    On Error GoTo ErrorHandler:
+    Dim seed As Long
+    Dim i As Long, Code As Long
+    seed = initial_seed
+    Caes_Encode = String$(Len(original), 0&)
+    For i = 1 To Len(original)
+        Code = Asc(mid(original, i, 1))
+        If Code >= Asc("0") And Code <= Asc("9") Then
+            Code = Code + seed
+            Do While Code > Asc("9"): Code = Code - Asc("9") + Asc("0") - 1: Loop
+        ElseIf (Code >= Asc("A") And Code <= Asc("z")) Then
+            Code = Code + seed
+            Do While Code > Asc("z"): Code = Code - Asc("z") + Asc("A") - 1: Loop
+        End If
+        Mid$(Caes_Encode, i) = Chr$(Code)
+        seed = seed + stepping
+    Next
+    Exit Function
+ErrorHandler:
+    ErrorMsg Err, "Caes_Encode"
+    If inIDE Then Stop: Resume Next
+End Function
+
+'Useless for large text
+Public Function Caes_Decode(encoded As String, Optional initial_seed As Long = 1, Optional stepping As Long = 2) As String
+    On Error GoTo ErrorHandler:
+    Dim seed As Long
+    Dim i As Long, Code As Long
+    seed = initial_seed
+    Caes_Decode = String$(Len(encoded), 0&)
+    For i = 1 To Len(encoded)
+        Code = Asc(mid(encoded, i, 1))
+        If Code >= Asc("0") And Code <= Asc("9") Then
+            Code = Code - seed
+            Do While Code < Asc("0"): Code = Code + Asc("9") - Asc("0") + 1: Loop
+        ElseIf Code >= Asc("A") And Code <= Asc("z") Then
+            Code = Code - seed
+            Do While Code < Asc("A"): Code = Code + Asc("z") - Asc("A") + 1: Loop
+        End If
+        Mid$(Caes_Decode, i) = Chr$(Code)
+        seed = seed + stepping
+    Next
+    Exit Function
+ErrorHandler:
+    ErrorMsg Err, "Caes_Decode"
+    If inIDE Then Stop: Resume Next
+End Function
+
+Public Sub Caes_EncodeBin(original() As Byte, Optional initial_seed As Long = 1, Optional stepping As Long = 2, Optional skip As Long = 3)
+    On Error GoTo ErrorHandler:
+    Dim seed As Long
+    Dim encoded As String
+    Dim i As Long, Code As Long
+    seed = initial_seed
+    For i = 0 To UBound(original) Step skip
+        Code = original(i)
+        Code = Code + seed
+        If Code >= 256 Then Code = Code Mod 256
+        original(i) = Code
+        seed = seed + stepping
+        If seed >= 256 Then seed = seed Mod 256
+    Next
+    Exit Sub
+ErrorHandler:
+    ErrorMsg Err, "Caes_EncodeBin"
+    If inIDE Then Stop: Resume Next
+End Sub
+
+Public Sub Caes_DecodeBin(original() As Byte, Optional initial_seed As Long = 1, Optional stepping As Long = 2, Optional skip As Long = 3)
+    On Error GoTo ErrorHandler:
+    Dim seed As Long
+    Dim i As Long, Code As Long
+    seed = initial_seed
+    Dim decoded As String
+    For i = 0 To UBound(original) Step skip
+        Code = original(i)
+        Code = Code - seed
+        If Code < 0 Then Code = (Code Mod 256) + 256
+        original(i) = Code
+        seed = seed + stepping
+        If seed >= 256 Then seed = seed Mod 256
+    Next
+    Exit Sub
+ErrorHandler:
+    ErrorMsg Err, "Caes_DecodeBin"
+    If inIDE Then Stop: Resume Next
+End Sub

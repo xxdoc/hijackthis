@@ -13,18 +13,19 @@ Attribute VB_PredeclaredId = False
 Attribute VB_Exposed = False
 Attribute VB_Ext_KEY = "SavedWithClassBuilder6" ,"Yes"
 Attribute VB_Ext_KEY = "Top_Level" ,"Yes"
-'[clsOSInfo.cls]
-
 Option Explicit
 
 ' OSInfo class by Alex Dragokas
-' ver 1.13
+' ver 1.19
+'
+' Updated to support x64 by Jon Johnson (fafalone)
 '
 
 'Tips:
 
 ' Versions:
 
+' 10.0* | Windows Server 2022 (ReleaseId 2009+)
 ' 10.0* | Windows 11 (builds 22000+)
 ' 10.0* | Windows Server 2016
 ' 10.0* | Windows 10 (builds 9885+, Insider Preview)
@@ -69,6 +70,13 @@ Option Explicit
 ' https://www.techpowerup.com/forums/threads/windows-os-builds-list.167382/
 ' https://docs.microsoft.com/en-Us/windows-server/get-started/windows-server-release-info
 
+
+#If VBA7 = 0 Then
+    Private Enum LongPtr
+        [_]
+    End Enum
+#End If
+
 Private Enum ePlatformID
     Win32S = 0
     Win32Windows = 1
@@ -112,13 +120,13 @@ Private Type SID_IDENTIFIER_AUTHORITY
 End Type
 
 Private Type SID_AND_ATTRIBUTES
-    SID As Long
+    SID As LongPtr
     Attributes As Long
 End Type
 
 Private Type TOKEN_GROUPS
     GroupCount As Long
-    Groups(20) As SID_AND_ATTRIBUTES
+    Groups(0) As SID_AND_ATTRIBUTES
 End Type
 
 'Private Type TOKEN_PRIVILEGES
@@ -130,17 +138,17 @@ End Type
 
 Private Type OBJECT_ATTRIBUTES
     Length                   As Long
-    RootDirectory            As Long
-    ObjectName               As Long
+    RootDirectory            As LongPtr
+    ObjectName               As LongPtr
     Attributes               As Long
-    SecurityDescriptor       As Long
-    SecurityQualityOfService As Long
+    SecurityDescriptor       As LongPtr
+    SecurityQualityOfService As LongPtr
 End Type
 
 Private Type UNICODE_STRING
     Length                          As Integer
     MaximumLength                   As Integer
-    Buffer                          As Long
+    Buffer                          As LongPtr
 End Type
 
 Private Type MEMORYSTATUSEX
@@ -161,6 +169,78 @@ Private Type PDH_FMT_COUNTERVALUE
     Data(7) As Byte
 End Type
 
+Private Type SECURE_BOOT_STATUS
+    fEnabled As Byte
+    fCapable As Byte
+End Type
+
+Private Type SYSTEM_CODEINTEGRITY_INFORMATION
+    Length As Long
+    CodeIntegrityOptions As Long
+End Type
+
+#If VBA7 Then
+Private Declare PtrSafe Function GetLocaleInfo Lib "kernel32" Alias "GetLocaleInfoW" (ByVal LCID As Long, ByVal LCType As Long, ByVal lpLCData As LongPtr, ByVal cchData As Long) As Long
+Private Declare PtrSafe Function GetUserDefaultUILanguage Lib "kernel32.dll" () As Long
+Private Declare PtrSafe Function GetSystemDefaultUILanguage Lib "kernel32.dll" () As Long
+Private Declare PtrSafe Function GetSystemDefaultLCID Lib "kernel32.dll" () As Long
+Private Declare PtrSafe Function GetUserDefaultLCID Lib "kernel32.dll" () As Long
+Private Declare PtrSafe Function IsWow64Process Lib "kernel32" (ByVal hProcess As LongPtr, Wow64Process As Long) As Long
+Private Declare PtrSafe Function GetVersionEx Lib "kernel32.dll" Alias "GetVersionExW" (lpVersionInformation As RTL_OSVERSIONINFOEXW) As Long 'OSVERSIONINFOEXW
+Private Declare PtrSafe Function RtlGetVersion Lib "ntdll.dll" (lpVersionInformation As RTL_OSVERSIONINFOEXW) As Long
+Private Declare PtrSafe Function GetSystemMetrics Lib "user32.dll" (ByVal nIndex As Long) As Long
+Private Declare PtrSafe Function GetProductInfo Lib "kernel32" (ByVal dwOSMajorVersion As Long, ByVal dwOSMinorVersion As Long, ByVal dwSpMajorVersion As Long, ByVal dwSpMinorVersion As Long, pdwReturnedProductInfo As Long) As Long
+'Private Declare PtrSafe Function CheckTokenMembership Lib "advapi32" (ByVal TokenHandle As LongPtr, ByVal SidToCheck As LongPtr, IsMember As Long) As Long
+Private Declare PtrSafe Function OpenProcessToken Lib "advapi32" (ByVal ProcessHandle As LongPtr, ByVal DesiredAccess As Long, TokenHandle As LongPtr) As Long
+Private Declare PtrSafe Function GetTokenInformation Lib "advapi32" (ByVal TokenHandle As LongPtr, ByVal TokenInformationClass As Long, TokenInformation As Any, ByVal TokenInformationLength As Long, ReturnLength As Long) As Long
+' Private Declare PtrSafe Function OpenThreadToken Lib "advapi32" (ByVal hThread As LongPtr, ByVal dwDesiredAccess As Long, ByVal bOpenAsSelf As Long, phToken As LongPtr) As Long
+' Private Declare PtrSafe Function GetCurrentThread Lib "kernel32" () As LongPtr
+Private Declare PtrSafe Function GetCurrentProcess Lib "kernel32" () As LongPtr
+Private Declare PtrSafe Sub CopyMemory Lib "kernel32" Alias "RtlMoveMemory" (Destination As Any, Source As Any, ByVal Length As LongPtr)
+Private Declare PtrSafe Function CloseHandle Lib "kernel32" (ByVal hObject As LongPtr) As Long
+Private Declare PtrSafe Function LocalFree Lib "kernel32" (ByVal hMem As LongPtr) As LongPtr
+Private Declare PtrSafe Function FreeSid Lib "advapi32" (ByVal psid As LongPtr) As LongPtr
+Private Declare PtrSafe Function AllocateAndInitializeSid Lib "advapi32" (pIdentifierAuthority As SID_IDENTIFIER_AUTHORITY, ByVal nSubAuthorityCount As Byte, ByVal nSubAuthority0 As Long, ByVal nSubAuthority1 As Long, ByVal nSubAuthority2 As Long, ByVal nSubAuthority3 As Long, ByVal nSubAuthority4 As Long, ByVal nSubAuthority5 As Long, ByVal nSubAuthority6 As Long, ByVal nSubAuthority7 As Long, psid As LongPtr) As Long
+Private Declare PtrSafe Function IsValidSid Lib "advapi32" (ByVal psid As LongPtr) As Long
+Private Declare PtrSafe Function GetSidSubAuthority Lib "advapi32" (ByVal psid As LongPtr, ByVal nSubAuthority As Long) As LongPtr
+Private Declare PtrSafe Function GetSidSubAuthorityCount Lib "advapi32" (ByVal psid As LongPtr) As LongPtr
+Private Declare PtrSafe Function EqualSid Lib "advapi32" (ByVal pSid1 As LongPtr, ByVal pSid2 As LongPtr) As Long
+Private Declare PtrSafe Function RegOpenKeyEx Lib "advapi32" Alias "RegOpenKeyExW" (ByVal hKey As LongPtr, ByVal lpSubKey As LongPtr, ByVal ulOptions As Long, ByVal samDesired As Long, phkResult As LongPtr) As Long
+Private Declare PtrSafe Function RegCloseKey Lib "advapi32" (ByVal hKey As LongPtr) As Long
+Private Declare PtrSafe Function RegQueryValueExStr Lib "advapi32" Alias "RegQueryValueExW" (ByVal hKey As LongPtr, ByVal lpValueName As LongPtr, ByVal lpReserved As LongPtr, lpType As Long, ByVal szData As LongPtr, lpcbData As Long) As Long
+Private Declare PtrSafe Function RegQueryValueExLong Lib "advapi32" Alias "RegQueryValueExW" (ByVal hKey As LongPtr, ByVal lpValueName As LongPtr, ByVal lpReserved As LongPtr, lpType As Long, szData As Long, lpcbData As Long) As Long
+Private Declare PtrSafe Function RegQueryValueEx Lib "advapi32" Alias "RegQueryValueExW" (ByVal hKey As LongPtr, ByVal lpValueName As LongPtr, ByVal lpReserved As LongPtr, lpType As Long, lpData As Any, lpcbData As Long) As Long
+Private Declare PtrSafe Function LoadLibrary Lib "kernel32" Alias "LoadLibraryW" (ByVal lpLibFileName As LongPtr) As LongPtr
+Private Declare PtrSafe Function FreeLibrary Lib "kernel32" (ByVal hLibModule As LongPtr) As Long
+Private Declare PtrSafe Function GetProcAddress Lib "kernel32" (ByVal hModule As LongPtr, ByVal lpProcName As String) As LongPtr
+Private Declare PtrSafe Function lstrlenW Lib "kernel32" (ByVal lpString As LongPtr) As Long
+Private Declare PtrSafe Function lstrcpyW Lib "kernel32" (ByVal lpString1 As LongPtr, ByVal lpString2 As LongPtr) As LongPtr
+Private Declare PtrSafe Function ConvertSidToStringSid Lib "advapi32" Alias "ConvertSidToStringSidW" (ByVal psid As LongPtr, StringSid As LongPtr) As Long
+Private Declare PtrSafe Function GetModuleHandle Lib "kernel32" Alias "GetModuleHandleW" (ByVal lpModuleName As LongPtr) As LongPtr
+Private Declare PtrSafe Sub RtlGetNtVersionNumbers Lib "ntdll" (Major As Long, Minor As Long, Build As Long)
+'Private Declare PtrSafe Function LookupPrivilegeValue Lib "advapi32" Alias "LookupPrivilegeValueW" (ByVal lpSystemName As LongPtr, ByVal lpName As LongPtr, lpLuid As LUID) As Long
+'Private Declare PtrSafe Function AdjustTokenPrivileges Lib "advapi32" (ByVal TokenHandle As LongPtr, ByVal DisableAllPrivileges As Long, ByRef NewState As Any, ByVal BufferLength As Long, ByRef PreviousState As Any, ByRef ReturnLength As Long) As Long
+Private Declare PtrSafe Function OpenThreadToken Lib "advapi32" (ByVal hThread As LongPtr, ByVal dwDesiredAccess As Long, ByVal bOpenAsSelf As Long, phToken As LongPtr) As Long
+Private Declare PtrSafe Function GetCurrentThread Lib "kernel32" () As LongPtr
+Private Declare PtrSafe Function NtOpenSymbolicLinkObject Lib "ntdll" (LinkHandle As LongPtr, ByVal DesiredAccess As Long, ObjectAttributes As OBJECT_ATTRIBUTES) As Long
+Private Declare PtrSafe Function NtOpenDirectoryObject Lib "ntdll" (DirectoryHandle As LongPtr, ByVal DesiredAccess As Long, ObjectAttributes As OBJECT_ATTRIBUTES) As Long
+Private Declare PtrSafe Function NtClose Lib "ntdll" (ByVal ObjectHandle As LongPtr) As Long
+'Private Declare PtrSafe Function IsOS Lib "Shlwapi.dll" Alias "#437" (ByVal dwOS As Long) As Long
+Private Declare PtrSafe Function GetUserName Lib "advapi32" Alias "GetUserNameW" (ByVal lpBuffer As LongPtr, nSize As Long) As Long
+Private Declare PtrSafe Function GetComputerName Lib "kernel32" Alias "GetComputerNameW" (ByVal lpBuffer As LongPtr, nSize As Long) As Long
+Private Declare PtrSafe Function lstrlen Lib "kernel32" Alias "lstrlenW" (ByVal lpString As LongPtr) As Long
+Private Declare PtrSafe Function GlobalMemoryStatusEx Lib "kernel32" (ByRef lpBuffer As MEMORYSTATUSEX) As Long
+Private Declare PtrSafe Function PdhOpenQuery Lib "Pdh.dll" Alias "PdhOpenQueryW" (ByVal szDataSource As LongPtr, ByVal dwUserData As LongPtr, phQuery As LongPtr) As Long
+Private Declare Function PdhCloseQuery Lib "Pdh.dll" (ByVal QueryHandle As LongPtr) As Long
+Private Declare PtrSafe Function PdhAddEnglishCounter Lib "Pdh.dll" Alias "PdhAddEnglishCounterW" (ByVal hQuery As LongPtr, ByVal szFullCounterPath As String, ByVal dwUserData As LongPtr, phCounter As LongPtr) As Long
+Private Declare PtrSafe Function PdhCollectQueryData Lib "Pdh.dll" (ByVal hQuery As LongPtr) As Long
+Private Declare PtrSafe Function PdhGetFormattedCounterValue Lib "Pdh.dll" (ByVal hCounter As LongPtr, ByVal dwFormat As Long, lpdwType As Long, pValue As PDH_FMT_COUNTERVALUE) As Long
+Private Declare PtrSafe Function GetCurrentProcessId Lib "kernel32" () As Long
+Private Declare PtrSafe Function NtQuerySystemInformation Lib "ntdll" (ByVal SystemInformationClass As Long, SystemInformation As Any, ByVal SystemInformationLength As Long, ReturnLength As Long) As Long
+
+
+#Else
+
 Private Declare Function GetLocaleInfo Lib "kernel32.dll" Alias "GetLocaleInfoW" (ByVal lcid As Long, ByVal LCTYPE As Long, ByVal lpLCData As Long, ByVal cchData As Long) As Long
 Private Declare Function GetUserDefaultUILanguage Lib "kernel32.dll" () As Long
 Private Declare Function GetSystemDefaultUILanguage Lib "kernel32.dll" () As Long
@@ -178,7 +258,7 @@ Private Declare Function GetTokenInformation Lib "Advapi32.dll" (ByVal TokenHand
 'Private Declare Function GetCurrentThread Lib "kernel32.dll" () As Long
 Private Declare Function GetCurrentProcess Lib "kernel32.dll" () As Long
 Private Declare Sub CopyMemory Lib "kernel32.dll" Alias "RtlMoveMemory" (dest As Any, Source As Any, ByVal lSize As Long)
-Private Declare Function GetMem4 Lib "msvbvm60.dll" (Src As Any, Dst As Any) As Long
+'Private Declare Function GetMem4 Lib "msvbvm60.dll" (Src As Any, Dst As Any) As Long - Incompat. VBA
 Private Declare Function CloseHandle Lib "kernel32.dll" (ByVal hObject As Long) As Long
 Private Declare Function LocalFree Lib "kernel32.dll" (ByVal hMem As Long) As Long
 Private Declare Sub FreeSid Lib "Advapi32.dll" (ByVal pSid As Long)
@@ -212,11 +292,15 @@ Private Declare Function GetUserName Lib "Advapi32.dll" Alias "GetUserNameW" (By
 Private Declare Function GetComputerName Lib "kernel32.dll" Alias "GetComputerNameW" (ByVal lpBuffer As Long, nSize As Long) As Long
 Private Declare Function lstrlen Lib "kernel32.dll" Alias "lstrlenW" (ByVal lpString As Long) As Long
 Private Declare Function GlobalMemoryStatusEx Lib "kernel32.dll" (lpBuffer As MEMORYSTATUSEX) As Long
-Private Declare Function PdhOpenQuery Lib "Pdh.dll" Alias "PdhOpenQueryW" (ByVal szDataSource As Long, dwUserData As Long, phQuery As Long) As Long
-Private Declare Function PdhAddEnglishCounter Lib "Pdh.dll" Alias "PdhAddEnglishCounterW" (ByVal hQuery As Long, ByVal szFullCounterPath As Long, dwUserData As Long, phCounter As Long) As Long
+Private Declare Function PdhOpenQuery Lib "Pdh.dll" Alias "PdhOpenQueryW" (ByVal szDataSource As Long, ByVal dwUserData As Long, phQuery As Long) As Long
+Private Declare Function PdhCloseQuery Lib "Pdh.dll" (ByVal QueryHandle As Long) As Long
+Private Declare Function PdhAddEnglishCounter Lib "Pdh.dll" Alias "PdhAddEnglishCounterW" (ByVal hQuery As Long, ByVal szFullCounterPath As Long, ByVal dwUserData As Long, phCounter As Long) As Long
 Private Declare Function PdhCollectQueryData Lib "Pdh.dll" (ByVal hQuery As Long) As Long
 Private Declare Function PdhGetFormattedCounterValue Lib "Pdh.dll" (ByVal hCounter As Long, ByVal dwFormat As Long, lpdwType As Long, pValue As PDH_FMT_COUNTERVALUE) As Long
-
+Private Declare Function GetCurrentProcessId Lib "kernel32.dll" () As Long
+' Private Declare Function GetMem8 Lib "msvbvm60.dll" (Src As Any, Dst As Any) As Long 'VBA unsupported
+Private Declare Function NtQuerySystemInformation Lib "ntdll.dll" (ByVal infoClass As Long, Buffer As Any, ByVal BufferSize As Long, ret As Long) As Long
+#End If
 
 Private Const MAX_PATH                  As Long = 260&
 Private Const SM_SERVERR2               As Long = 89&
@@ -247,6 +331,15 @@ Private Const LOCALE_SENGLANGUAGE       As Long = &H1001&
 Private Const HKEY_LOCAL_MACHINE        As Long = &H80000002
 Private Const KEY_WOW64_64KEY           As Long = &H100&
 Private Const DIRECTORY_QUERY           As Long = 1&
+Private Const CODEINTEGRITY_OPTION_TESTSIGN As Long = 2&
+Private Const CODEINTEGRITY_OPTION_DEBUGMODE_ENABLED As Long = &H80&
+Private Const CODEINTEGRITY_OPTION_HVCI_KMCI_ENABLED As Long = &H400&
+Private Const CODEINTEGRITY_OPTION_HVCI_KMCI_AUDITMODE_ENABLED As Long = &H800&
+Private Const CODEINTEGRITY_OPTION_HVCI_KMCI_STRICTMODE_ENABLED As Long = &H1000&
+Private Const CODEINTEGRITY_OPTION_HVCI_IUM_ENABLED As Long = &H2000&
+
+Private Const SystemSecureBootInformation  As Long = &H91&
+Private Const SystemCodeIntegrityInformation As Long = &H67&
 
 Private Const STATUS_SUCCESS            As Long = 0&
 Private Const ERROR_SUCCESS             As Long = 0&
@@ -257,6 +350,7 @@ Private Const TokenElevation            As Long = 20&
 'Private Const SE_PRIVILEGE_ENABLED      As Long = 2&
 'Private Const STATUS_ACCESS_DENIED      As Long = &HC0000022
 Private Const STATUS_OBJECT_NAME_NOT_FOUND As Long = &HC0000034
+Private Const STATUS_INVALID_INFO_CLASS As Long = &HC0000003
 
 Private Const PDH_FMT_LONG              As Long = &H100&
 Private Const PDH_FMT_DOUBLE            As Long = &H200&
@@ -284,6 +378,13 @@ Dim IsWindows8OrGreater_    As Boolean
 Dim IsWindows8Point1OrGreater_ As Boolean
 Dim IsWindows10OrGreater_   As Boolean
 Dim IsWindows11OrGreater_   As Boolean
+Dim IsWindows2000_          As Boolean
+Dim IsWindowsXP_      As Boolean
+Dim IsWindowsVista_         As Boolean
+Dim IsWindows7_             As Boolean
+Dim IsWindows8_             As Boolean
+Dim IsWindows8Point1_       As Boolean
+Dim IsWindows10_            As Boolean
 Dim LangSystemName_         As String
 Dim LangSystemNameFull_     As String
 Dim LangSystemCode_         As Long
@@ -308,34 +409,40 @@ Dim IsServer_               As Boolean
 Dim IsDomainController_     As Boolean
 Dim inIDE                   As Boolean
 Dim IsWin64_                As Boolean
+Dim IsWin32_                As Boolean
 Dim SecureBoot_             As Boolean
+Dim SecureBootSupported_    As Boolean
+Dim TestSigning_            As Boolean
+Dim DebugMode_              As Boolean
+Dim CodeIntegrity_          As Boolean
 Dim PlatformID_             As Long
 Dim IsLocalSystemContext_   As Boolean
 Dim IsAdminGroup_           As Boolean
 Dim IsSystemCaseSensitive_  As Boolean
 Dim IsEmbedded_             As Boolean
 Dim LCID_UserDefault_       As Long
-Dim m_hCpuQuery             As Long
-Dim m_hCpuCounter           As Long
+Dim m_hCpuQuery             As LongPtr
+Dim m_hCpuCounter           As LongPtr
+Dim m_Pid                   As Long
 
 
 Private Sub Class_Initialize()
     On Error GoTo ErrorHandler
-    
-    AppendErrorLogCustom "clsOSver.Class_Initialize - Begin"
     
     Dim dec             As Single
     Dim ProductType     As Long
     Dim lret            As Long
     Dim pos             As Long
     Dim tmp             As String
-    Dim hLib            As Long
+    Dim hLib            As LongPtr
     Dim dwMajor         As Long
     Dim dwMinor         As Long
     Dim dwBuild         As Long
     
-    inIDE = (App.LogMode = 0)
-        
+    Debug.Assert MakeTrue(inIDE)
+    
+    m_Pid = GetCurrentProcessId()
+    
     LangDisplayCode_ = GetUserDefaultUILanguage Mod &H10000
     LangDisplayName_ = GetLangNameByCultureCode(LangDisplayCode_)
     LangDisplayNameFull_ = GetLangNameFullByCultureCode(LangDisplayCode_)
@@ -364,7 +471,8 @@ Private Sub Class_Initialize()
         Dim Ver() As String
     
         Set oWMI = CreateObject("winmgmts:{impersonationLevel=Impersonate}!\\.\root\cimv2")
-        Set colOS = oWMI.ExecQuery("Select * from Win32_OperatingSystem")
+        '"Select * from Win32_OperatingSystem"
+        Set colOS = oWMI.ExecQuery(Caes_Decode("ThqllE * yMLL tNU89LxaXgXmdkfTBxAnx"))
         
         For Each oOS In colOS
             pos = InStr(oOS.Version, ".")
@@ -405,17 +513,23 @@ Private Sub Class_Initialize()
     
     End If
     
-    Bitness_ = IIf(IsWow64(), "x64", "x32") 'VB6 is always x86
+    ' If IsWow64() Then IsWin64_ = True 'VB6 is always x86
+    #If Win64 Then
+        IsWin64_ = True
+    #Else
+        IsWin64_ = IsWow64()
+    #End If
     
-    IsWin64_ = (Bitness_ = "x64")
+    IsWin32_ = Not IsWin64_
+    Bitness_ = IIf(IsWin64_, "x64", "x32")
     
     lret = GetSystemMetrics(SM_CLEANBOOT)
     IsSafeBoot_ = (lret > 0)
     Select Case lret
         Case 1
-            SafeBootMode_ = "Safe mode"
+            SafeBootMode_ = "Safe mode (no Networking)"
         Case 2
-            SafeBootMode_ = "Safe mode with network support"
+            SafeBootMode_ = "Safe mode with Networking"
         Case Else
             SafeBootMode_ = "Normal"
     End Select
@@ -443,14 +557,7 @@ Private Sub Class_Initialize()
         If dec <> 0 Then Do: dec = dec / 10: Loop Until dec < 1
         MajorMinorNTDLL_ = dwMajor + dec
     End If
-    
-    IsWindowsXPOrGreater_ = (MajorMinor_ >= 5.1)
-    IsWindowsVistaOrGreater_ = (MajorMinor_ >= 6)
-    IsWindows7OrGreater_ = (MajorMinor_ >= 6.1)
-    IsWindows8OrGreater_ = (MajorMinor_ >= 6.2)
-    IsWindows8Point1OrGreater_ = (MajorMinor_ >= 6.3)
-    IsWindows10OrGreater_ = (MajorMinor_ >= 6.4)
-    
+      
     If MajorMinor_ >= 10 Then
         'Get ReleaseId for Windows 10
         tmp = RegRead_REG_SZ("SOFTWARE\Microsoft\Windows NT\CurrentVersion", "ReleaseId")
@@ -511,9 +618,13 @@ Private Sub Class_Initialize()
                     OSName_ = "Windows 10"
                 End If
             Else
-                If ReleaseId_ >= 2009 And bIsWin11Core Then
-                    OSName_ = "Windows Server 2022"
-                    IsWindows11OrGreater_ = True
+                If ReleaseId_ >= 2009 Then
+                    If bIsWin11Core Then
+                        OSName_ = "Windows Server 2022"
+                        IsWindows11OrGreater_ = True
+                    Else
+                        OSName_ = "Windows Unknown"
+                    End If
                 ElseIf ReleaseId_ >= 1803 Then
                     OSName_ = "Windows Server 2019"
                 Else
@@ -565,7 +676,7 @@ Private Sub Class_Initialize()
                 Else
                     Edition_ = "Standard"
                 End If
-            ElseIf osi.wProductType = VER_NT_WORKSTATION And Bitness_ = "x64" Then
+            ElseIf osi.wProductType = VER_NT_WORKSTATION And IsWin64_ Then
                 OSName_ = "Windows XP"
                 Edition_ = "Professional"
             End If
@@ -623,6 +734,20 @@ Private Sub Class_Initialize()
         Platform_ = "Unix"
     End If
     
+    IsWindows2000_ = (MajorMinor_ = 5)
+    IsWindowsXPOrGreater_ = (MajorMinor_ >= 5.1)
+    IsWindowsXP_ = (MajorMinor_ >= 5.1 And MajorMinor_ < 6)
+    IsWindowsVistaOrGreater_ = (MajorMinor_ >= 6)
+    IsWindowsVista_ = (MajorMinor_ = 6)
+    IsWindows7OrGreater_ = (MajorMinor_ >= 6.1)
+    IsWindows7_ = (MajorMinor_ = 6.1)
+    IsWindows8OrGreater_ = (MajorMinor_ >= 6.2)
+    IsWindows8_ = (MajorMinor_ = 6.2)
+    IsWindows8Point1OrGreater_ = (MajorMinor_ >= 6.3)
+    IsWindows8Point1_ = (MajorMinor_ = 6.3)
+    IsWindows10OrGreater_ = (MajorMinor_ >= 6.4)
+    IsWindows10_ = IsWindows10OrGreater_ And Not IsWindows11OrGreater_
+    
     If Len(OSName_) = 0 Then
         OSName_ = "Windows Unknown" & "(ver: " & MajorMinor_ & ". PT: " & osi.wProductType & ". Build: " & osi.dwBuildNumber & ")" & " Registry's data: " & _
             RegRead_REG_SZ("SOFTWARE\Microsoft\Windows NT\CurrentVersion", "ProductName")
@@ -672,7 +797,7 @@ Private Sub Class_Initialize()
     If osi.wSuiteMask And VER_SUITE_TERMINAL Then SuiteMask_ = SuiteMask_ & " + " & "Terminal"
     If osi.wSuiteMask And VER_SUITE_WH_SERVER Then SuiteMask_ = SuiteMask_ & " + " & "WH Server"
     
-    If 0 <> Len(SuiteMask_) Then SuiteMask_ = Mid$(SuiteMask_, 4)
+    If 0 <> Len(SuiteMask_) Then SuiteMask_ = mid$(SuiteMask_, 4)
     
     ' wProductType
     Select Case osi.wProductType
@@ -688,10 +813,18 @@ Private Sub Class_Initialize()
     
     IsLocalSystemContext_ = (SID_CurrentProcess_ = "S-1-5-18")
     
-    SecureBoot_ = SecureBootState()
+    Call GetSecureBootState(SecureBootSupported_, SecureBoot_)
+    
+    Dim codeIntegrityFlags As Long
+    codeIntegrityFlags = GetCodeIntegrityFlags()
+    TestSigning_ = codeIntegrityFlags And CODEINTEGRITY_OPTION_TESTSIGN
+    DebugMode_ = codeIntegrityFlags And CODEINTEGRITY_OPTION_DEBUGMODE_ENABLED
+    CodeIntegrity_ = codeIntegrityFlags And _
+        (CODEINTEGRITY_OPTION_HVCI_KMCI_ENABLED Or CODEINTEGRITY_OPTION_HVCI_KMCI_AUDITMODE_ENABLED Or _
+        CODEINTEGRITY_OPTION_HVCI_KMCI_STRICTMODE_ENABLED Or CODEINTEGRITY_OPTION_HVCI_IUM_ENABLED)
     
     'http://www.nicklowe.org/2012/02/understanding-case-sensitivity-in-windows-obcaseinsensitive-file_case_sensitive_search/
-    Dim hDir    As Long
+    Dim hDir    As LongPtr
     Dim OA      As OBJECT_ATTRIBUTES
     Dim UniStr  As UNICODE_STRING
     
@@ -736,18 +869,15 @@ Private Sub Class_Initialize()
     If InStr(1, Edition_, "Unknown", 1) <> 0 Then Edition_ = Edition_ & " (" & sEditionID & ")"
     If IsEmbedded_ Then Edition_ = Edition_ & " (Embedded)"
     
-    AppendErrorLogCustom "clsOSver.Class_Initialize - End"
-    
     Exit Sub
 ErrorHandler:
     ErrorMsg Err, "clsOSver.Class_Initialize"
     Resume Next
 End Sub
 
+
 Private Sub GetCodePageInfo()
     On Error GoTo ErrorHandler
-
-    AppendErrorLogCustom "GetCodePageInfo - Begin"
 
     CodepageOEM_ = RegRead_REG_SZ("SYSTEM\CurrentControlSet\Control\Nls\CodePage", "OEMCP")
  
@@ -761,7 +891,6 @@ Private Sub GetCodePageInfo()
         CodepageANSI_File_ = RegRead_REG_SZ("SYSTEM\CurrentControlSet\Control\Nls\CodePage", CodepageANSI_)
     End If
     
-    AppendErrorLogCustom "GetCodePageInfo - End"
     Exit Sub
 ErrorHandler:
     ErrorMsg Err, "clsOSver.GetCodePageInfo"
@@ -783,7 +912,7 @@ Private Function RegRead_REG_SZ(strKey As String, strParam As String) As String
     Const KEY_QUERY_VALUE       As Long = &H1&
     
     Dim buf As String
-    Dim hKey As Long
+    Dim hKey As LongPtr
     Dim ordType As Long
     Dim cData As Long
 
@@ -811,7 +940,7 @@ Private Function RegRead_REG_DWORD(strKey As String, strParam As String) As Long
     Const KEY_QUERY_VALUE       As Long = &H1&
     
     Dim lData As Long
-    Dim hKey As Long
+    Dim hKey As LongPtr
     Dim ordType As Long
     Dim cData As Long
 
@@ -832,12 +961,10 @@ ErrorHandler:
     If hKey <> 0 Then RegCloseKey hKey
 End Function
 
-Public Function IsProcessElevated(Optional hProcess As Long) As Boolean
+Private Function IsProcessElevated(Optional hProcess As LongPtr) As Boolean
     On Error GoTo ErrorHandler
     
-    AppendErrorLogCustom "IsProcessElevated - Begin"
-    
-    Dim hToken           As Long
+    Dim hToken           As LongPtr
     Dim dwLengthNeeded   As Long
     Dim dwIsElevated     As Long
     
@@ -855,17 +982,14 @@ Public Function IsProcessElevated(Optional hProcess As Long) As Boolean
         CloseHandle hToken: hToken = 0
     End If
     
-    AppendErrorLogCustom "IsProcessElevated - End"
     Exit Function
 ErrorHandler:
-    ErrorMsg Now, "clsOSver.IsProcessElevated"
+    ErrorMsg Err, "clsOSver.IsProcessElevated"
     If hToken Then CloseHandle hToken: hToken = 0
 End Function
 
 Private Function GetUserType() As String
     On Error GoTo ErrorHandler
-
-    AppendErrorLogCustom "GetUserType - Begin"
 
     Const TOKEN_QUERY                   As Long = &H8&
     Const SECURITY_NT_AUTHORITY         As Long = 5&
@@ -875,17 +999,24 @@ Private Function GetUserType() As String
     Const DOMAIN_ALIAS_RID_USERS        As Long = &H221&
     Const DOMAIN_ALIAS_RID_GUESTS       As Long = &H222&
     Const DOMAIN_ALIAS_RID_POWER_USERS  As Long = &H223&
+    Const DOMAIN_ALIAS_RID_RDP          As Long = &H22B&
 
-    Dim hProcessToken   As Long
+    Dim hProcessToken   As LongPtr
     Dim BufferSize      As Long
-    Dim psidAdmin       As Long
-    Dim psidPower       As Long
-    Dim psidUser        As Long
-    Dim psidGuest       As Long
+    Dim psidAdmin       As LongPtr
+    Dim psidPower       As LongPtr
+    Dim psidUser        As LongPtr
+    Dim psidGuest       As LongPtr
+    Dim psidRDP         As LongPtr
     Dim i               As Long
     Dim lResult         As Long
     Dim tpTokens        As TOKEN_GROUPS
     Dim tpSidAuth       As SID_IDENTIFIER_AUTHORITY
+    Dim groupsCount     As Long
+    Dim bGrpAdmin       As Boolean
+    Dim bGrpPowerUser   As Boolean
+    Dim bGrpLimitedUser As Boolean
+    Dim bGrpGuest       As Boolean
     
     GetUserType = "Unknown"
     tpSidAuth.Value(5) = SECURITY_NT_AUTHORITY
@@ -897,39 +1028,47 @@ Private Function GetUserType() As String
     
     If hProcessToken Then
         
-        ' Определяем требуемый размер буфера
+        ' Get the buffer size required
         GetTokenInformation hProcessToken, ByVal TokenGroups, 0&, 0&, BufferSize
         
         If BufferSize Then
-            Dim InfoBuffer() As Long
-            ReDim InfoBuffer((BufferSize \ 4) - 1) As Long  ' Переводим размер byte -> Long
-            
-            ' Получаем информацию о SID-ах групп, ассоциированных с этим токеном
+            Dim InfoBuffer() As Byte
+            ReDim InfoBuffer(BufferSize - 1)
+            ' Retrieving info about SID of groups, associated with this token
             If 0 <> GetTokenInformation(hProcessToken, ByVal TokenGroups, InfoBuffer(0), BufferSize, BufferSize) Then
-            
-                ' Заполняем структуру из буфера
-                Call CopyMemory(tpTokens, InfoBuffer(0), Len(tpTokens))
-            
-                ' Получаем SID-ы каждого типа пользователей
+                
+                groupsCount = InfoBuffer(0)
+                ReDim tpGroups(groupsCount - 1) As SID_AND_ATTRIBUTES
+                
+                Dim fieldOffset As Long: fieldOffset = Abs(VarPtr(tpTokens.Groups(0)) - VarPtr(tpTokens))
+                'Statically:
+                '"BufferSize" is much > SID_AND_ATTRIBUTES array, because
+                ' the buffer returned also holds Sid strings data pointed by .Sid ptr of each array element
+                'So, we calculating array size manually:
+                'Call CopyMemory(tpTokens, InfoBuffer(0), fieldOffset + groupsCount * lenb(tpTokens.Groups(0)))
+                
+                'Dynamically:
+                Call CopyMemory(tpGroups(0), InfoBuffer(fieldOffset), (UBound(tpGroups) + 1) * LenB(tpGroups(0)))
+                
+                ' Retrieving SIDs of each type of well-known users beforehand
                 lResult = AllocateAndInitializeSid(tpSidAuth, 2&, SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS, 0&, 0&, 0&, 0&, 0&, 0&, psidAdmin)
                 lResult = AllocateAndInitializeSid(tpSidAuth, 2&, SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_POWER_USERS, 0&, 0&, 0&, 0&, 0&, 0&, psidPower)
                 lResult = AllocateAndInitializeSid(tpSidAuth, 2&, SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_USERS, 0&, 0&, 0&, 0&, 0&, 0&, psidUser)
                 lResult = AllocateAndInitializeSid(tpSidAuth, 2&, SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_GUESTS, 0&, 0&, 0&, 0&, 0&, 0&, psidGuest)
-            
+                
                 If IsValidSid(psidAdmin) And IsValidSid(psidPower) And IsValidSid(psidUser) And IsValidSid(psidGuest) Then
-                  
-                    For i = 0 To tpTokens.GroupCount
-                        ' Берем SID каждой из ассоциированных групп
-                        If IsValidSid(tpTokens.Groups(i).SID) Then
-                            ' Проверяем на соответствие
-                            If EqualSid(ByVal tpTokens.Groups(i).SID, ByVal psidAdmin) Then
-                                GetUserType = "Administrators":  Exit For
-                            ElseIf EqualSid(ByVal tpTokens.Groups(i).SID, ByVal psidPower) Then
-                                GetUserType = "Power Users":     Exit For
-                            ElseIf EqualSid(ByVal tpTokens.Groups(i).SID, ByVal psidUser) Then
-                                GetUserType = "Limited Users":   Exit For
-                            ElseIf EqualSid(ByVal tpTokens.Groups(i).SID, ByVal psidGuest) Then
-                                GetUserType = "Guests":          Exit For
+                    For i = 0 To UBound(tpGroups)
+                        ' Take SID of each associated group
+                        If IsValidSid(tpGroups(i).SID) Then
+                            ' Check for compliance
+                            If EqualSid(ByVal tpGroups(i).SID, ByVal psidAdmin) Then
+                                bGrpAdmin = True: Exit For
+                            ElseIf EqualSid(ByVal tpGroups(i).SID, ByVal psidPower) Then
+                                bGrpPowerUser = True
+                            ElseIf EqualSid(ByVal tpGroups(i).SID, ByVal psidUser) Then
+                                bGrpLimitedUser = True
+                            ElseIf EqualSid(ByVal tpGroups(i).SID, ByVal psidGuest) Then
+                                bGrpGuest = True
                             End If
                         End If
                     Next
@@ -943,7 +1082,16 @@ Private Function GetUserType() As String
         CloseHandle hProcessToken: hProcessToken = 0
     End If
     
-    AppendErrorLogCustom "GetUserType - End"
+    If bGrpAdmin Then
+        GetUserType = "Administrators"
+    ElseIf bGrpPowerUser Then
+        GetUserType = "Power Users"
+    ElseIf bGrpLimitedUser Then
+        GetUserType = "Limited Users"
+    ElseIf bGrpGuest Then
+        GetUserType = "Guests"
+    End If
+    
     Exit Function
 ErrorHandler:
     ErrorMsg Err, "clsOSver.GetUserType"
@@ -957,11 +1105,9 @@ End Function
 Private Function GetCurrentProcessSID() As String
     On Error GoTo ErrorHandler
 
-    AppendErrorLogCustom "GetCurrentProcessSID - Begin"
-
     Const TokenUser As Long = 1&
         
-    Dim hProcess As Long, hProcessToken As Long, tkUser As SID_AND_ATTRIBUTES, dwSize As Long, sSid As String, psSID As Long
+    Dim hProcess As LongPtr, hProcessToken As LongPtr, tkUser As SID_AND_ATTRIBUTES, dwSize As Long, sSid As String, psSID As LongPtr
 
     If hProcess = 0 Then hProcess = GetCurrentProcess()
     If 0 = OpenProcessToken(hProcess, TOKEN_QUERY, hProcessToken) Then Exit Function
@@ -978,10 +1124,7 @@ Private Function GetCurrentProcessSID() As String
             ' Получаем информацию о SID-ах групп, ассоциированных с этим токеном
             If 0 <> GetTokenInformation(hProcessToken, ByVal TokenUser, InfoBuffer(0), dwSize, dwSize) Then
             
-                Call CopyMemory(tkUser, InfoBuffer(0), Len(tkUser))
-            
-                ' Заполняем структуру из буфера
-                'Call CopyMemory(tpTokens, InfoBuffer(0), Len(tpTokens))
+                Call CopyMemory(tkUser, InfoBuffer(0), LenB(tkUser))
                 
                 If IsValidSid(tkUser.SID) Then
                     If 0 <> ConvertSidToStringSid(tkUser.SID, psSID) Then
@@ -998,19 +1141,16 @@ Private Function GetCurrentProcessSID() As String
         End If
         CloseHandle hProcessToken
     End If
-    
-    AppendErrorLogCustom "GetCurrentProcessSID - End"
+
     Exit Function
 ErrorHandler:
     ErrorMsg Err, "clsOSver.GetCurrentProcessSID"
 End Function
 
-Private Function GetIntegrityLevel(Optional hProcess As Long) As String
+Private Function GetIntegrityLevel(Optional hProcess As LongPtr) As String
     'https://msdn.microsoft.com/en-us/library/bb625963.aspx
     'https://msdn.microsoft.com/en-us/library/bb625966.aspx
     On Error GoTo ErrorHandler
-    
-    AppendErrorLogCustom "GetIntegrityLevel - Begin"
     
     Const SECURITY_MANDATORY_UNTRUSTED_RID          As Long = 0&
     Const SECURITY_MANDATORY_LOW_RID                As Long = &H1000&
@@ -1026,14 +1166,14 @@ Private Function GetIntegrityLevel(Optional hProcess As Long) As String
     Const TOKEN_QUERY               As Long = &H8&
     Const ERROR_INSUFFICIENT_BUFFER As Long = &H7A&
     
-    Dim hToken           As Long
+    Dim hToken           As LongPtr
     Dim dwLengthNeeded   As Long
     Dim bTIL()           As Byte
-    Dim pSidSub          As Long
+    Dim pSidSub          As LongPtr
     Dim dwIntegrityLevel As Long
-    Dim pSidAuthCnt      As Long
+    Dim pSidAuthCnt      As LongPtr
     Dim SidAuthCnt       As Long
-    Dim pILSid           As Long
+    Dim pILSid           As LongPtr
     Dim sLevel           As String
     
     If osi.dwMajorVersion < 6 Then GetIntegrityLevel = "Not supported": Exit Function ' < Win Vista
@@ -1052,7 +1192,8 @@ Private Function GetIntegrityLevel(Optional hProcess As Long) As String
         
             If 0 <> GetTokenInformation(hToken, TokenIntegrityLevel, bTIL(0), dwLengthNeeded, dwLengthNeeded) Then
         
-                GetMem4 bTIL(0), pILSid
+                'GetMem4 bTIL(0), pILSid
+                CopyMemory pILSid, bTIL(0), LenB(pILSid)
                 
                 If IsValidSid(pILSid) Then
 
@@ -1060,14 +1201,16 @@ Private Function GetIntegrityLevel(Optional hProcess As Long) As String
                     
                     If pSidAuthCnt Then
                     
-                        GetMem4 ByVal pSidAuthCnt, SidAuthCnt
+                        'GetMem4 ByVal pSidAuthCnt, SidAuthCnt
+                        CopyMemory SidAuthCnt, ByVal pSidAuthCnt, 4
                         
                         If SidAuthCnt Then
                         
                             pSidSub = GetSidSubAuthority(pILSid, SidAuthCnt - 1)
                     
-                            If pSidSub Then GetMem4 ByVal pSidSub, dwIntegrityLevel
-                    
+                            'If pSidSub Then GetMem4 ByVal pSidSub, dwIntegrityLevel
+                            If pSidSub Then CopyMemory dwIntegrityLevel, ByVal pSidSub, 4
+                                
                             Select Case dwIntegrityLevel
                             
                                 Case Is < SECURITY_MANDATORY_LOW_RID
@@ -1090,7 +1233,7 @@ Private Function GetIntegrityLevel(Optional hProcess As Long) As String
                                     ElseIf dwIntegrityLevel And SECURITY_MANDATORY_SECURE_PROCESS_RID Then
                                         sLevel = "Secure Process"
                                     Else
-                                        sLevel = "Unknown (Level: 0x" & Hex(dwIntegrityLevel) & ")"
+                                        sLevel = "Unknown (Level: 0x" & Hex$(dwIntegrityLevel) & ")"
                                     End If
                             End Select
                         End If
@@ -1103,7 +1246,6 @@ Private Function GetIntegrityLevel(Optional hProcess As Long) As String
     End If
     GetIntegrityLevel = sLevel
     
-    AppendErrorLogCustom "GetIntegrityLevel - End"
     Exit Function
 ErrorHandler:
     ErrorMsg Err, "clsOSver.GetIntegrityLevel"
@@ -1247,6 +1389,10 @@ Private Function GetProductName(ProductType As Long) As String
     Case &H92&:        ProductName = "Server Standard (Semi-Annual Channel Core)"
     Case &HA1&:        ProductName = "Pro for Workstations"
     Case &HA2&:        ProductName = "Pro for Workstations N"
+    Case &HA4&:        ProductName = "Pro Education"
+    Case &HAF&:        ProductName = "Enterprise for Virtual Desktops"
+    Case &HBC&:        ProductName = "IoT Enterprise"
+    Case &HBF&:        ProductName = "IoT Enterprise LTSC"
     Case &H0&:         ProductName = "An unknown product"
     Case Else
         ProductName = "Unknown Edition (0x" & Hex$(ProductType) & ")"
@@ -1257,6 +1403,7 @@ Private Function GetProductName(ProductType As Long) As String
 ErrorHandler:
     ErrorMsg Err, "clsOSver.GetProductName"
 End Function
+
 
 
 Private Function GetLangNameByCultureCode(CultureCode As Long) As String
@@ -1545,7 +1692,7 @@ Private Function GetLangNameByCultureCode(CultureCode As Long) As String
 End Function
 
 Public Function IsWow64() As Boolean   ' Разрядность ОС
-    Dim hModule As Long, procAddr As Long, lIsWin64 As Long
+    Dim hModule As LongPtr, procAddr As LongPtr, lIsWin64 As Long
     Static isInit As Boolean, result As Boolean
     
     If isInit Then
@@ -1565,14 +1712,31 @@ Public Function IsWow64() As Boolean   ' Разрядность ОС
     End If
 End Function
 
-Private Function SecureBootState() As Boolean
+Private Function GetSecureBootState(out_Supported As Boolean, out_State As Boolean) As Boolean 'thanks to ISergey & Убежденный
+    If Not IsWindows7OrGreater_ Then Exit Function
     Dim lState As Long
-    '// TODO:
-    'improvement - https://www.cyberforum.ru/win-api/thread2046367.html#post10789948
-    '++
-    If MajorMinor_ >= 6.2 Then ' Win8+
+    Dim iStatus As Long
+    Dim secboot As SECURE_BOOT_STATUS
+    Dim dwRetSize As Long
+    iStatus = NtQuerySystemInformation(SystemSecureBootInformation, ByVal VarPtr(secboot), LenB(secboot), dwRetSize)
+    If iStatus = STATUS_SUCCESS Then
+        out_Supported = secboot.fCapable
+        out_State = secboot.fEnabled
+    ElseIf iStatus = STATUS_INVALID_INFO_CLASS Then
         lState = RegRead_REG_DWORD("SYSTEM\CurrentControlSet\Control\SecureBoot\State", "UEFISecureBootEnabled")
-        If lState = 1 Then SecureBootState = True
+        If lState = 1 Then out_State = True: out_Supported = True
+    End If
+End Function
+
+Private Function GetCodeIntegrityFlags() As Long
+    If Not IsWindowsVistaOrGreater_ Then Exit Function
+    Dim iStatus As Long
+    Dim CodeIntegrity As SYSTEM_CODEINTEGRITY_INFORMATION
+    Dim dwRetSize As Long
+    CodeIntegrity.Length = LenB(CodeIntegrity)
+    iStatus = NtQuerySystemInformation(SystemCodeIntegrityInformation, ByVal VarPtr(CodeIntegrity), LenB(CodeIntegrity), dwRetSize)
+    If iStatus = STATUS_SUCCESS Then
+        GetCodeIntegrityFlags = CodeIntegrity.CodeIntegrityOptions
     End If
 End Function
 
@@ -1698,6 +1862,14 @@ Public Property Get LangDisplayNameFull() As String
     LangDisplayNameFull = LangDisplayNameFull_
 End Property
 
+Public Property Get IsWindows2000() As Boolean
+    IsWindows2000 = IsWindows2000_
+End Property
+
+Public Property Get IsWindowsXP() As Boolean
+    IsWindowsXP = IsWindowsXP_
+End Property
+
 Public Property Get IsWindowsXPOrGreater() As Boolean
     IsWindowsXPOrGreater = IsWindowsXPOrGreater_
 End Property
@@ -1710,20 +1882,45 @@ Public Property Get IsWindowsXP_SP3OrGreater() As Boolean
     End Select
 End Property
 
+'Exact match (also includes Server edition)
+Public Property Get IsWindowsVista() As Boolean
+    IsWindowsVista = IsWindowsVista_
+End Property
+
 Public Property Get IsWindowsVistaOrGreater() As Boolean
     IsWindowsVistaOrGreater = IsWindowsVistaOrGreater_
+End Property
+
+'Exact match (also includes Server edition)
+Public Property Get IsWindows7() As Boolean
+    IsWindows7 = IsWindows7_
 End Property
 
 Public Property Get IsWindows7OrGreater() As Boolean
     IsWindows7OrGreater = IsWindows7OrGreater_
 End Property
 
+'Exact match (also includes Server edition)
+Public Property Get IsWindows8() As Boolean
+    IsWindows8 = IsWindows8_
+End Property
+
 Public Property Get IsWindows8OrGreater() As Boolean
     IsWindows8OrGreater = IsWindows8OrGreater_
 End Property
 
+'Exact match (also includes Server edition)
+Public Property Get IsWindows8Point1() As Boolean
+    IsWindows8Point1 = IsWindows8Point1_
+End Property
+
 Public Property Get IsWindows8Point1OrGreater() As Boolean
     IsWindows8Point1OrGreater = IsWindows8Point1OrGreater_
+End Property
+
+'Exact match (also includes Server edition)
+Public Property Get IsWindows10() As Boolean
+    IsWindows10 = IsWindows10_
 End Property
 
 Public Property Get IsWindows10OrGreater() As Boolean
@@ -1791,7 +1988,7 @@ Public Property Get IsWin64() As Boolean
 End Property
 
 Public Property Get IsWin32() As Boolean
-    IsWin32 = Not IsWin64_
+    IsWin32 = IsWin32_
 End Property
 
 Public Property Get PlatformID() As Long
@@ -1802,6 +1999,22 @@ Public Property Get SecureBoot() As Boolean
     SecureBoot = SecureBoot_
 End Property
 
+Public Property Get SecureBootSupported() As Boolean
+    SecureBootSupported = SecureBootSupported_
+End Property
+
+Public Property Get TestSigning() As Boolean
+    TestSigning = TestSigning_
+End Property
+
+Public Property Get DebugMode() As Boolean
+    DebugMode = DebugMode_
+End Property
+
+Public Property Get CodeIntegrity() As Boolean 'HVCI
+    CodeIntegrity = CodeIntegrity_
+End Property
+
 Public Property Get IsLocalSystemContext() As Boolean
     IsLocalSystemContext = IsLocalSystemContext_
 End Property
@@ -1810,8 +2023,8 @@ Public Property Get IsAdminGroup() As Boolean
     IsAdminGroup = IsAdminGroup_
 End Property
 
-Public Property Get IsSystemCaseSensitive() As Boolean
-    IsSystemCaseSensitive = IsSystemCaseSensitive_
+Public Property Get IsFileSystemCaseSensitive() As Boolean
+    IsFileSystemCaseSensitive = IsSystemCaseSensitive_
 End Property
 
 Public Property Get IsEmbedded() As Boolean
@@ -1852,9 +2065,26 @@ Public Property Get CpuUsage() As Double ' in % (Vista+)
             Dim counterVal As PDH_FMT_COUNTERVALUE
             PdhGetFormattedCounterValue m_hCpuCounter, PDH_FMT_DOUBLE, 0, counterVal
             
-            GetMem8 counterVal.Data(0), CpuUsage
-            
+            'GetMem8 counterVal.Data(0), CpuUsage
+            CopyMemory CpuUsage, counterVal.Data(0), 8
         End If
     End If
 
 End Property
+
+Public Property Get CurrentProcessId() As Long
+    CurrentProcessId = m_Pid
+End Property
+
+Private Function MakeTrue(ByRef bValue As Boolean) As Boolean
+    MakeTrue = True
+    bValue = True
+End Function
+
+'Private Sub ErrorMsg(Err As ErrObject, ErrMessage As String)
+'    Debug.Print "Error: " & Err.Number & " (LastDll: " & Err.LastDllError & "): " & ErrMessage
+'End Sub
+
+Private Sub Class_Terminate()
+    If m_hCpuQuery <> 0 Then PdhCloseQuery m_hCpuQuery
+End Sub

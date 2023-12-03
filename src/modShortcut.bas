@@ -115,14 +115,14 @@ Public Function GetPathFromIDL(sIDL As String) As String
         ErrorMsg Err, "Parser.GetPathFromIDL", Translate(512) & ": Shell32.dll"
         Exit Function
     End If
-    If Left$(sIDL, 4) = "::\{" Then sIDL = "::" & Mid$(sIDL, 4) 'trim \
+    If Left$(sIDL, 4) = "::\{" Then sIDL = "::" & mid$(sIDL, 4) 'trim \
     
     Set fld = Shl.NameSpace$(CVar(sIDL))
     
     If (Err.Number <> 0) Or (fld Is Nothing) Then Exit Function
     
     On Error GoTo ErrorHandler
-    Path = fld.self.Path
+    Path = fld.Self.Path
     
     If Len(Path) <> 0 And StrComp(Path, sIDL, 1) <> 0 Then
         GetPathFromIDL = Path
@@ -187,7 +187,7 @@ Public Sub GetTargetShellLinkW(LNK_file As String, Optional Target As String, Op
     oPFile.Load LNK_file, STGM_READ
     
     If (oSLDL Is Nothing) Then
-        Debug.Print "oPFile.Load is failed. Error: " & Err.LastDllError & ". File: " & LNK_file
+        If inIDE Then Debug.Print "oPFile.Load is failed. Error: " & Err.LastDllError & ". File: " & LNK_file
     Else
         If S_OK = oSLDL.GetFlags(Flags) Then
         
@@ -291,7 +291,7 @@ Private Function isFileFilledByNUL(FileName As String) As Boolean
     isFileFilledByNUL = True
     
     For i = 1 To Len(Data)
-        If AscW(Mid$(Data, i, 1)) <> 0& Then isFileFilledByNUL = False: Exit For
+        If AscW(mid$(Data, i, 1)) <> 0& Then isFileFilledByNUL = False: Exit For
     Next
     Exit Function
 ErrorHandler:
@@ -488,44 +488,20 @@ Public Function GetEncoding(aBytes() As Byte, Optional Percent As Long, Optional
     Dim IMLang2     As IMultiLanguage2
     Dim Encoding()  As tagDetectEncodingInfo
     Dim encCount    As Long
-    'Dim inp()       As Byte
     Dim Index       As Long
-    'Dim J           As Long
-    
-'    Open file For Binary As #1
-'    ReDim inp(LOF(1) - 1)
-'    Get #1, , inp()
-'    Close #1
     
     Set MLang = New CMultiLanguage
     Set IMLang2 = MLang
     
     encCount = 16
     ReDim Encoding(encCount - 1)
-    'IMLang2.DetectInputCodepage 0, 0, inp(0), UBound(inp) + 1, Encoding(0), encCount
     IMLang2.DetectInputCodepage 0, 0, aBytes(0), UBound(aBytes) + 1, Encoding(0), encCount
     
     For Index = 0 To encCount - 1
         
-'        Debug.Print file
-'        Debug.Print "Задетектирован " & Encoding(index).nCodePage & _
-'            ", кол-во: " & Encoding(index).nDocPercent & "%" & _
-'            ", вероятность " & Encoding(index).nConfidence & "%"
-        
         Percent = Encoding(Index).nDocPercent
         'BytesCnt = Encoding(index).nConfidence
         GetEncoding = Encoding(Index).nCodePage
-        
-'        If inIDE Then
-'            If encCount > 1 Then
-'                Debug.Print "Encoding Cnt: " & encCount
-'                For j = 0 To encCount - 1
-'                    Debug.Print "Задетектирован " & Encoding(j).nCodePage & _
-'                        ", кол-во: " & Encoding(j).nDocPercent & "%" & _
-'                        ", вероятность " & Encoding(j).nConfidence & "%"
-'                Next
-'            End If
-'        End If
         
         Exit Function
     Next
@@ -538,11 +514,11 @@ ErrorHandler:
     GetEncoding = GetEncoding_UTF8(aBytes(), Percent)
 End Function
 
-Function GetEncoding_UTF8(aBytes() As Byte, Optional Percent As Long) As Long
+Function GetEncoding_UTF8(aBytes() As Byte, Optional Percent As Long) As idCodePage
     On Error GoTo ErrorHandler
     AppendErrorLogCustom "Parser.GetEncoding_UTF8 - Begin"
     
-    Dim c As Long, n As Long, i As Long, bSuccess As Boolean, BTC As Long 'bytes to check
+    Dim c As Long, N As Long, NTotal As Long, i As Long, bSuccess As Boolean, BTC As Long 'bytes to check
     
     Do
         '2-bytes seq.: 110x xxxx, 10xx xxxx (0xC0, 0x80)
@@ -569,18 +545,24 @@ Function GetEncoding_UTF8(aBytes() As Byte, Optional Percent As Long) As Long
         If (BTC > 0) And ((c + BTC) <= UBound(aBytes)) Then
             bSuccess = True
             For i = c + 1 To c + BTC
-                If ((aBytes(c + 1) Xor &H80) And &HC0) <> 0 Then bSuccess = False: Exit For
+                If ((aBytes(i) Xor &H80) And &HC0) <> 0 Then bSuccess = False: Exit For
             Next
-            If bSuccess Then n = n + 1
+            If bSuccess Then N = N + 1
+        End If
+        
+        If aBytes(c) <> 13 And aBytes(c) <> 10 Then
+            NTotal = NTotal + 1
         End If
         
         c = c + 1 + BTC
         
-    Loop Until c >= UBound(aBytes)
+    Loop While c <= UBound(aBytes)
     
-    Percent = n / UBound(aBytes) * 100&
+    If NTotal <> 0 Then
+        Percent = N * 100& / NTotal
+    End If
     
-    If Percent > 10 Then Percent = -1: GetEncoding_UTF8 = CP_UTF8
+    If Percent >= 5 Then Percent = -1: GetEncoding_UTF8 = CP_UTF8
     
     AppendErrorLogCustom "Parser.GetEncoding_UTF8 - End"
     Exit Function
@@ -601,33 +583,39 @@ Public Function CreateHJTShortcuts(HJT_Location As String) As Boolean
     Dim bSuccess As Boolean
     Dim hFile As Long
     bSuccess = True
-    bSuccess = bSuccess And MkDirW(BuildPath(StartMenuPrograms, "HiJackThis Fork"))
-    bSuccess = bSuccess And MkDirW(BuildPath(StartMenuPrograms, "HiJackThis Fork\Tools"))
-    bSuccess = bSuccess And MkDirW(BuildPath(StartMenuPrograms, "HiJackThis Fork\Plugins"))
+    bSuccess = bSuccess And MkDirW(BuildPath(StartMenuPrograms, "HijackThis+"))
+    bSuccess = bSuccess And MkDirW(BuildPath(StartMenuPrograms, "HiJackThis+\Tools"))
+    bSuccess = bSuccess And MkDirW(BuildPath(StartMenuPrograms, "HiJackThis+\Plugins"))
     
-    bSuccess = bSuccess And CreateShortcut(BuildPath(StartMenuPrograms, "HiJackThis Fork\HiJackThis.lnk"), HJT_Location)
-    bSuccess = bSuccess And CreateShortcut(BuildPath(StartMenuPrograms, "HiJackThis Fork\Uninstall HJT.lnk"), HJT_Location, "/uninstall")
+    bSuccess = bSuccess And CreateShortcut(BuildPath(StartMenuPrograms, "HiJackThis+\HiJackThis.lnk"), HJT_Location)
+    bSuccess = bSuccess And CreateShortcut(BuildPath(StartMenuPrograms, "HiJackThis+\Uninstall HJT.lnk"), HJT_Location, "/uninstall")
     
-    bSuccess = bSuccess And CreateShortcut(BuildPath(StartMenuPrograms, "HiJackThis Fork\Tools\StartupList.lnk"), HJT_Location, "/tool+StartupList", , , "Lists startup items in a convenient way")
-    bSuccess = bSuccess And CreateShortcut(BuildPath(StartMenuPrograms, "HiJackThis Fork\Tools\Uninstall Manager.lnk"), HJT_Location, "/tool+UninstMan", , , "Manage the list of installed software")
-    bSuccess = bSuccess And CreateShortcut(BuildPath(StartMenuPrograms, "HiJackThis Fork\Tools\Digital Signature Checker.lnk"), HJT_Location, "/tool+DigiSign", , , "Check your PE EXE files digital signature")
-    bSuccess = bSuccess And CreateShortcut(BuildPath(StartMenuPrograms, "HiJackThis Fork\Tools\Registry Key Unlocker.lnk"), HJT_Location, "/tool+RegUnlocker", , , "Unlock and reset permissions on registry key")
-    bSuccess = bSuccess And CreateShortcut(BuildPath(StartMenuPrograms, "HiJackThis Fork\Tools\ADS Spy.lnk"), HJT_Location, "/tool+ADSSpy", , , "Alternative Data Streams Scanner & Remover")
-    bSuccess = bSuccess And CreateShortcut(BuildPath(StartMenuPrograms, "HiJackThis Fork\Tools\Hosts File Manager.lnk"), HJT_Location, "/tool+Hosts", , , "Manage entries in hosts file")
-    bSuccess = bSuccess And CreateShortcut(BuildPath(StartMenuPrograms, "HiJackThis Fork\Tools\Process Manager.lnk"), HJT_Location, "/tool+ProcMan", , , "Little tool like Task Manager")
-    bSuccess = bSuccess And CreateShortcut(BuildPath(StartMenuPrograms, "HiJackThis Fork\Plugins\Check Browsers' LNK.lnk"), HJT_Location, "/tool+CheckLNK", , , "Checks your PC for shortcuts infection")
-    bSuccess = bSuccess And CreateShortcut(BuildPath(StartMenuPrograms, "HiJackThis Fork\Plugins\ClearLNK.lnk"), HJT_Location, "/tool+ClearLNK", , , "LNK / URL Shortcuts cleaner & restorer")
+    bSuccess = bSuccess And CreateShortcut(BuildPath(StartMenuPrograms, "HiJackThis+\Tools\StartupList.lnk"), HJT_Location, "/tool+StartupList", , , "Lists startup items in a convenient way")
+    bSuccess = bSuccess And CreateShortcut(BuildPath(StartMenuPrograms, "HiJackThis+\Tools\Uninstall Manager.lnk"), HJT_Location, "/tool+UninstMan", , , "Manage the list of installed software")
+    bSuccess = bSuccess And CreateShortcut(BuildPath(StartMenuPrograms, "HiJackThis+\Tools\Digital Signature Checker.lnk"), HJT_Location, "/tool+DigiSign", , , "Check your PE EXE files digital signature")
+    bSuccess = bSuccess And CreateShortcut(BuildPath(StartMenuPrograms, "HiJackThis+\Tools\Registry Key Unlocker.lnk"), HJT_Location, "/tool+RegUnlocker", , , "Unlock and reset permissions on registry key")
+    bSuccess = bSuccess And CreateShortcut(BuildPath(StartMenuPrograms, "HiJackThis+\Tools\Registry Key Type Analyzer.lnk"), HJT_Location, "/tool+RegTypeChecker", , , "Retrieves various information about registry key")
+    bSuccess = bSuccess And CreateShortcut(BuildPath(StartMenuPrograms, "HiJackThis+\Tools\ADS Spy.lnk"), HJT_Location, "/tool+ADSSpy", , , "Alternative Data Streams Scanner & Remover")
+    bSuccess = bSuccess And CreateShortcut(BuildPath(StartMenuPrograms, "HiJackThis+\Tools\Hosts File Manager.lnk"), HJT_Location, "/tool+Hosts", , , "Manage entries in hosts file")
+    bSuccess = bSuccess And CreateShortcut(BuildPath(StartMenuPrograms, "HiJackThis+\Tools\Process Manager.lnk"), HJT_Location, "/tool+ProcMan", , , "Little tool like Task Manager")
+    bSuccess = bSuccess And CreateShortcut(BuildPath(StartMenuPrograms, "HiJackThis+\Plugins\Check Browsers' LNK.lnk"), HJT_Location, "/tool+CheckLNK", , , "Checks your PC for shortcuts infection")
+    bSuccess = bSuccess And CreateShortcut(BuildPath(StartMenuPrograms, "HiJackThis+\Plugins\ClearLNK.lnk"), HJT_Location, "/tool+ClearLNK", , , "LNK / URL Shortcuts cleaner & restorer")
     
     'Users manual url shortcut
     If IsRussianLangCode(OSver.LangSystemCode) Or IsRussianLangCode(OSver.LangDisplayCode) Then
     
-        If OpenW(BuildPath(StartMenuPrograms, "HiJackThis Fork\" & LoadResString(607) & ".url"), FOR_OVERWRITE_CREATE, hFile) Then
+        If OpenW(BuildPath(StartMenuPrograms, "HiJackThis+\" & LoadResString(607) & ".url"), FOR_OVERWRITE_CREATE, hFile) Then
             PrintLineW hFile, "[InternetShortcut]", False
             PrintLineW hFile, "URL=https://regist.safezone.cc/hijackthis_help/hijackthis.html", False
             CloseW hFile
         End If
+        If OpenW(BuildPath(StartMenuPrograms, "HiJackThis+\" & LoadResString(608) & ".url"), FOR_OVERWRITE_CREATE, hFile) Then
+            PrintLineW hFile, "[InternetShortcut]", False
+            PrintLineW hFile, "URL=https://www.safezone.cc/threads/dopolnenie-v-rukovodstvo-po-hijackthis.27470/", False
+            CloseW hFile
+        End If
     Else
-        If OpenW(BuildPath(StartMenuPrograms, "HiJackThis Fork\Users manual (short).url"), FOR_OVERWRITE_CREATE, hFile) Then
+        If OpenW(BuildPath(StartMenuPrograms, "HiJackThis+\Users manual (short).url"), FOR_OVERWRITE_CREATE, hFile) Then
             PrintLineW hFile, "[InternetShortcut]", False
             PrintLineW hFile, "URL=https://dragokas.com/tools/help/hjt_tutorial.html", False
             CloseW hFile
@@ -637,18 +625,15 @@ Public Function CreateHJTShortcuts(HJT_Location As String) As Boolean
 End Function
 
 Public Function CreateHJTShortcutDesktop(HJT_Location As String) As Boolean
-    CreateHJTShortcutDesktop = CreateShortcut(BuildPath(Desktop, "HiJackThis Fork.lnk"), HJT_Location)
+    CreateHJTShortcutDesktop = CreateShortcut(BuildPath(Desktop, "HijackThis+.lnk"), HJT_Location)
 End Function
 
-Public Function RemoveHJTShortcuts() As Boolean
-    Dim bSuccess As Boolean
-    bSuccess = True
-    bSuccess = bSuccess And DeleteFolderForce(BuildPath(StartMenuPrograms, "HiJackThis Fork"))
-    If FileExists(BuildPath(Desktop, "HiJackThis Fork.lnk")) Then
-        bSuccess = bSuccess And CBool(DeleteFileW(StrPtr(BuildPath(Desktop, "HiJackThis Fork.lnk"))))
-    End If
-    RemoveHJTShortcuts = bSuccess
-End Function
+Public Sub RemoveHJTShortcuts()
+    Call DeleteFolderForce(BuildPath(StartMenuPrograms, "HiJackThis Fork"))
+    Call DeleteFolderForce(BuildPath(StartMenuPrograms, "HijackThis+"))
+    Call DeleteFileW(StrPtr(BuildPath(Desktop, "HiJackThis Fork.lnk")))
+    Call DeleteFileW(StrPtr(BuildPath(Desktop, "HijackThis+.lnk")))
+End Sub
 
 Public Function CreateShortcut( _
     sPathLnk As String, _
@@ -659,6 +644,8 @@ Public Function CreateShortcut( _
     Optional sDescription As String = vbNullString) As Boolean
     
     If Len(sIcon) = 0 Then sIcon = sTarget
+    
+    DeleteFileW StrPtr(sPathLnk)
     
     With oSLink
         .SetPath sTarget

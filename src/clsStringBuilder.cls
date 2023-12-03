@@ -15,7 +15,9 @@ Attribute VB_Exposed = False
 
 Option Explicit
 
-#Const UseUndo = True 'adds .Undo method. If you disable #UseUndo it can slightly increase speed in methods .Overwrite / .Remove.
+#Const UseUndo = False 'adds .Undo method. If you disable #UseUndo it can slightly increase speed in methods .Overwrite / .Remove.
+#Const WE_HATE_AVIRA = True
+#Const MEMCPY_USES_COPYBYTES = Not WE_HATE_AVIRA
 
 ' ****************************************************
 '
@@ -34,8 +36,17 @@ Option Explicit
 '
 '   Fork by Alex Dragokas
 '
+'   v2.7
+'   Reverted back to using RtlMoveMemory instead of __vbaCopyBytes because Avira Antivirus doesn't like it, WTF
+'
+'   v2.6
+'   Fixed .Undo method incorrecly work after .Append / .AppendLine
+'
+'   v2.5
+'   Improved speed by replacing some RtlMoveMemory by __vbaCopyBytes
+'
 '   v2.4
-'   Added Err.raise to all methods to ensure user doesn't call it within Forms' Terminate event.
+'   Added check & Err.raise to all methods to ensure user doesn't accidentally call this class within Forms' Terminate event.
 '
 '   v2.3
 '   Fixed issue when .ToString and .ToStringRight methods returns trimmed string when buffer contains NUL characters.
@@ -99,7 +110,7 @@ Private Type SYSTEM_INFO
     lpMinimumApplicationAddress As Long
     lpMaximumApplicationAddress As Long
     dwActiveProcessorMask As Long
-    dwNumberOrfProcessors As Long
+    dwNumberOfProcessors As Long
     dwProcessorType As Long
     dwAllocationGranularity As Long
     wProcessorLevel As Integer
@@ -118,6 +129,9 @@ Private Declare Function HeapDestroy Lib "kernel32.dll" (ByVal hHeap As Long) As
 'Private Declare Function GetProcessHeap Lib "kernel32.dll" () As Long
 'Private Declare Sub RtlZeroMemory Lib "kernel32.dll" (Destination As Any, ByVal length As Long)
 Private Declare Function memcpy Lib "kernel32.dll" Alias "RtlMoveMemory" (Destination As Any, Source As Any, ByVal Length As Long) As Long
+#If MEMCPY_USES_COPYBYTES Then
+    Private Declare Function CopyBytes Lib "msvbvm60.dll" Alias "__vbaCopyBytes" (ByVal lByteLen As Long, ByRef pDestination As Any, ByRef pSource As Any) As Long
+#End If
 Private Declare Function GetMem2 Lib "msvbvm60.dll" (Src As Any, Dst As Any) As Long
 'Private Declare Function PutMem4 Lib "msvbvm60.dll" (ByVal Addr As Long, ByVal NewVal As Long) As Long
 'Private Declare Function SysAllocString Lib "oleaut32.dll" (ByVal pOlechar As Long) As Long
@@ -164,7 +178,7 @@ Private Sub Class_Initialize()
     GetSystemInfo si
     
     If si.dwPageSize = 0 Then
-        Debug.Print "Error in retrieving page size. GetSystemInfo failed with 0x" & Hex$(Err.LastDllError)
+        If inIDE Then Debug.Print "Error in retrieving page size. GetSystemInfo failed with 0x" & Hex$(Err.LastDllError)
         Err.Raise 5, , "Cannot obtain page size"
         Exit Sub
     End If
@@ -179,7 +193,7 @@ Private Sub Class_Initialize()
     
     m_hHeap = HeapCreate(HEAP_NO_SERIALIZE, m_Chunk_Size_Aligned, 0&)
     If m_hHeap = 0 Then
-        Debug.Print "HeapCreate failed with 0x" & Hex$(Err.LastDllError)
+        If inIDE Then Debug.Print "HeapCreate failed with 0x" & Hex$(Err.LastDllError)
         Err.Raise 5, , "Cannot create new heap"
         Exit Sub
     End If
@@ -227,7 +241,11 @@ Public Property Get ToString() As String
     If m_pMemoryPtr = 0 Then Err.Raise 17, , "Class is about to be destroyed"
     If m_lLength = 0 Then Exit Property
     ToString = String$(m_lLength \ 2, 0&)
-    memcpy ByVal StrPtr(ToString), ByVal m_pMemoryPtr, m_lLength
+    #If MEMCPY_USES_COPYBYTES Then
+        CopyBytes m_lLength, ByVal StrPtr(ToString), ByVal m_pMemoryPtr
+    #Else
+        memcpy ByVal StrPtr(ToString), ByVal m_pMemoryPtr, m_lLength
+    #End If
 End Property
 
 ' #############################
@@ -277,7 +295,11 @@ Public Property Get ToStringLeft(ByVal Length As Long) As String
         Length = m_lLength \ 2
     End If
     ToStringLeft = String$(Length, 0&)
-    memcpy ByVal StrPtr(ToStringLeft), ByVal m_pMemoryPtr, Length * 2
+    #If MEMCPY_USES_COPYBYTES Then
+        CopyBytes Length * 2, ByVal StrPtr(ToStringLeft), ByVal m_pMemoryPtr
+    #Else
+        memcpy ByVal StrPtr(ToStringLeft), ByVal m_pMemoryPtr, Length * 2
+    #End If
 End Property
 
 
@@ -298,7 +320,11 @@ Public Property Get ToStringMid(StartPos As Long, ByVal Length As Long) As Strin
         Length = (m_lLength \ 2) - Index
     End If
     ToStringMid = String$(Length, 0&)
-    memcpy ByVal StrPtr(ToStringMid), ByVal m_pMemoryPtr + Index * 2, Length * 2
+    #If MEMCPY_USES_COPYBYTES Then
+        CopyBytes Length * 2, ByVal StrPtr(ToStringMid), ByVal m_pMemoryPtr + Index * 2
+    #Else
+        memcpy ByVal StrPtr(ToStringMid), ByVal m_pMemoryPtr + Index * 2, Length * 2
+    #End If
 End Property
 
 
@@ -316,7 +342,11 @@ Public Property Get ToStringRight(ByVal Length As Long) As String
         Length = m_lLength \ 2
     End If
     ToStringRight = String$(Length, 0&)
-    memcpy ByVal StrPtr(ToStringRight), ByVal m_pMemoryPtr + m_lLength - Length * 2, Length * 2
+    #If MEMCPY_USES_COPYBYTES Then
+        CopyBytes Length * 2, ByVal StrPtr(ToStringRight), ByVal m_pMemoryPtr + m_lLength - Length * 2
+    #Else
+        memcpy ByVal StrPtr(ToStringRight), ByVal m_pMemoryPtr + m_lLength - Length * 2, Length * 2
+    #End If
 End Property
 
 
@@ -365,7 +395,11 @@ Public Sub Append(stri As String)
     ' Put the specified string at the end of the string buffer
     pTo = m_pMemoryPtr + m_lLength
     
-    memcpy ByVal pTo, ByVal StrPtr(stri), LenB(stri) + 2 '+2 for NUL terminator
+    #If MEMCPY_USES_COPYBYTES Then
+        CopyBytes LenB(stri) + 2, ByVal pTo, ByVal StrPtr(stri) '+2 for NUL terminator
+    #Else
+        memcpy ByVal pTo, ByVal StrPtr(stri), LenB(stri) + 2 '+2 for NUL terminator
+    #End If
     
     #If UseUndo Then
         If Not m_bInRevert Then
@@ -401,7 +435,11 @@ Public Sub AppendLine(Optional stri As String)
     
     ' Put the specified string at the end of the string buffer
     pTo = m_pMemoryPtr + m_lLength
-    memcpy ByVal pTo, ByVal StrPtr(stri), LenB(stri)
+    #If MEMCPY_USES_COPYBYTES Then
+        CopyBytes LenB(stri), ByVal pTo, ByVal StrPtr(stri)
+    #Else
+        memcpy ByVal pTo, ByVal StrPtr(stri), LenB(stri)
+    #End If
     
     #If UseUndo Then
         If Not m_bInRevert Then
@@ -412,8 +450,11 @@ Public Sub AppendLine(Optional stri As String)
     #End If
     
     ' Put CrLf + NUL to the end of buffer
-    memcpy ByVal (m_pMemoryPtr + m_lLength + LenB(stri)), ByVal StrPtr(vbCrLf), 6
-    
+    #If MEMCPY_USES_COPYBYTES Then
+        CopyBytes 6, ByVal (m_pMemoryPtr + m_lLength + LenB(stri)), ByVal StrPtr(vbCrLf)
+    #Else
+        memcpy ByVal (m_pMemoryPtr + m_lLength + LenB(stri)), ByVal StrPtr(vbCrLf), 6
+    #End If
     m_lLength = m_lLength + LenB(stri) + 4
 End Sub
 
@@ -463,8 +504,12 @@ Public Sub Insert(pos As Long, stri As String)
     pFrom = m_pMemoryPtr + (Index * 2&)
     pTo = pFrom + LenB(stri)
     
-    memcpy ByVal pTo, ByVal pFrom, m_lLength - (Index * 2&) + 2 '+2 - include NUL terminator
-    memcpy ByVal pFrom, ByVal StrPtr(stri), LenB(stri)
+    memcpy ByVal pTo, ByVal pFrom, m_lLength - (Index * 2&) + 2  '+2 - include NUL terminator
+    #If MEMCPY_USES_COPYBYTES Then
+        CopyBytes LenB(stri), ByVal pFrom, ByVal StrPtr(stri)
+    #Else
+        memcpy ByVal pFrom, ByVal StrPtr(stri), LenB(stri)
+    #End If
     
     m_lLength = m_lLength + LenB(stri)
     
@@ -523,14 +568,22 @@ Public Sub Overwrite(pos As Long, stri As String)
         If Not m_bInRevert Then
             ' Backup old value
             m_UndoText = String$(Len(stri), 0&)
-            memcpy ByVal StrPtr(m_UndoText), ByVal pTo, LenB(stri)
+            #If MEMCPY_USES_COPYBYTES Then
+                CopyBytes LenB(stri), ByVal StrPtr(m_UndoText), ByVal pTo
+            #Else
+                memcpy ByVal StrPtr(m_UndoText), ByVal pTo, LenB(stri)
+            #End If
             m_UndoIndexStart = Index
             m_LastOp = SB_LAST_OVERWRITE
         End If
     #End If
     
     'Copy the specified string into the stored string
-    memcpy ByVal pTo, ByVal StrPtr(stri), LenB(stri)
+    #If MEMCPY_USES_COPYBYTES Then
+        CopyBytes LenB(stri), ByVal pTo, ByVal StrPtr(stri)
+    #Else
+        memcpy ByVal pTo, ByVal StrPtr(stri), LenB(stri)
+    #End If
     
     ' If the string got longer (the inserted string hung over the end of the
     ' old string) we need to calculate how much bigger it got
@@ -585,7 +638,11 @@ Public Sub Remove(pos As Long, ByVal Length As Long)
         If Not m_bInRevert Then
             'backup old value
             m_UndoText = String$(Length, 0&)
-            memcpy ByVal StrPtr(m_UndoText), ByVal pTo, Length * 2&
+            #If MEMCPY_USES_COPYBYTES Then
+                CopyBytes Length * 2&, ByVal StrPtr(m_UndoText), ByVal pTo
+            #Else
+                memcpy ByVal StrPtr(m_UndoText), ByVal pTo, Length * 2&
+            #End If
             m_UndoIndexStart = Index
             m_LastOp = SB_LAST_REMOVE
         End If
@@ -616,7 +673,8 @@ Public Function Undo() As Boolean
     m_bInRevert = True
     Select Case m_LastOp
         Case SB_LAST_APPEND
-            GetMem2 ByVal StrPtr(vbNullChar), ByVal (m_pMemoryPtr + m_UndoIndexStart * 2)
+            'GetMem2 ByVal StrPtr(vbNullChar), ByVal (m_pMemoryPtr + m_UndoIndexStart * 2)
+            m_lLength = m_UndoIndexStart * 2
             
         Case SB_LAST_INSERT
             Remove m_UndoIndexStart + 1, m_UndoLength
@@ -858,7 +916,11 @@ Private Function StrCompPtrEx( _
             pStr1 = StrString1
         Else
             StrBuf1 = String$(cchCount, 0&)
-            memcpy ByVal StrPtr(StrBuf1), ByVal StrString1, cchCount * 2
+            #If MEMCPY_USES_COPYBYTES Then
+                CopyBytes cchCount * 2, ByVal StrPtr(StrBuf1), ByVal StrString1
+            #Else
+                memcpy ByVal StrPtr(StrBuf1), ByVal StrString1, cchCount * 2
+            #End If
             pStr1 = StrPtr(StrBuf1)
         End If
         
@@ -866,7 +928,11 @@ Private Function StrCompPtrEx( _
             pStr2 = StrString2
         Else
             StrBuf2 = String$(cchCount, 0&)
-            memcpy ByVal StrPtr(StrBuf2), ByVal StrString2, cchCount * 2
+            #If MEMCPY_USES_COPYBYTES Then
+                CopyBytes cchCount * 2, ByVal StrPtr(StrBuf2), ByVal StrString2
+            #Else
+                memcpy ByVal StrPtr(StrBuf2), ByVal StrString2, cchCount * 2
+            #End If
             pStr2 = StrPtr(StrBuf2)
         End If
         

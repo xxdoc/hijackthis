@@ -1,7 +1,7 @@
 
 :: Project builder by Alex Dragokas
 
-:: This is visual Basic 6 project builder                               [ ver. 1.11 ]
+:: This is visual Basic 6 project builder                               [ ver. 1.12 ]
 :: which provide backup system with local version management
 
 :: Script contains third party software:
@@ -50,7 +50,7 @@ set AppName=
 set NoUPX=true
 
 :: List of file extensions and additional folders in project's directory to include in zip-backup
-set arcList=*.vbp *.vbw *.rc *.res *.exe *.frm *.frx *.lvw *.cmd *.csi *.csv *.txt *.log *.PDM *.SCC *.lng *.pdb *.tlb *.ocx *.dll *.md *.gitignore *.bak *.odl *.idl Tools Ico
+set arcList=*.vbp *.vbw *.rc *.res *.exe *.frm *.frx *.lvw *.cmd *.csi *.csv *.txt *.log *.PDM *.SCC *.lng *.pdb *.tlb *.ocx *.dll *.md *.gitignore *.bak *.odl *.idl *.ctx *.ctl Tools Ico apps database
 
 :: Folder for backup of archive
 set ArcFolder=Archive
@@ -67,7 +67,7 @@ set Manifest=
 ::.\ManifestByTheTrick\manifest_asInvoker.txt
 
 :: Location of script(s) for adding digital signature
-set SignScript_1=h:\_AVZ\Наши разработки\_Dragokas\DigiSign\SignME.cmd
+set SignScript_1=h:\_AVZ\Наши разработки\_Dragokas\DigiSign\SignME_TaskRunner.cmd
 set SignScript_2=c:\DigiSign\SignME.cmd
 
 :: Version Patcher EXE (support for 'build' field of PE EXE version)
@@ -87,7 +87,7 @@ set CheckPDB_tool=tools\ChkMatch\ChkMatch.exe
 
 if "%~1"=="Fast" set bFast=true
 
-echo [ HiJackThis Fork project builder ]
+echo [ HijackThis+ project builder ]
 echo.
 
 :: > XP/2003 ?
@@ -99,13 +99,13 @@ echo.
 echo Searching forgotten 'stop' statements ...
 
 :: Searching for non-screened STOP statements
-call _5_Check_Stop_Statements.cmd && echo OK.
+if not defined bFast call _5_Check_Stop_Statements.cmd && echo OK.
 
 :: Checking for non-default conditional constant set and forgot
-< frmEULA.frm find /i "#Const" | find /i "= True" && (echo.& echo Non-default constant has been detected !!!& echo.& pause)
+< modInit.bas find /i "#Const" | find /i "= True" | find /v "AUTOLOGGER_DEBUG_TO_FILE" && (echo.& echo Non-default constant has been detected !!!& echo.& pause)
 
 :: Cleaning logs etc.
-call _4_Clear.cmd
+if not defined bFast call _4_Clear.cmd
 
 :: Searching project's file name
 if not Defined ProjFile For %%a in (*.vbp) do set ProjFile=%%a
@@ -144,7 +144,7 @@ echo.
 
 :: Checking requirements
 
-:: UPX exist ?
+:: UPX exists ?
 
 if "%NoUPX%"=="false" if not exist "tools\upx\upx.exe" (
   echo.
@@ -155,7 +155,7 @@ if "%NoUPX%"=="false" if not exist "tools\upx\upx.exe" (
   pause
 )
 
-:: 7zip exist ?
+:: 7zip exists ?
 
 if not exist "tools\7zip\7za.exe" (
   echo.
@@ -178,8 +178,11 @@ echo.
 echo Current version is: %OldVersion%
 
 set newVersion=
-set /p newVersion=".      New version: "
-::set newVersion=-
+if not defined bFast (
+  set /p newVersion=".      New version: "
+) else (
+  set newVersion=-
+)
 
 :: bringing version line to the standard
 if "%newVersion%"=="-" (set "newVersion=%OldVersion%"& echo .      New version: %OldVersion%)
@@ -211,10 +214,11 @@ call :BuildCustomProject "tools\TSAwarePatch\TSAware_c.vbp" "tools\TSAwarePatch\
 call :BuildCustomProject "tools\Align4byte\Project1.vbp" "tools\Align4byte\Align4byte.exe"
 call :BuildCustomProject "tools\ChangeIcon\Project1.vbp" "tools\ChangeIcon\IC.exe"
 call :BuildCustomProject "tools\RegTLib\Project1.vbp" "tools\RegTLib\RegTLib.exe"
-call :BuildCustomProject "tools\RemoveSign\Project1.vbp" "tools\RemoveSign\RemSign.exe"
+call :BuildCustomProject "tools\Caesar_Encoder\ResEncoder\Project1.vbp" "tools\Caesar_Encoder\ResEncoder\ResEncoder.exe"
+::call :BuildCustomProject "tools\RemoveSign\Project1.vbp" "tools\RemoveSign\RemSign.exe"
 
 :: updating resources (it allows prepare and concatenate several resource files: currently for HJT it is a manifest file and whitelists + language files (in future))
-call "%~dp0_1_Update_Resource.cmd"
+if not defined bFast call "%~dp0_1_Update_Resource.cmd"
 
 set "arc=%ArcFolder%\%ProjTitle%_%newVersion%"
 
@@ -224,10 +228,15 @@ set "arc=%ArcFolder%\%ProjTitle%_%newVersion%"
 ::::::::::::::::::::::::::::::
 
 for %%a in ("%AppName%") do set "ExeName=%%~na"
-:: !!! required for v14.14 linker !!!
-del %ExeName%.pdb 2>NUL
 
-call :SetupCompilerAdmin true
+:: !!! required for v14.14 linker !!!
+del "%ExeName%.pdb" 2>NUL
+
+if not defined bFast (
+  call :SetupCompilerAdmin true
+) else (
+  call :SetupCompilerUser true
+)
 
 echo.
 echo.
@@ -253,7 +262,11 @@ if exist "%AppName%" del "%AppName%"
 ::set "__COMPAT_LAYER="
 echo.
 
-call :SetupCompilerAdmin false
+if not defined bFast (
+  call :SetupCompilerAdmin false
+) else (
+  call :SetupCompilerUser false
+)
 
 >NUL copy NUL "Registration_Marker.txt"
 
@@ -292,23 +305,62 @@ if %errorlevel%==0 (
 :: manifest
 ::"%ManifestEXE%" "%cd%\%AppName%" "%Manifest%" -silent
 
+:: Pseudo-polymorph
+copy /y "%cd%\%AppName%" "HJT_poly.pif"
+:: patch polymorph
+::call "%cd%\..\HiJackThis_private\tools\Polymorph\poly_patcher.exe" "%cd%\HJT_poly.pif"
+
+
+::@echo on
+
+:: Apps dependency
+echo.
+md "%cd%\apps\" 2>NUL
+::copy /y "%cd%\%ExeName%.pdb" "%cd%\apps\"
+copy /y "%cd%\tools\VBCCR\ActiveX Control Version\Bin\VBCCR17.OCX" "%cd%\apps\"
+:: copy /y api.exe ... "%cd%\apps\"
+:: copy /y "%cd%\tools\ABR\abr.exe" "%cd%\apps\"
+:: copy /y "%cd%\tools\ABR\restore.exe" "%cd%\apps\"
+:: copy /y "%cd%\tools\ABR\restore_x64.exe" "%cd%\apps\"
+:: copy /y "%cd%\tools\PCRE2\pcre2-16.dll" "%cd%\apps\"
+
 :: Adding digital signature
 ping -n 2 127.1 >NUL
 set "signed="
 if exist "%SignScript_1%" (
-  call "%SignScript_1%" "%cd%\%AppName%" /silent
+  call "%SignScript_1%" "%cd%\%AppName%" "" "https://github.com/dragokas/hijackthis"
+  if errorlevel 1 (echo Failed to Sign! & echo. & pause)
   set signed=true
 )
-if not defined signed if exist "%SignScript_2%" call "%SignScript_2%" "%cd%\%AppName%" /silent
+if not defined signed if exist "%SignScript_2%" (
+  call "%SignScript_2%" "%cd%\%AppName%" /silent
+  if errorlevel 1 (echo Failed to Sign! & echo. & pause)
+)
 
-For /F "delims=" %%a in ("%AppName%") do set "AppTitle=%%~na"
+:: Restore modify time
+copy /b "%cd%\%AppName%"+,, "%cd%\%AppName%"
+
+:: Ensure it is correctly signed
+:: DISABLED: for some reason Sysinternals SigCheck causing freeze when piped
+::if "%OSBitness%"=="x32" (
+::  set "sigcheck=%cd%\tools\SigCheck\sigcheck.exe"
+::) else (
+::  set "sigcheck=%cd%\tools\SigCheck\sigcheck64.exe"
+::)
+set "sigcheck=%cd%\tools\SigCheck\VerifySign.exe"
+
+"%sigcheck%" "%cd%\%AppName%" | find "Publisher:" | find "Stanislav" || (
+  echo Digital signature check is failed!
+  echo.
+  pause
+)
 
 :: Checking debug. symbols for matching the image
 if /i "%CheckPDB%"=="true" (
   echo.
   echo Checking debug. symbols ...
-  "%CheckPDB_tool%" -c "%cd%\%AppTitle%.exe" "%cd%\%AppTitle%.pdb" | find /i "Result: Matched" || (
-    "%CheckPDB_tool%" -c "%cd%\%AppTitle%.exe" "%cd%\%AppTitle%.pdb"
+  "%CheckPDB_tool%" -c "%cd%\%ExeName%.exe" "%cd%\%ExeName%.pdb" | find /i "Result: Matched" || (
+    "%CheckPDB_tool%" -c "%cd%\%ExeName%.exe" "%cd%\%ExeName%.pdb"
     echo.
     pause
     echo.
@@ -318,7 +370,7 @@ if /i "%CheckPDB%"=="true" (
 :: linker v14.x leftover
 taskkill /f /im mspdbsrv.exe 2>NUL
 
-if defined bFast goto skipBackup
+if defined bFast goto vtCheck
 
 echo.
 echo Updating Chocolatey package
@@ -358,60 +410,56 @@ Tools\7zip\7za.exe a -mx9 -y -o"%ArcFolder%" "%ArcFolder%\%ProjTitle%_%newVersio
 :: For server uploading
 
 :: Delete old
-if exist "%AppTitle%.zip" del /f "%AppTitle%.zip"
+if exist "%ExeName%.zip" del /f "%ExeName%.zip"
 :: Pack
-Tools\7zip\7za.exe a -mx9 -y -o"%cd%" "%AppTitle%.zip" "%cd%\%AppTitle%.exe"
+Tools\7zip\7za.exe a -mx9 -y -o"%cd%" "%ExeName%.zip" "%cd%\%ExeName%.exe" "%cd%\apps"
 :: Test
-Tools\7zip\7za.exe t "%cd%\%AppTitle%.zip"
+Tools\7zip\7za.exe t "%cd%\%ExeName%.zip"
 :: If there was errors
 if %errorlevel% neq 0 (pause & exit /B)
 
 :: For debug purposes
-copy /y "%cd%\%AppTitle%.exe" "%AppTitle%_dbg.exe"
-Tools\7zip\7za.exe a -mx9 -y -o"%cd%" "%AppTitle%_dbg.zip" "%AppTitle%_dbg.exe"
-copy /y "%AppTitle%_dbg.zip" "%AppTitle%_dbg_test.zip"
+copy /y "%cd%\%ExeName%.exe" "%ExeName%_dbg.exe"
+2>NUL del "%ExeName%_dbg.zip"
+Tools\7zip\7za.exe a -mx9 -y -o"%cd%" "%ExeName%_dbg.zip" "%ExeName%_dbg.exe" "%cd%\apps"
+copy /y "%ExeName%_dbg.zip" "%ExeName%_dbg_test.zip"
 
-:: Pseudo-polymorph
-copy /y "%cd%\%AppTitle%.exe" "HJT_poly.pif"
 :: remove signature
-Tools\RemoveSign\RemSign.exe "%cd%\HJT_poly.pif"
+::Tools\RemoveSign\RemSign.exe "%cd%\HJT_poly.pif"
 :: pack
-Tools\7zip\7za.exe a -mx9 -y -o"%cd%" "%AppTitle%_poly.zip" "HJT_poly.pif"
+2>NUL del "%ExeName%_poly.zip"
+:: // TODO: remove apps
+Tools\7zip\7za.exe a -mx9 -y -o"%cd%" "%ExeName%_poly.zip" "HJT_poly.pif" "%cd%\apps"
 
 :: For Vir Labs
-copy /y "%cd%\%AppTitle%.exe" %AppTitle%.ex_
+set safe_ext=bak
+copy /y "%cd%\%ExeName%.exe" %ExeName%.%safe_ext%
 
-if exist "_%AppTitle%_pass_infected.zip" del /f "_%AppTitle%_pass_infected.zip"
-if exist "_%AppTitle%_pass_virus.zip" del /f "_%AppTitle%_pass_virus.zip"
-if exist "_%AppTitle%_pass_clean.zip" del /f "_%AppTitle%_pass_clean.zip"
+if exist "_%ExeName%_pass_infected.zip" del /f "_%ExeName%_pass_infected.zip"
+if exist "_%ExeName%_pass_infected.rar" del /f "_%ExeName%_pass_infected.rar"
+if exist "_%ExeName%_pass_virus.zip" del /f "_%ExeName%_pass_virus.zip"
+if exist "_%ExeName%_pass_clean.zip" del /f "_%ExeName%_pass_clean.zip"
 :: Pack
-Tools\7zip\7za.exe a -mx1 -pinfected -y -o"%cd%" "_%AppTitle%_pass_infected.zip" "%cd%\%AppTitle%.ex_"
-Tools\7zip\7za.exe a -mx1 -pvirus -y -o"%cd%" "_%AppTitle%_pass_virus.zip" "%cd%\%AppTitle%.ex_"
-Tools\7zip\7za.exe a -mx1 -pclean -y -o"%cd%" "_%AppTitle%_pass_clean.zip" "%cd%\%AppTitle%.ex_"
-del "%cd%\%AppTitle%.ex_"
+::ren "%cd%\apps\*.exe" *.%safe_ext%
+Tools\7zip\7za.exe a -mx1 -pinfected -y -o"%cd%" "_%ExeName%_pass_infected.zip" "%cd%\%ExeName%.%safe_ext%"
+Tools\7zip\7za.exe a -mx1 -pvirus -y -o"%cd%" "_%ExeName%_pass_virus.zip" "%cd%\%ExeName%.%safe_ext%"
+Tools\7zip\7za.exe a -mx1 -pclean -y -o"%cd%" "_%ExeName%_pass_clean.zip" "%cd%\%ExeName%.%safe_ext%"
+"%ProgramFiles%\WinRAR\rar.exe" a -y -m5 -pinfected "_%ExeName%_pass_infected.rar" "%ExeName%.%safe_ext%"
+::ren "%cd%\apps\*.safe_ext" *.exe
+del "%cd%\%ExeName%.%safe_ext%"
 :: Test
-Tools\7zip\7za.exe t -pinfected "%cd%\_%AppTitle%_pass_infected.zip"
+Tools\7zip\7za.exe t -pinfected "%cd%\_%ExeName%_pass_infected.zip"
 if %errorlevel% neq 0 (pause & exit /B)
-Tools\7zip\7za.exe t -pvirus "%cd%\_%AppTitle%_pass_virus.zip"
+Tools\7zip\7za.exe t -pvirus "%cd%\_%ExeName%_pass_virus.zip"
 if %errorlevel% neq 0 (pause & exit /B)
-Tools\7zip\7za.exe t -pclean "%cd%\_%AppTitle%_pass_clean.zip"
+Tools\7zip\7za.exe t -pclean "%cd%\_%ExeName%_pass_clean.zip"
 if %errorlevel% neq 0 (pause & exit /B)
-
-:skipBackup
+"%ProgramFiles%\WinRAR\rar.exe" t -pinfected "%cd%\_%ExeName%_pass_infected.rar"
+if %errorlevel% neq 0 (pause & exit /B)
 
 ::copy /y MSCOMCTL.OCX.bak MSCOMCTL.OCX
 copy /y HiJackThis.zip HiJackThis_test.zip
 del /f /a /q *.tmp 2>NUL
-
-if defined bFast goto skipVT
-
-echo.
-echo "%cd%\%AppName%" | clip
-echo Path to HiJackThis.exe has been copied to clipboard (for VT check).
-echo.
-
-:skipVT
-if defined bFast goto skipAskHotUpdate
 
 echo.
 set "ch="
@@ -421,12 +469,21 @@ if /i "%ch%" neq "n" (
   start "" _ChangeLog_en.txt
 )
 
-:skipAskHotUpdate
-
 :: test running HJT scan from Autologger (2 logs should be created - HiJackThis.log and HiJackThis_debug.log)
-if not defined bFast call _10_Scan_Execution_Test.cmd Ask
+call _10_Scan_Execution_Test.cmd Ask
+:vtCheck
+if defined bFast (
+  echo Press enter to scan on VT
+  pause >nul
+  call _3_AV_Check.cmd "%ExeName%.exe"
+  exit /b
+)
+echo.
+set /p "ch=Check on VirusTotal? Y/n: "
+if /i "%ch%"=="Y" call _3_AV_Check.cmd "%ExeName%.exe"
 
-exit /B
+goto :eof
+
 
 :BuildCustomProject [prj] [exe]
   set "prj=%~1"
@@ -440,7 +497,7 @@ exit /B
 	call "%flags_patch%" "%exe%"
 	call :SetupCompilerAdmin false
   ) else (
-    echo Exist
+    echo "%~2" - Exist
   )
 exit /b
 
@@ -485,7 +542,7 @@ Exit /B
   )) >> "%ProjFile%_"
   move /y "%ProjFile%_" "%ProjFile%" >NUL
   call :Normalize_VBP_References
-  call :RemoveMSComctlVer
+::  call :RemoveMSComctlVer
 Exit /B
 
 :CheckOpenIDE
@@ -614,6 +671,23 @@ exit /B
   echo Restoring compiler state...
   echo.
   reg delete "HKCU\Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers" /v "%compiler%" /f
+  reg import "%temp%\Layers.reg"
+  del "%temp%\Layers.reg"
+  echo.
+exit /b
+
+:SetupCompilerUser [true/false]
+  if "%~1"=="true" (
+    echo.
+    echo Forcing Compiler to run as Limited user...
+    reg export "HKCU\Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers" "%temp%\Layers.reg" /y
+    reg delete "HKCU\Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers" /v "%compiler%" /f
+	exit /b
+  )
+  echo.
+  echo Restoring compiler state...
+  echo.
+  2>NUL reg delete "HKCU\Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers" /v "%compiler%" /f
   reg import "%temp%\Layers.reg"
   del "%temp%\Layers.reg"
   echo.

@@ -17,6 +17,12 @@ Attribute VB_Exposed = False
 ' Hives Enumerator class by Alex Dragokas
 '
 
+'1.13
+'Added ability to retrieve the physically normalized name of WOW redirected keys
+
+'1.12
+'Added skipping of reflected keys
+
 '1.11
 'Enumerator returns now "S-1-5-18" instead of ".DEFAULT"
 
@@ -300,8 +306,7 @@ End Sub
 
 Public Sub AddKeys(aKeys() As String)
     If Not cell.lb_Class_Init Then
-        MsgBoxW "Class should be initialized first with .Init !!!"
-        Exit Sub
+        Err.Raise vbObjectError, "clsHiveEnum", "Class should be initialized"
     End If
     If AryItems(aKeys) Then
         cell.la_Keys = aKeys
@@ -320,8 +325,7 @@ End Sub
 'Specify Hive_Apply to apply key to specific hive only
 Public Sub AddKey(sKey As String, Optional sAppendPlaceholder As String)
     If Not cell.lb_Class_Init Then
-        MsgBoxW "Class should be initialized first with .Init !!!"
-        Exit Sub
+        Err.Raise vbObjectError, "clsHiveEnum", "Class should be initialized"
     End If
     If Not cell.lb_HaveKeys Then
         ReDim cell.la_Keys(0)
@@ -355,7 +359,7 @@ Private Sub FillPredefinedKeys()
             la_predefHive(i) = Reg.GetHKey(Left$(cell.la_Keys(i), pos - 1))
             If la_predefHive(i) <> 0 Then
                 'trim to key part only
-                cell.la_Keys(i) = Mid$(cell.la_Keys(i), pos + 1)
+                cell.la_Keys(i) = mid$(cell.la_Keys(i), pos + 1)
             End If
         End If
     Next
@@ -644,7 +648,7 @@ Private Function NextHive() As Boolean
     End If
     If cell.lb_HaveKeys Then 'append Key from array
         If bControlSet Then
-            cell.ls_Key = cell.aControlSet(cell.state_CS) & Mid$(cell.la_Keys(cell.ll_KeyIndex), 25&)
+            cell.ls_Key = cell.aControlSet(cell.state_CS) & mid$(cell.la_Keys(cell.ll_KeyIndex), 25&)
             cell.state_CS = cell.state_CS + 1
         Else
             'add SID subkey if supplied
@@ -691,13 +695,13 @@ End Function
 
 Private Function KeySuitableWOW() As Boolean
     
-    Dim kvt As KEY_VIRTUAL_TYPE
+    Dim kvt As KEY_REDIRECTION_INFO
     
     If cell.lb_HaveKeys Then
         
-        kvt = Reg.GetKeyVirtualType(state_Hive, cell.ls_Key)
+        kvt = Reg.GetKeyRedirectionType(state_Hive, cell.ls_Key)
         
-        cell.lb_Shared = CBool(kvt And KEY_VIRTUAL_SHARED)
+        cell.lb_Shared = CBool(kvt And KEY_REDIRECTION_SHARED) Or (kvt And KEY_REDIRECTION_REFLECTED)
         
         If req_Redir And HE_REDIR_DONT_IGNORE_SHARED Then 'force flag is given
             KeySuitableWOW = True
@@ -706,7 +710,7 @@ Private Function KeySuitableWOW() As Boolean
         
         If req_Redir = HE_REDIR_BOTH Then
             If state_Redir = REG_REDIRECTED Then
-                If 0 = (kvt And KEY_VIRTUAL_REDIRECTED) Then
+                If 0 = (kvt And KEY_REDIRECTION_WOW_AVAILABLE) Then
                     'exclude second 'shared' key
                     KeySuitableWOW = False
                 Else
@@ -725,7 +729,7 @@ End Function
 
 Private Function PathBeginWith(sPath As String, sBeginPart As String) As Boolean
     If StrComp(Left$(sPath, Len(sBeginPart)), sBeginPart, 1) = 0 Then
-        If Len(sPath) = Len(sBeginPart) Or Mid$(sPath, Len(sBeginPart) + 1, 1) = "\" Then PathBeginWith = True
+        If Len(sPath) = Len(sBeginPart) Or mid$(sPath, Len(sBeginPart) + 1, 1) = "\" Then PathBeginWith = True
     End If
 End Function
 
@@ -832,6 +836,15 @@ Public Property Get KeyAndHive() As String
         End If
     Else
         KeyAndHive = cell.ls_KeyAndHive
+    End If
+End Property
+'// get key part together with hive prefix of current iteration, e.g.: "HKLM\SOFTWARE\Microsoft"
+'// normalize and returns Wow64 path, if we're under redirection, e.g.: "HKLM\SOFTWARE\Wow6432Node\Microsoft"
+Public Property Get KeyAndHivePhysical() As String
+    If state_Redir Then
+        KeyAndHivePhysical = Reg.GetPhysicalNameWin32(0, KeyAndHive, True)
+    Else
+        KeyAndHivePhysical = KeyAndHive
     End If
 End Property
 '// get value part of Uniq key
@@ -1121,6 +1134,7 @@ End Sub
 '        Debug.Print "Hive handle: " & HE.Hive
 '        Debug.Print "Hive name:   " & HE.HiveName
 '        Debug.Print "Hive + key:  " & HE.KeyAndHive
+'        Debug.Print "Hive+key(ph):" & HE.KeyAndHivePhysical
 '        Debug.Print "Key:         " & HE.Key
 '        Debug.Print "Redirected:  " & HE.Redirected
 '        Debug.Print "Array index: " & HE.KeyIndex
@@ -1133,22 +1147,23 @@ End Sub
 '// test staff
 Public Sub PrintAll()
     
-    If Not cell.lb_Class_Init Then Debug.Print "Class is not initialized with .Init()": Exit Sub
-    
-    Do While Me.MoveNext
-        Debug.Print " --------- "
-        Debug.Print "Hive handle: " & Me.Hive
-        Debug.Print "Hive name:   " & Me.HiveName
-        Debug.Print "Hive + key:  " & Me.KeyAndHive
-        Debug.Print "Key:         " & Me.Key
-        Debug.Print "Redirected:  " & Me.Redirected
-        Debug.Print "Array index: " & Me.KeyIndex
-        Debug.Print "User name:   " & Me.UserName
-        Debug.Print "Sid system?  " & Me.IsSidService
-        Debug.Print "Sid user?    " & Me.IsSidUser
-        Debug.Print "Shared key?  " & Me.SharedKey
+    If inIDE Then
+        If Not cell.lb_Class_Init Then Debug.Print "Class is not initialized with .Init()": Exit Sub
         
-        'Stop
-    Loop
-    
+        Do While Me.MoveNext
+            Debug.Print " --------- "
+            Debug.Print "Hive handle: " & Me.Hive
+            Debug.Print "Hive name:   " & Me.HiveName
+            Debug.Print "Hive + key:  " & Me.KeyAndHive
+            Debug.Print "Key:         " & Me.Key
+            Debug.Print "Redirected:  " & Me.Redirected
+            Debug.Print "Array index: " & Me.KeyIndex
+            Debug.Print "User name:   " & Me.UserName
+            Debug.Print "Sid system?  " & Me.IsSidService
+            Debug.Print "Sid user?    " & Me.IsSidUser
+            Debug.Print "Shared key?  " & Me.SharedKey
+            
+            'Stop
+        Loop
+    End If
 End Sub

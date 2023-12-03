@@ -1,15 +1,190 @@
 ﻿
 Version history:
 
-1. HiJackThis
+1. HijackThis+
 2. StartupList
 3. ADSspy
 4. ProcMan
 
 
-===========================================================
-||||||||       1. HiJackThis: changelog         |||||||||||
-===========================================================
+==================================================
+|||||       1. HiJackThis: changelog         |||||
+==================================================
+
+[3.3.0.8 Alpha] - Nov 27, 2023
+ - Added escaping of line breaks and non-printable characters. Format: \x1F, where 1F is the ASCII code of the character in Hex.
+ - Added remembering of the last opened folder in various tools.
+ - Fixed file modification time during assembly.
+ - Added build date to the log header.
+ - Workaround for problems in Windows that prevent HijackThis from running.
+
+[3.3.0.7 Alpha] - Nov 09, 2023
+ - Fixed broken checkboxes of lists after the latest update.
+
+[3.3.0.6 Alpha] - Nov 02, 2023
+ - Deleting the log before starting the scan
+ - Corrected program version
+
+[3.3.0.5 Alpha] - Nov 02, 2023
+ - All UI elements have been replaced with Unicode counterparts (thanks to Krool and VanGoghGaming).
+ - Fixed out-of-buffer writing in rare cases with incorrect registry keys.
+ - Fixed insufficient control with an attempt to check the digital signature of a folder, which could lead to a crash due to the redirector being disabled (thanks to Sandor for the support).
+ - Fixed Kaspersky false positive on the fix behavior. To prevent this from happening, unpack all utility files from the archive (thanks to akok for the notification).
+ - Comprehensive cleaning and code "obfuscation" from primitive checks of antiviruses and sandboxes to prevent their suspicions (thanks to akok for the help).
+ - Refactoring of the program initialization stage.
+ - Loading of the main menu has been accelerated.
+ - Hosts Manager: reset is standardized to the default hashes of the vanilla OS hosts file; fixed "Open in editor" button.
+ - List of OS editions has been updated.
+ - Improved compatibility with Windows XP and Vista.
+ - Changed the settings storage key. The previous settings will be moved automatically.
+ - Unnecessary databases are removed.
+ - Dead links are removed.
+ - Dependency on Microsoft MSCOMCTL32 is removed.
+ - Temporary: dependency on the apps\VBCCR17.OCX component
+
+[3.2.0.2 Alpha] - Oct 09, 2023
+ - Fixed a bug with displaying the user group name.
+ - Fixed code looping on some interceptions.
+ - The "Hosts file manager" module has been rewritten with more reliable code; added "Reset" and "Update" buttons; The "Open" button now launches the default editor.
+ - The style of the main menu buttons has been replaced and unified to be identical in all OS versions. The buttons support themes, however so far only one theme has been drawn (dark).
+ - Removed the "Misc Tools" button.
+ - The "Online Guide" button has been renamed to "Tutorial & Support", and now opens a submenu with access to a choice of online/offline help and treatment forums.
+ - Renamed the "List of Backup" button to "Backups".
+ - Renamed the menu button "Help" - "Support" to "Report a bug".
+ - The "Do a system scan..." buttons are no longer disabled when scanning; pressing again will switch you to the results window.
+ - Fixed quality/cropped logo at DPI >= 150 (thanks to Eduardo and VanGoghGaming for help).
+ - References to Dr.Web were deleted because the company no longer uses HiJackThis for the treatment on forum.
+ - Minor corrections to the translation and the main project page.
+ - Improved debugging mode.
+
+[3.2.0.1 Alpha] - Sep 17, 2023
+ - [new] Added detection of O7 - Policy: Bitcoin wallet address hijacker is present (no fix).
+ - [new] Added section O27 - Account & Remote desktop protocol. Description can be found in menu Help - About - Sections.
+ - O7 - Autologon is moved in O27.
+ - Added mark "(no fix)" - which means the fix is not provided.
+ - Registry Key Analyzer: added option "Create key if not exists" (it should create key and instantly remove after checking if it didn't exist).
+ - [clean] Pending delete file operations items are moved to whitelist (known as PendingFileRenameOperations -> DELETE).
+ - Autobackup registry (ABR) is updated to v1.10.
+ - Removed suggestion to use Uncle Carey's Windows 10 NetFix to fix O10 - LSP, because this utility became payed. For Windows 8.1 use other tools, like: https://support.kaspersky.ru/common/windows/12378
+ - Fixed compatibility with Windows XP.
+ - Windows 2000 is no longer supported.
+
+[3.1.0.2 Alpha] - June 19, 2023
+ - EDS verification tool:
+	* added expert options
+	* added PE EXE filter (search for all files corresponding to the Portable Executable format)
+  - O23 - Driver: Fixed skipping 3rd party drivers signed with single signature (by Microsoft).
+  - O23 - Driver: If the third party driver is only signed by Microsoft, the "CompanyName" field from the file properties will be added to the mark.
+  - Forced launch in "Additional Scan" mode if HJT v3.1.0.1 or lower was in use before.
+
+[3.1.0.1 Alpha] - June 17, 2023
+ - Added detection of O4 - Active Setup (thanks to regist).
+ - Added flag (+safe mode) for services and drivers that starts in safe mode.
+ - Added file signer to the logfile (in all sections where it makes sense):
+	* for all Microsoft files the mark will look like this: (Sign: 'Microsoft')
+	* unsigned files: (no sign)
+	* files with signature verification error: (invalid sign)
+	* files with a successfully verified signature, however without trust of the root certificate: (sign: '<Signer>', but untrusted root: '<Root Issuer>' with fingerprint: <hash>)
+	* the signature is specified for the main file, not the argument. The exceptions are: O22 (based on Rundll32 and CLSID) and O23 host services, which displays the name of the dll signer.
+	* other details can be found in additional help (RU only): https://www.safezone.cc/threads/dopolnenie-v-rukovodstvo-po-hijackthis.27470/post-333487
+ - EDS verification tool:
+	* added field "Root Issuer" - name of the issuer of the root certificate.
+	* added field "API error code" - GetLastError verification functions. Do not rely on this code as a validation result.
+	* added field "Signer name (friendly)" - name of the signer, as it appears in the explorer properties window.
+ 	* fixed lot of bugs.
+ - Optimization of the file existence check code.
+ - Support for Ctrl + A to select all text in input fields.
+ - Fixed: Data corruption while copying/pasting text into input fields with a different keyboard layout.
+ - Fixed: in O23 - Drivers some paths were specified with wrong redirector.
+ - Fixed: missing -32 prefixes for some sections.
+ - For O10 LSP Fix under Windows 8+ it is recommended to use Uncle Carey's NetFix utility.
+ - Updated the list of well-known DNS address substitutions for O17.
+ - Blocked possible closing of the window by the user in case of lag (thanks to The Trick).
+ - Installer: Added shortcut "Registry Key Type Analyzer".
+ - Auto-update: Improved installation of HiJackThis when it is shipped with multiple files.
+ - Auto-update: Fixed several bugs when HJT is installed to another folder via /instDir key (thanks to de-served).
+
+[3.0.0.6 Alpha] - June 04, 2023
+- Fight against false antivirus detections:
+	* Encrypted strings with Windows Defender keys
+	* Rollback of CopyBytes optimization because Avira doesn't like this function :(
+	* Temporarily moved to legit certificate which almost out-of-date
+ - GitHub release link is replaced by static to a stable version 2.x, which will not be updated.
+
+[3.0.0.4 Alpha] - June 03, 2023
+  - Added BitsAdmin wait timeout (thanks Sandor)
+  - Improved compatibility with AutoLogger software (thanks to regist)
+  - Added new keys to O7 - Policy
+  - Improved Boot Mode output (displayed only if enabled and supported by hardware and OS):
+	* Added Secure Boot state (thanks Kazakevich O.)
+	* added Test Signing state
+	* added Debug Mode state
+	* added Hypervisor enforced Code Integrity (HVCI) state
+  - Added context menu Copy => File Hash
+
+[3.0.0.3 Alpha] - June 01, 2023
+  - Added definition of O7 - Account: UAC
+  - Added O7 - Policy: *\..\Policies\Explorer\DisallowRun: Fix all - fixes all DisallowRun lines at once and sets the DisallowRun parameter to 0.
+  - Displaying account type in AutoLogon.
+  - Fixed: SFC wasn't performed for missing system files.
+  - Fixed: The file name wasn't copied via the context menu if "File missing".
+  - Fixed: DisallowRun displayed wrong state.
+  - Improved Regexp in Registry Key Type Checker; fixed bug with field selection.
+  - Fixed false positives of Additional subsections.
+  - Fixed mark Boot mode: Safe Boot ("with" or "without network support" is always written).
+  - Added the DataChecker class, which makes it easier to create definition rules.
+  - Design change:
+	* text format changes
+	* Button "None of above, just start the program" renamed to "Settings"
+	* Removed the checkbox "Do not show the main menu after starting the program"
+	* DPI support for logo
+
+[3.0.0.2 Alpha] - May 29, 2023
+ - The situation in Ukraine: sirens, sirens, sirens == insomnia.
+ - "Additional scan" is included in the "default" settings.
+ - O7 - Taskbar policy: added NoViewContextMenu, NoSecurityTab
+ - Added display of current user account type: Local/Microsoft/ActiveDirectory/AzureAD/Internet (Windows 8 and above).
+ - Remove symlink keys (source).
+ - Better quality of taskbar icon.
+ - Fixed missing menu icons when selecting a language with unicode characters.
+ - Support Unicode text for the system menu (no context menu yet).
+
+[3.0.0.1 Alpha] - May 26, 2023
+ - F*ck them all, manifest is on github: https://github.com/dragokas/hijackthis
+ - No f*cking release
+General:
+- Renamed program to HiJackThis+ (Plus) to refer to a specific product without confusion with other forks:
+  * smooth transition from stand-alone exe version to multi-file version is planned
+  * the program can no longer be launched from the archive directly
+  * part of the modules is planned to be ported to C++ code with multithreading
+  - Due to violation EU GDPR by the certificate authorities which doesn't want to remove personal data from the certificate, excessive cost, as well as the war in Ukraine, the software certificate will not be renewed:
+  * when starting the program, the publisher name will be displayed as "Unknown"
+  * the program will be supplied with a self-signed certificate with the name of Alex Dragokas
+  * you can manually add this certificate to the Windows root store to continue see the publisher name in the UAC window. Instruction: https://github.com/dragokas/hijackthis/wiki/How-to-add-HiJackThis-root-certificate
+New:
+  - Added section "B" - (Browsers); under development; output/fix of suspicious Google Chrome extensions is currently supported.
+  - Added "Registry key type analyzer" tool (you can see symlinks, redirector type (presence of WOW companion and its type: Shared/Reflected/Simple key), virtualization, flags, date, etc.). Would be useful for researchers and developers.
+Functionality:
+ - Added new marks:
+ * "(missing)" - displayed for a missing registry entry (parameter or key).
+ * "(access denied)" - displayed if there are no access permissions to the object.
+ * these marks are planned to be extended to work in all sections, however at the moment it only works in O7 [TamperProtection].
+ - x32 keys ("-32" sections) are displayed with normalized name now (\Wow6432Node\ is specified whenewer the section log record isn't shortened). Can be viewed fully through context menu "Jump".
+Bugs:
+ - Fixed Digital Signature Checker: could give incorrect (pre-cached) data for some fields due to faster processing.
+
+
+[2.10.0.31] - May 06, 2023
+ - Fixed potential error in retrieving paths of executable images on Windows 8.1- due to OS bug (thanks to HackerVlad).
+ - TamperProtection will show an error code instead of the number 0 if an access is denied.
+ - Fixed freezing for 15 seconds on Windows 10+ when checking BITS.
+
+[2.10.0.29] - Apr 14, 2023
+ - Added O7 - AutoLogon.
+ - O7 - TroubleShooting (EV): [PathExt] and [PSModulePath] moved to "Missing list" method, which means item is displayed if only system defaults missing.
+ - Fixed Timer class overflow (thanks to Mikle Quits).
+ - Fixed "Search on Google".
+ - Some speed optimizations.
 
 [2.10.0.28] - Mar 02, 2023
  - Fixed progress bar bug (thanks to @Yashil06 for report).
@@ -109,7 +284,7 @@ Version history:
 
 [2.10.0.7 beta] (Nightly) - Feb 20, 2021
  - Added new 'Files Unlocker' tool (see 'Tools' menu => Files => Unlock File / Folder).
- - Global code clear and optimization (thanks to LaVolpe and his 'Project Scaner' tool).
+ - Global code clear and optimization (thanks to LaVolpe and his 'Project Scanner' tool).
  - Some errors are fixed.
  - Improved source code building script.
 
@@ -1666,4 +1841,4 @@ saved and edited in Wordpad.
 
 [v1.00]
 * Original release, later added copy to clipboard button
-                                                                                                   
+                                                                                                                                  

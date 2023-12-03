@@ -1,263 +1,330 @@
 VERSION 5.00
+Object = "{317589D1-37C8-47D9-B5B0-1C995741F353}#1.0#0"; "VBCCR17.OCX"
 Begin VB.Form frmUninstMan 
    Caption         =   "Remove Programs Manager"
-   ClientHeight    =   6756
+   ClientHeight    =   6765
    ClientLeft      =   120
-   ClientTop       =   456
-   ClientWidth     =   11436
+   ClientTop       =   450
+   ClientWidth     =   11430
    Icon            =   "frmUninstMan.frx":0000
    KeyPreview      =   -1  'True
    LinkTopic       =   "Form1"
-   ScaleHeight     =   6756
-   ScaleWidth      =   11436
-   Begin VB.Frame fraUninstMan 
-      BeginProperty Font 
+   ScaleHeight     =   6765
+   ScaleWidth      =   11430
+   Begin VBCCR17.FrameW fraUninstMan 
+      Height          =   6735
+      Left            =   120
+      TabIndex        =   0
+      Top             =   0
+      Width           =   11292
+      _ExtentX        =   0
+      _ExtentY        =   0
+      BeginProperty Font {0BE35203-8F91-11CE-9DE3-00AA004BB851} 
          Name            =   "Tahoma"
-         Size            =   8.4
+         Size            =   8.25
          Charset         =   204
          Weight          =   700
          Underline       =   0   'False
          Italic          =   0   'False
          Strikethrough   =   0   'False
       EndProperty
-      Height          =   6735
-      Left            =   120
-      TabIndex        =   0
-      Top             =   0
-      Width           =   11292
-      Begin VB.Frame fraButtons 
+      Begin VBCCR17.FrameW fraButtons 
          Height          =   3372
          Left            =   6000
          TabIndex        =   27
          Top             =   840
          Width           =   5244
-         Begin VB.TextBox txtName 
-            BackColor       =   &H8000000F&
+         _ExtentX        =   0
+         _ExtentY        =   0
+         Begin VBCCR17.TextBoxW txtName 
             Height          =   285
             Left            =   120
-            Locked          =   -1  'True
             TabIndex        =   5
             Top             =   480
             Width           =   3735
+            _ExtentX        =   0
+            _ExtentY        =   0
+            BackColor       =   -2147483633
+            Locked          =   -1  'True
          End
-         Begin VB.TextBox txtUninstCmd 
-            BackColor       =   &H8000000F&
+         Begin VBCCR17.TextBoxW txtUninstCmd 
             Height          =   285
             Left            =   120
-            Locked          =   -1  'True
             TabIndex        =   4
             Top             =   1080
             Width           =   3735
+            _ExtentX        =   0
+            _ExtentY        =   0
+            BackColor       =   -2147483633
+            Locked          =   -1  'True
          End
-         Begin VB.TextBox txtWebSite 
-            BackColor       =   &H8000000F&
+         Begin VBCCR17.TextBoxW txtWebSite 
             Height          =   285
             Left            =   120
-            Locked          =   -1  'True
             TabIndex        =   21
             Top             =   1680
             Width           =   3735
+            _ExtentX        =   0
+            _ExtentY        =   0
+            BackColor       =   -2147483633
+            Locked          =   -1  'True
          End
-         Begin VB.TextBox txtKey 
-            BackColor       =   &H8000000F&
+         Begin VBCCR17.TextBoxW txtKey 
             Height          =   285
             Left            =   120
-            Locked          =   -1  'True
             TabIndex        =   12
             Top             =   2280
             Width           =   3735
+            _ExtentX        =   0
+            _ExtentY        =   0
+            BackColor       =   -2147483633
+            Locked          =   -1  'True
          End
-         Begin VB.CommandButton cmdKeyJump 
-            Caption         =   "Jump"
+         Begin VBCCR17.CommandButtonW cmdKeyJump 
             Height          =   375
             Left            =   3960
             TabIndex        =   13
             Top             =   2160
             Width           =   1095
+            _ExtentX        =   0
+            _ExtentY        =   0
+            Caption         =   "Jump"
          End
-         Begin VB.CommandButton cmdNameEdit 
-            Caption         =   "Edit"
+         Begin VBCCR17.CommandButtonW cmdNameEdit 
             Height          =   375
             Left            =   3960
             TabIndex        =   10
             Top             =   360
             Width           =   1095
-         End
-         Begin VB.CommandButton cmdUninstStrEdit 
+            _ExtentX        =   0
+            _ExtentY        =   0
             Caption         =   "Edit"
+         End
+         Begin VBCCR17.CommandButtonW cmdUninstStrEdit 
             Height          =   375
             Left            =   3960
             TabIndex        =   9
             Top             =   960
             Width           =   1095
+            _ExtentX        =   0
+            _ExtentY        =   0
+            Caption         =   "Edit"
          End
-         Begin VB.CommandButton cmdWebSiteOpen 
-            Caption         =   "Open"
+         Begin VBCCR17.CommandButtonW cmdWebSiteOpen 
             Height          =   375
             Left            =   3960
             TabIndex        =   23
             Top             =   1560
             Width           =   1095
+            _ExtentX        =   0
+            _ExtentY        =   0
+            Caption         =   "Open"
          End
-         Begin VB.CommandButton cmdUninstall 
-            Caption         =   "Uninstall application"
+         Begin VBCCR17.CommandButtonW cmdUninstall 
             Height          =   425
             Left            =   360
             TabIndex        =   2
             Top             =   2760
             Width           =   1935
+            _ExtentX        =   0
+            _ExtentY        =   0
+            Caption         =   "Uninstall application"
          End
-         Begin VB.CommandButton cmdDelete 
-            Caption         =   "Delete this entry"
+         Begin VBCCR17.CommandButtonW cmdDelete 
             Height          =   425
             Left            =   2760
             TabIndex        =   7
             Top             =   2760
             Width           =   1935
+            _ExtentX        =   0
+            _ExtentY        =   0
+            Caption         =   "Delete this entry"
          End
-         Begin VB.Label lblName 
-            Caption         =   "Name"
+         Begin VBCCR17.LabelW lblName 
             Height          =   252
             Left            =   120
             TabIndex        =   26
             Top             =   240
             Width           =   3852
+            _ExtentX        =   0
+            _ExtentY        =   0
+            Caption         =   "Name"
          End
-         Begin VB.Label lblUninstCmd 
-            Caption         =   "Uninstall command"
+         Begin VBCCR17.LabelW lblUninstCmd 
             Height          =   252
             Left            =   120
             TabIndex        =   25
             Top             =   840
             Width           =   3852
+            _ExtentX        =   0
+            _ExtentY        =   0
+            Caption         =   "Uninstall command"
          End
-         Begin VB.Label lblKey 
-            Caption         =   "Key"
+         Begin VBCCR17.LabelW lblKey 
             Height          =   252
             Left            =   120
             TabIndex        =   22
             Top             =   2040
             Width           =   3852
+            _ExtentX        =   0
+            _ExtentY        =   0
+            Caption         =   "Key"
          End
-         Begin VB.Label lblWebSite 
-            Caption         =   "Web-site"
+         Begin VBCCR17.LabelW lblWebSite 
             Height          =   252
             Left            =   120
             TabIndex        =   11
             Top             =   1440
             Width           =   3852
+            _ExtentX        =   0
+            _ExtentY        =   0
+            Caption         =   "Web-site"
          End
       End
-      Begin VB.Frame fraFilter 
-         Caption         =   "Filter"
+      Begin VBCCR17.FrameW fraFilter 
          Height          =   1692
          Left            =   6000
          TabIndex        =   14
          Top             =   4320
          Width           =   5244
-         Begin VB.CheckBox chkFilterHKU 
-            Caption         =   "HKU (other users)"
+         _ExtentX        =   0
+         _ExtentY        =   0
+         Caption         =   "Filter"
+         Begin VBCCR17.CheckBoxW chkFilterHKU 
             Height          =   255
             Left            =   2760
             TabIndex        =   20
             Top             =   1080
-            Value           =   1  'Checked
             Width           =   2295
+            _ExtentX        =   0
+            _ExtentY        =   0
+            Value           =   1
+            Caption         =   "HKU (other users)"
          End
-         Begin VB.CheckBox chkFilterHKCU 
-            Caption         =   "HKCU (current user)"
+         Begin VBCCR17.CheckBoxW chkFilterHKCU 
             Height          =   255
             Left            =   2760
             TabIndex        =   19
             Top             =   720
-            Value           =   1  'Checked
             Width           =   2295
+            _ExtentX        =   0
+            _ExtentY        =   0
+            Value           =   1
+            Caption         =   "HKCU (current user)"
          End
-         Begin VB.CheckBox chkFilterHKLM 
-            Caption         =   "HKLM (all users)"
+         Begin VBCCR17.CheckBoxW chkFilterHKLM 
             Height          =   255
             Left            =   2760
             TabIndex        =   18
             Top             =   360
-            Value           =   1  'Checked
             Width           =   2295
+            _ExtentX        =   0
+            _ExtentY        =   0
+            Value           =   1
+            Caption         =   "HKLM (all users)"
          End
-         Begin VB.CheckBox chkFilterNoUninstStr 
-            Caption         =   "No Uninstall command"
+         Begin VBCCR17.CheckBoxW chkFilterNoUninstStr 
             Height          =   255
             Left            =   120
             TabIndex        =   17
             Top             =   720
-            Value           =   1  'Checked
             Width           =   2628
+            _ExtentX        =   0
+            _ExtentY        =   0
+            Value           =   1
+            Caption         =   "No Uninstall command"
          End
-         Begin VB.CheckBox chkFilterHidden 
-            Caption         =   "Hidden"
+         Begin VBCCR17.CheckBoxW chkFilterHidden 
             Height          =   255
             Left            =   120
             TabIndex        =   16
             Top             =   1080
-            Value           =   1  'Checked
             Width           =   2388
+            _ExtentX        =   0
+            _ExtentY        =   0
+            Value           =   1
+            Caption         =   "Hidden"
          End
-         Begin VB.CheckBox chkFilterCommon 
-            Caption         =   "Common Software"
+         Begin VBCCR17.CheckBoxW chkFilterCommon 
             Height          =   255
             Left            =   120
             TabIndex        =   15
             Top             =   360
-            Value           =   1  'Checked
             Width           =   2508
+            _ExtentX        =   0
+            _ExtentY        =   0
+            Value           =   1
+            Caption         =   "Common Software"
          End
       End
-      Begin VB.ListBox lstUninstMan 
+      Begin VBCCR17.ListBoxW lstUninstMan 
          Height          =   5100
-         IntegralHeight  =   0   'False
          Left            =   120
          TabIndex        =   1
          Top             =   960
          Width           =   5775
+         _ExtentX        =   0
+         _ExtentY        =   0
+         IntegralHeight  =   0   'False
       End
-      Begin VB.CommandButton cmdSave 
-         Caption         =   "Save list..."
-         BeginProperty Font 
+      Begin VBCCR17.CommandButtonW cmdSave 
+         Height          =   425
+         Left            =   4320
+         TabIndex        =   3
+         Top             =   6170
+         Width           =   1575
+         _ExtentX        =   0
+         _ExtentY        =   0
+         BeginProperty Font {0BE35203-8F91-11CE-9DE3-00AA004BB851} 
             Name            =   "MS Sans Serif"
-            Size            =   7.8
+            Size            =   8.25
             Charset         =   204
             Weight          =   700
             Underline       =   0   'False
             Italic          =   0   'False
             Strikethrough   =   0   'False
          EndProperty
-         Height          =   425
-         Left            =   4320
-         TabIndex        =   3
-         Top             =   6170
-         Width           =   1575
+         Caption         =   "Save list..."
       End
-      Begin VB.CommandButton cmdRefresh 
-         Caption         =   "Refresh list"
+      Begin VBCCR17.CommandButtonW cmdRefresh 
          Height          =   425
          Left            =   2040
          TabIndex        =   6
          Top             =   6170
          Width           =   1575
+         _ExtentX        =   0
+         _ExtentY        =   0
+         Caption         =   "Refresh list"
       End
-      Begin VB.CommandButton cmdOpenCP 
-         Caption         =   "Open snap-in ""Remove Software"""
+      Begin VBCCR17.CommandButtonW cmdOpenCP 
          Height          =   425
          Left            =   6720
          TabIndex        =   8
          Top             =   6170
          Width           =   3672
+         _ExtentX        =   0
+         _ExtentY        =   0
+         Caption         =   "Open snap-in ""Remove Software"""
       End
-      Begin VB.Label lblAbout 
-         Caption         =   $"frmUninstMan.frx":4072
+      Begin VBCCR17.LabelW lblAbout 
          Height          =   615
          Left            =   120
          TabIndex        =   24
          Top             =   240
          Width           =   10935
+         _ExtentX        =   0
+         _ExtentY        =   0
+         BeginProperty Font {0BE35203-8F91-11CE-9DE3-00AA004BB851} 
+            Name            =   "Tahoma"
+            Size            =   8.25
+            Charset         =   204
+            Weight          =   400
+            Underline       =   0   'False
+            Italic          =   0   'False
+            Strikethrough   =   0   'False
+         EndProperty
+         Caption         =   $"frmUninstMan.frx":4072
+         WordWrap        =   -1  'True
       End
    End
 End
@@ -291,13 +358,12 @@ End Type
 Private UninstData() As UnintallManagerData
 
 Private Sub Form_Load()
-    If OSver.MajorMinor >= 5.1 Then
-        SetWindowTheme Me.fraFilter.hwnd, StrPtr(" "), StrPtr(" ")
-    End If
     SetAllFontCharset Me, g_FontName, g_FontSize, g_bFontBold
     ReloadLanguage True
     LoadWindowPos Me, SETTINGS_SECTION_UNINSTMAN
     cmdRefresh_Click
+    SubClassTextbox Me.txtName.hWnd, True
+    SubClassTextbox Me.txtUninstCmd.hWnd, True
 End Sub
 
 Private Sub Form_QueryUnload(Cancel As Integer, UnloadMode As Integer)
@@ -307,6 +373,9 @@ Private Sub Form_QueryUnload(Cancel As Integer, UnloadMode As Integer)
     If UnloadMode = 0 Then 'initiated by user (clicking 'X')
         Cancel = True
         Me.Hide
+    Else
+        SubClassTextbox Me.txtName.hWnd, False
+        SubClassTextbox Me.txtUninstCmd.hWnd, False
     End If
 End Sub
 
@@ -366,7 +435,7 @@ Private Sub lstUninstMan_Click()
                 If isURL(.WebSite) Then
                     Blink = True
                 ElseIf StrBeginWith(.WebSite, "file:///") Then
-                    If FileExists(Replace$(Mid$(.WebSite, 9), "/", "\")) Then
+                    If FileExists(Replace$(mid$(.WebSite, 9), "/", "\")) Then
                         Blink = True
                     End If
                 ElseIf FileExists(.WebSite) Or FolderExists(.WebSite) Then
@@ -463,14 +532,14 @@ ErrorHandler:
     If inIDE Then Stop: Resume Next
 End Sub
 
-Sub ProcessRunAsX64(sCMDLine As String)
+Sub ProcessRunAsX64(sCmdLine As String)
     
     Dim sFileX64 As String
     Dim sFile As String
     Dim sApp As String
     Dim sArgs As String
     
-    SplitIntoPathAndArgs sCMDLine, sApp, sArgs, bIsRegistryData:=True
+    SplitIntoPathAndArgs sCmdLine, sApp, sArgs, bIsRegistryData:=True
     
     sFile = FindOnPath(sApp)
     sFileX64 = PathX64(sFile)
@@ -478,7 +547,7 @@ Sub ProcessRunAsX64(sCMDLine As String)
     If sFile <> sFileX64 Then
         Proc.ProcessRun vbNullString, """" & sFileX64 & """" & " " & sArgs
     Else
-        Proc.ProcessRun vbNullString, sCMDLine
+        Proc.ProcessRun vbNullString, sCmdLine
     End If
 End Sub
 
@@ -578,7 +647,7 @@ Private Sub cmdWebSiteOpen_Click()
         If isURL(sURL) Then
             OpenURL sURL
         ElseIf StrBeginWith(sURL, "file:///") Then
-            sFile = Replace$(Mid$(sURL, 9), "/", "\")
+            sFile = Replace$(mid$(sURL, 9), "/", "\")
             If FileExists(sFile) Then
                 OpenAndSelectFile sFile
             End If
@@ -787,31 +856,23 @@ End Function
 Private Sub cmdSave_Click()
     On Error GoTo ErrorHandler:
     
-    Dim i&, sFile$, hFile&, id&, bShowHeader As Boolean, Stady&, HE As clsHiveEnum
+    Dim i&, sFile$, hFile&, id&, bShowHeader As Boolean, HE As clsHiveEnum
     Dim sList As clsStringBuilder
     
     Set HE = New clsHiveEnum
     Set sList = New clsStringBuilder
     
-    Stady = 1
-    
     If lstUninstMan.ListCount = 0 Then Exit Sub
-    
-    Stady = 2
     
     'sFile = SaveFileDialog("Save "Intalled Software list" to disk...", "Text files (*.txt)|*.txt|All files (*.*)|*.*", "uninstall_list.txt")
     sFile = SaveFileDialog(Translate(1711), AppPath(), "uninstall_list.txt", Translate(1712) & " (*.txt)|*.txt|" & Translate(1003) & " (*.*)|*.*")
     
-    Stady = 3
-    
     If Len(sFile) = 0 Then Exit Sub
     
     sList.Append ChrW$(-257)
-    sList.AppendLine "Logfile of Uninstall manager v." & UninstManVer & " (HJT Fork v." & AppVerString & ")"
+    sList.AppendLine "Logfile of Uninstall manager v." & UninstManVer & " (HijackThis+ v." & AppVerString & ")"
     sList.AppendLine
     sList.Append MakeLogHeader()
-    
-    Stady = 4
     
     'Log filters used
     If chkFilterCommon.Value = vbChecked And _
@@ -840,8 +901,6 @@ Private Sub cmdSave_Click()
     sList.AppendLine String$(55, "-")
     sList.AppendLine
     
-    Stady = 5
-    
     For i = 0 To lstUninstMan.ListCount - 1
         id = lstUninstMan.ItemData(i)
         sList.AppendLine FormatLogString(id)
@@ -854,23 +913,16 @@ Private Sub cmdSave_Click()
     sList.AppendLine String$(55, "-")
     sList.AppendLine
     
-    Stady = 6
-    
     ' Make positions array of sorting by .KeyTime property (registry key date).
     Dim cnt&: cnt = lstUninstMan.ListCount - 1
     Dim pos() As Variant, names() As String: ReDim pos(cnt), names(cnt)
     For i = 0 To cnt: pos(i) = i: names(i) = UninstData(i).KeyTime: Next
     
-    Stady = 7
     QuickSortSpecial names, pos, 0, cnt
-    
-    Stady = 8
     
     For i = cnt To 0 Step -1 'descending order
         sList.AppendLine UninstData(pos(i)).KeyTime & vbTab & FormatLogString(CLng(pos(i)))
     Next
-    
-    Stady = 9
     
     sList.AppendLine
     sList.AppendLine
@@ -878,8 +930,6 @@ Private Sub cmdSave_Click()
     sList.AppendLine Space$(11) & "Uninstall Key Registry Snapshot"
     sList.AppendLine String$(55, "-")
     sList.AppendLine
-    
-    Stady = 10
     
     Dim HiveFilter As HE_HIVE
     If chkFilterHKLM.Value = vbChecked Then HiveFilter = HiveFilter Or HE_HIVE_HKLM
@@ -904,18 +954,12 @@ Private Sub cmdSave_Click()
     
     sList.Append "--" & vbCrLf & "End of file"
     
-    Stady = 11
-    
-    If FileExists(sFile) Then DeleteFileWEx (StrPtr(sFile))
-    
-    Stady = 12
+    If FileExists(sFile) Then DeleteFilePtr (StrPtr(sFile))
     
     If OpenW(sFile, FOR_OVERWRITE_CREATE, hFile, g_FileBackupFlag) Then
         PutW hFile, 1, StrPtr(sList.ToString), sList.Length * 2
         CloseW hFile, True
     End If
-    
-    Stady = 13
     
     OpenLogFile sFile
     
@@ -924,7 +968,7 @@ Private Sub cmdSave_Click()
     
     Exit Sub
 ErrorHandler:
-    ErrorMsg Err, "frmMain.cmdUninstManSave_Click", "Stady: " & Stady
+    ErrorMsg Err, "frmMain.cmdUninstManSave_Click"
     If inIDE Then Stop: Resume Next
 End Sub
 

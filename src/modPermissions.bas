@@ -314,6 +314,7 @@ Function Make_Default_Ace_Explicit(lHive As Long, KeyName As String) As EXPLICIT
     Static bufSidCreator()      As Byte
     Static bufSidTI()           As Byte
     Static bufSidAppX()         As Byte
+    Static bufSidAppXRestrict() As Byte
     
     If Not isInit Then
         isInit = True
@@ -325,8 +326,10 @@ Function Make_Default_Ace_Explicit(lHive As Long, KeyName As String) As EXPLICIT
         bufSidCreator = CreateBufferedSID("S-1-3-0")
         bufSidTI = CreateBufferedSID("S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464")  '(Win Vista+)
         bufSidAppX = CreateBufferedSID("S-1-15-2-1")
+        bufSidAppXRestrict = CreateBufferedSID("S-1-15-2-2")
         
         'ÖÅÍÒÐ ÏÀÊÅÒÎÂ ÏÐÈËÎÆÅÍÈÉ\ÂÑÅ ÏÀÊÅÒÛ ÏÐÈËÎÆÅÍÈÉ (AppX) - S-1-15-2-1 (Win 8.0+)
+        'ÖÅÍÒÐ ÏÀÊÅÒÎÂ ÏÐÈËÎÆÅÍÈÉ\ÂÑÅ ÎÃÐÀÍÈ×ÅÍÍÛÅ ÏÀÊÅÒÛ ÏÐÈËÎÆÅÍÈÉ (AppX) - S-1-15-2-2 (Win 10+)
         
         'TrustedInstaller - details on:
         '(EN) https://technet.microsoft.com/en-us/magazine/2007.06.acl.aspx
@@ -355,11 +358,12 @@ Function Make_Default_Ace_Explicit(lHive As Long, KeyName As String) As EXPLICIT
         'Secure Process Mandatory Level - S-1-16-28672
         'Authenticated Users (Ïðîøåäøèå ïðîâåðêó) - S-1-5-11
         
+        'Obtain more: PsGetSid64.exe [name]
     End If
     
     'array should be consistent
     Dim Ace_Explicit() As EXPLICIT_ACCESS
-    ReDim Ace_Explicit(10) As EXPLICIT_ACCESS   '// now used 5-8/10
+    ReDim Ace_Explicit(10) As EXPLICIT_ACCESS   '// increase it if you're adding more Sids
     
     '1. Local System:F (OI)(CI)
     idx = 0
@@ -444,6 +448,24 @@ Function Make_Default_Ace_Explicit(lHive As Long, KeyName As String) As EXPLICIT
     '5. AppX:R (OI)(CI) (optional) (Win 8.0+)
     If MajorMinor >= 6.2 Then
       pSid = VarPtr(bufSidAppX(0))
+      If IsValidSid(pSid) Then
+        With Ace_Explicit(idx)
+          .grfAccessPermissions = GENERIC_READ
+          .grfAccessMode = SET_ACCESS
+          .grfInheritance = OBJECT_INHERIT_ACE Or CONTAINER_INHERIT_ACE
+          With .tTrustee
+            .TrusteeForm = TRUSTEE_IS_SID
+            .TrusteeType = TRUSTEE_IS_UNKNOWN
+            .ptstrName = pSid
+          End With
+        End With
+        idx = idx + 1
+      End If
+    End If
+    
+    '6. AppX-restricted:R (OI)(CI) (optional) (Win 10+)
+    If MajorMinor >= 10 Then
+      pSid = VarPtr(bufSidAppXRestrict(0))
       If IsValidSid(pSid) Then
         With Ace_Explicit(idx)
           .grfAccessPermissions = GENERIC_READ
@@ -567,7 +589,7 @@ Public Function CreateBufferedSID(SidString As String) As Byte()
     
     If 0 = ConvertStringSidToSid(StrPtr(SidString), pSid) Then  ' * -> *
         If Not StrBeginWith(SidString, "Sandbox_") Then
-            Debug.Print "ErrorHandler: ConvertStringSidToSidW failed with code: " & Err.LastDllError & ". Input buffer: " & SidString
+            If inIDE Then Debug.Print "ErrorHandler: ConvertStringSidToSidW failed with code: " & Err.LastDllError & ". Input buffer: " & SidString
         End If
     Else
         If IsValidSid(pSid) Then
@@ -662,11 +684,11 @@ Public Function RegKeySetOwnerShip(lHive&, ByVal KeyName$, SidString As String, 
         If lret = ERROR_SUCCESS Then
             
             RegKeySetOwnerShip = True
-            Debug.Print KeyName & " - OwnerShip granted successfully."
+            If inIDE Then Debug.Print KeyName & " - OwnerShip granted successfully."
         
         Else
 
-            Debug.Print KeyName & " - Error in SetSecurityInfo: " & lret
+            If inIDE Then Debug.Print KeyName & " - Error in SetSecurityInfo: " & lret
             
         End If
         
@@ -675,7 +697,7 @@ Public Function RegKeySetOwnerShip(lHive&, ByVal KeyName$, SidString As String, 
     
     Exit Function
 ErrorHandler:
-    Debug.Print "Error in RegSetOwnerShip", Err, Err.Description
+    If inIDE Then Debug.Print "Error in RegSetOwnerShip", Err, Err.Description
 End Function
 
 
@@ -905,7 +927,7 @@ Public Function RegKeyResetDACL(lHive&, ByVal KeyName$, Optional bUseWow64 As Bo
                                 0&, 0&, pNewDacl, 0&) Then
                                 
                                 RegKeyResetDACL = True
-                                Debug.Print KeyName & " - Permissions granted successfully."
+                                If inIDE Then Debug.Print KeyName & " - Permissions granted successfully."
                                 
                                 If Recursive Then
                                 
@@ -968,11 +990,13 @@ Public Function RegKeyResetDACL(lHive&, ByVal KeyName$, Optional bUseWow64 As Bo
     
     End If
     
-    If Not RegKeyResetDACL Then Debug.Print KeyName & " - Failed to grant permissions!"
+    If Not RegKeyResetDACL Then
+        If inIDE Then Debug.Print KeyName & " - Failed to grant permissions!"
+    End If
 
     Exit Function
 ErrorHandler:
-    Debug.Print "Error in SetDACL", Err, Err.Description
+    If inIDE Then Debug.Print "Error in SetDACL", Err, Err.Description
 End Function
 
 'returns ptr to new ACL
@@ -1035,7 +1059,7 @@ Private Function GetHKey(ByVal HKeyName As String) As Long 'Get handle of main h
     End Select
     Exit Function
 ErrorHandler:
-    Debug.Print "Error in GetHKey"; Err; Err.Description
+    If inIDE Then Debug.Print "Error in GetHKey"; Err; Err.Description
     If inIDE Then Stop: Resume Next
 End Function
 
@@ -1113,7 +1137,7 @@ Public Function CheckAccessWrite(sFilePath As String, Optional bDeleteFile As Bo
 
     If bDeleteFile Then
         If FileExists(sFilePath, , True) Then
-            DeleteFileWEx StrPtr(sFilePath), , True
+            DeleteFilePtr StrPtr(sFilePath), , True
         End If
     End If
     Exit Function
@@ -1366,9 +1390,11 @@ Public Function SetFileStringSD(sObject As String, StrSD As String, Optional bRe
         
         iAttr = GetFileAttributes(StrPtr(sObject))
         
-        If (iAttr And FILE_ATTRIBUTE_READONLY) Then
-            iAttr = iAttr - FILE_ATTRIBUTE_READONLY
-            SetFileAttributes StrPtr(sObject), iAttr
+        If (iAttr <> INVALID_FILE_ATTRIBUTES) Then
+            If (iAttr And FILE_ATTRIBUTE_READONLY) Then
+                iAttr = iAttr - FILE_ATTRIBUTE_READONLY
+                SetFileAttributes StrPtr(sObject), iAttr
+            End If
         End If
         
         ToggleWow64FSRedirection bOldRedir
@@ -1570,6 +1596,53 @@ ErrorHandler:
     If inIDE Then Stop: Resume Next
 End Function
 
+'Win7+ only
+Public Function RegGetKeyFlags(hHive As ENUM_REG_HIVE, ByVal sKey As String, Optional bUseWow64 As Boolean) As KEY_FLAGS_INFORMATION
+    On Error GoTo ErrorHandler:
+    Dim lret As Long
+    Dim hKey As Long
+    
+    Call Reg.NormalizeKeyNameAndHiveHandle(hHive, sKey)
+    
+    lret = Reg.WrapNtOpenKeyEx(hHive, sKey, WRITE_OWNER, hKey, , bUseWow64)
+    
+    If STATUS_SUCCESS = lret Then
+
+        Dim reqSize As Long
+        lret = NtQueryKey(hKey, KeyFlagsInformation, ByVal VarPtr(RegGetKeyFlags), LenB(RegGetKeyFlags), reqSize)
+
+        NtClose hKey
+    End If
+    
+    Exit Function
+ErrorHandler:
+    ErrorMsg Err, "GetKeyFlags", "hHive:", hHive, "Key:", sKey, "Wow64:", bUseWow64
+    If inIDE Then Stop: Resume Next
+End Function
+
+Public Function RegGetKeyVirtualizationInfo(hHive As ENUM_REG_HIVE, ByVal sKey As String, Optional bUseWow64 As Boolean) As KEY_VIRTUALIZATION_INFORMATION
+    On Error GoTo ErrorHandler:
+    Dim lret As Long
+    Dim hKey As Long
+    
+    Call Reg.NormalizeKeyNameAndHiveHandle(hHive, sKey)
+    
+    lret = Reg.WrapNtOpenKeyEx(hHive, sKey, WRITE_OWNER, hKey, , bUseWow64)
+    
+    If STATUS_SUCCESS = lret Then
+
+        Dim reqSize As Long
+        lret = NtQueryKey(hKey, KeyVirtualizationInformation, ByVal VarPtr(RegGetKeyVirtualizationInfo), LenB(RegGetKeyVirtualizationInfo), reqSize)
+
+        NtClose hKey
+    End If
+    
+    Exit Function
+ErrorHandler:
+    ErrorMsg Err, "GetKeyFlags", "hHive:", hHive, "Key:", sKey, "Wow64:", bUseWow64
+    If inIDE Then Stop: Resume Next
+End Function
+
 Public Sub LockAutorunPoints()
     On Error GoTo ErrorHandler:
     
@@ -1636,3 +1709,31 @@ ErrorHandler:
     ErrorMsg Err, "LockAutorunPoints"
     If inIDE Then Stop: Resume Next
 End Sub
+
+Public Function GetDefaultFileSDDL() As String
+    ' DACL for LocalSystem, Administrators, Users, TrustedInstaller, All Packages (AppX)
+    ' Full Access
+    ' Container Inherited, Object Inherited, Propagated to Children
+    ' Disabled inheritance from parent
+    '
+    
+    Dim SDDL As String
+    
+    SDDL = "O:BAG:BAD:PAI" ' Owner - Administrators / Group - Administrators / Disabled inheritance from parent
+    SDDL = SDDL & "(A;OICIID;FA;;;SY)" ' LocalSystem
+    SDDL = SDDL & "(A;OICIID;FA;;;BA)" ' Administrators
+    SDDL = SDDL & "(A;OICIID;FA;;;BU)" ' Users
+    SDDL = SDDL & "(A;OICIID;FA;;;S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464)" ' TrustedInstaller
+    
+    If Not (OSver Is Nothing) Then
+        If OSver.IsWindows8OrGreater Then
+            SDDL = SDDL & "(A;OICIID;FA;;;S-1-15-2-1)" 'AppX
+        End If
+        If OSver.IsWindows10OrGreater Then
+            SDDL = SDDL & "(A;OICIID;FA;;;S-1-15-2-2)" 'AppX restricted
+        End If
+    End If
+    
+    GetDefaultFileSDDL = SDDL
+    
+End Function
