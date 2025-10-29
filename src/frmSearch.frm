@@ -385,6 +385,7 @@ End Sub
 
 Private Sub Form_Load()
     'CenterForm Me
+    
     SetWindowHeight
     SetAllFontCharset Me, g_FontName, g_FontSize, g_bFontBold
     Call ReloadLanguage(True)
@@ -716,12 +717,13 @@ Private Sub CmdFind_Click()
                 
                 'select the item found
                 If iPos <> 0 Then
-                    If lst.Style = 1 Then 'checkbox
+                    If lst.Style = LstStyleCheckbox Then
                         lst.ListIndex = i
                     Else
                         UnselAllListIndex lst
                         lst.ItemChecked(i) = True
                     End If
+                    lst.ListIndex = i
                     
                     '// TODO: change color of font and row (required subclassing)
                     'http://forums.codeguru.com/showthread.php?497590-VB6-How-Can-I-Make-A-ListBox-Display-Colours
@@ -1135,10 +1137,6 @@ Function SearchAllowed(Optional frmExplicit As Form, Optional out_Control As Con
             bCanSearch = True
             Set out_Control = frmMain.lstBackups
             
-        Case FRAME_ALIAS_HOSTS
-            bCanSearch = True
-            Set out_Control = frmMain.lstHostsMan
-            
         Case FRAME_ALIAS_HELP_SECTIONS, FRAME_ALIAS_HELP_KEYS, FRAME_ALIAS_HELP_PURPOSE, FRAME_ALIAS_HELP_HISTORY
             bCanSearch = True
             Set out_Control = frmMain.txtHelp
@@ -1165,6 +1163,10 @@ Function SearchAllowed(Optional frmExplicit As Form, Optional out_Control As Con
         Else
             Set out_Control = frmProcMan.lstProcessManager
         End If
+    
+    Case "frmHostsMan"
+        bCanSearch = True
+        Set out_Control = frmHostsMan.lstHostsMan
     
 '    Case "frmStartupList2"
 '        If Not frmStartupList2.fraSave.Visible Then

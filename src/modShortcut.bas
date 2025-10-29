@@ -55,24 +55,24 @@ Dim CLSID_InternetShortcut  As UUID
 Private LnkHeader(19)        As Byte
 
 
-Public Function GetFileFromShortcut(Path As String, Optional out_Args As String, Optional ForceLNK As Boolean) As String
+Public Function GetFileFromShortcut(path As String, Optional out_Args As String, Optional IsTypeLnk As Boolean) As String
     On Error GoTo ErrorHandler
 
     Dim Target  As String
     Dim ObjPath As String
     Dim sExt    As String
-
-    If ForceLNK Then
+    
+    If IsTypeLnk Then
         sExt = ".LNK"
     Else
-        sExt = UCase$(GetExtensionName(Path))
+        sExt = UCase$(GetExtensionName(path))
     End If
-
+    
     Select Case sExt
     
         Case ".LNK"
         
-            GetTargetShellLinkW Path, Target, out_Args
+            GetTargetShellLinkW path, Target, out_Args
     
             ' IDL on target ?  -> expand
             If Left$(Target, 3&) = "::{" Or Left$(Target, 4&) = "::\{" Then
@@ -82,11 +82,11 @@ Public Function GetFileFromShortcut(Path As String, Optional out_Args As String,
     
         Case ".URL", ".WEBSITE"
             
-            Target = GetUrlTargetW(Path)
+            Target = GetUrlTargetW(path)
         
         Case ".PIF"
     
-            If GetPIF_target(Path, ObjPath, out_Args) Then Target = ObjPath
+            If GetPIF_target(path, ObjPath, out_Args) Then Target = ObjPath
     
     End Select
     
@@ -94,7 +94,7 @@ Public Function GetFileFromShortcut(Path As String, Optional out_Args As String,
     
     Exit Function
 ErrorHandler:
-    ErrorMsg Err, "Parser.GetFileFromShortcut", "Path: " & Path
+    ErrorMsg Err, "Parser.GetFileFromShortcut", "Path: " & path
     If inIDE Then Stop: Resume Next
 End Function
 
@@ -104,7 +104,7 @@ Public Function GetPathFromIDL(sIDL As String) As String
     
     Dim Shl     As Object
     Dim fld     As Object
-    Dim Path    As String
+    Dim path    As String
     Dim itm     As Variant
     
     AppendErrorLogCustom "GetPathFromIDL - Begin", "IDL: " & sIDL
@@ -122,14 +122,14 @@ Public Function GetPathFromIDL(sIDL As String) As String
     If (Err.Number <> 0) Or (fld Is Nothing) Then Exit Function
     
     On Error GoTo ErrorHandler
-    Path = fld.Self.Path
+    path = fld.Self.path
     
-    If Len(Path) <> 0 And StrComp(Path, sIDL, 1) <> 0 Then
-        GetPathFromIDL = Path
+    If Len(path) <> 0 And StrComp(path, sIDL, 1) <> 0 Then
+        GetPathFromIDL = path
     Else
         For Each itm In fld.Items
-            Path = itm.Path
-            GetPathFromIDL = GetPathName(Path)
+            path = itm.path
+            GetPathFromIDL = GetPathName(path)
             Exit For
         Next
     End If
@@ -208,9 +208,16 @@ Public Sub GetTargetShellLinkW(LNK_file As String, Optional Target As String, Op
     End If
     
     If 0 = Len(Target) Then
-        Target = String$(MAX_PATH_W, vbNullChar)
     
-        oSLink.GetPath Target, MAX_PATH_W, fd, SLGP_UNCPRIORITY
+        Target = String$(MAX_PATH, vbNullChar)
+        oSLink.getPath Target, MAX_PATH, fd, SLGP_UNCPRIORITY
+        Target = Left$(Target, lstrlen(StrPtr(Target)))
+        
+        If Len(Target) > 255 Then
+            Target = String$(MAX_PATH_W, vbNullChar)
+            oSLink.getPath Target, MAX_PATH_W, fd, SLGP_UNCPRIORITY
+            Target = Left$(Target, lstrlen(StrPtr(Target)))
+        End If
         
         If bTerminalServerEmulation Then
         
@@ -219,25 +226,30 @@ Public Sub GetTargetShellLinkW(LNK_file As String, Optional Target As String, Op
             End If
         End If
         
-        If OSver.IsLocalSystemContext Then
-            Target = PathSubstituteProfile(Target, LNK_file)
-        End If
-        
+        'If OSver.IsLocalSystemContext Then
+        '    Target = PathSubstituteProfile(Target, LNK_file)
+        'End If
         'temporarily hack - substitute profile in any case
         'to do it normally, I need make manual parsing of LNK (already done) and return 'Special Folder' ID,
         'or just check if first token in IDList represent link to 'Special folder ID'. In such case call PathSubstituteProfile
         
-        Target = PathSubstituteProfile(Target, LNK_file)
+        Target = PathSubstituteProfile(Target, ExtractProfilePath(LNK_file))
+        
+        Target = GetFullPath(Target)
+    Else
+        Target = GetFullPath(Left$(Target, lstrlen(StrPtr(Target))))
     End If
     
-    Target = GetFullPath(Left$(Target, lstrlen(StrPtr(Target))))
-
-    Argument = String$(MAX_PATH_W, 0)
-    
-    oSLink.GetArguments Argument, MAX_PATH_W
-
+    Argument = String$(MAX_PATH, 0)
+    oSLink.GetArguments Argument, MAX_PATH
     Argument = Left$(Argument, lstrlen(StrPtr(Argument)))
-
+    
+    If Len(Argument) > 255 Then
+        Argument = String$(MAX_PATH_W, 0)
+        oSLink.GetArguments Argument, MAX_PATH_W
+        Argument = Left$(Argument, lstrlen(StrPtr(Argument)))
+    End If
+    
     'добавил trim пробелов (приём игры в прятки вирмейкеров :)
     If 0 <> Len(Argument) Then Argument = Trim$(Argument)
 
@@ -252,6 +264,15 @@ Private Function DerefDataBlock(ByRef ESL As EXP_SZ_LINK, ByRef StrOut As String
     SysReAllocString VarPtr(StrOut), StrPtr(ESL.swzTarget)
 End Function
 
+Private Function ExtractProfilePath(sPath As String) As String
+    Dim pos As Long
+    pos = InStr(Len(ProfilesDir) + 2, sPath, "\")
+    If pos <> 0 Then
+        ExtractProfilePath = Left$(sPath, pos - 1)
+    Else
+        ExtractProfilePath = sPath
+    End If
+End Function
 
 
 ' Возвращает заголовок файла
@@ -583,9 +604,9 @@ Public Function CreateHJTShortcuts(HJT_Location As String) As Boolean
     Dim bSuccess As Boolean
     Dim hFile As Long
     bSuccess = True
-    bSuccess = bSuccess And MkDirW(BuildPath(StartMenuPrograms, "HijackThis+"))
-    bSuccess = bSuccess And MkDirW(BuildPath(StartMenuPrograms, "HiJackThis+\Tools"))
-    bSuccess = bSuccess And MkDirW(BuildPath(StartMenuPrograms, "HiJackThis+\Plugins"))
+    bSuccess = bSuccess And MkDirW(BuildPath(StartMenuPrograms, "HiJackThis+"), , True)
+    bSuccess = bSuccess And MkDirW(BuildPath(StartMenuPrograms, "HiJackThis+\Tools"), , True)
+    bSuccess = bSuccess And MkDirW(BuildPath(StartMenuPrograms, "HiJackThis+\Plugins"), , True)
     
     bSuccess = bSuccess And CreateShortcut(BuildPath(StartMenuPrograms, "HiJackThis+\HiJackThis.lnk"), HJT_Location)
     bSuccess = bSuccess And CreateShortcut(BuildPath(StartMenuPrograms, "HiJackThis+\Uninstall HJT.lnk"), HJT_Location, "/uninstall")
@@ -602,7 +623,7 @@ Public Function CreateHJTShortcuts(HJT_Location As String) As Boolean
     bSuccess = bSuccess And CreateShortcut(BuildPath(StartMenuPrograms, "HiJackThis+\Plugins\ClearLNK.lnk"), HJT_Location, "/tool+ClearLNK", , , "LNK / URL Shortcuts cleaner & restorer")
     
     'Users manual url shortcut
-    If IsRussianLangCode(OSver.LangSystemCode) Or IsRussianLangCode(OSver.LangDisplayCode) Then
+    If IsRussianAreaLangCode(OSver.LangSystemCode) Or IsRussianAreaLangCode(OSver.LangDisplayCode) Then
     
         If OpenW(BuildPath(StartMenuPrograms, "HiJackThis+\" & LoadResString(607) & ".url"), FOR_OVERWRITE_CREATE, hFile) Then
             PrintLineW hFile, "[InternetShortcut]", False
@@ -615,9 +636,9 @@ Public Function CreateHJTShortcuts(HJT_Location As String) As Boolean
             CloseW hFile
         End If
     Else
-        If OpenW(BuildPath(StartMenuPrograms, "HiJackThis+\Users manual (short).url"), FOR_OVERWRITE_CREATE, hFile) Then
+        If OpenW(BuildPath(StartMenuPrograms, "HiJackThis+\Users manual.url"), FOR_OVERWRITE_CREATE, hFile) Then
             PrintLineW hFile, "[InternetShortcut]", False
-            PrintLineW hFile, "URL=https://dragokas.com/tools/help/hjt_tutorial.html", False
+            PrintLineW hFile, "URL=" & GetTutorialURL(), False
             CloseW hFile
         End If
     End If
@@ -625,14 +646,14 @@ Public Function CreateHJTShortcuts(HJT_Location As String) As Boolean
 End Function
 
 Public Function CreateHJTShortcutDesktop(HJT_Location As String) As Boolean
-    CreateHJTShortcutDesktop = CreateShortcut(BuildPath(Desktop, "HijackThis+.lnk"), HJT_Location)
+    CreateHJTShortcutDesktop = CreateShortcut(BuildPath(Desktop, "HiJackThis+.lnk"), HJT_Location)
 End Function
 
 Public Sub RemoveHJTShortcuts()
     Call DeleteFolderForce(BuildPath(StartMenuPrograms, "HiJackThis Fork"))
-    Call DeleteFolderForce(BuildPath(StartMenuPrograms, "HijackThis+"))
+    Call DeleteFolderForce(BuildPath(StartMenuPrograms, "HiJackThis+"))
     Call DeleteFileW(StrPtr(BuildPath(Desktop, "HiJackThis Fork.lnk")))
-    Call DeleteFileW(StrPtr(BuildPath(Desktop, "HijackThis+.lnk")))
+    Call DeleteFileW(StrPtr(BuildPath(Desktop, "HiJackThis+.lnk")))
 End Sub
 
 Public Function CreateShortcut( _

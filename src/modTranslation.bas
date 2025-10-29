@@ -21,6 +21,14 @@ End Enum
     Dim CP_WIN, CP_DOS, CP_KOI, CP_ISO, CP_UTF8, CP_UTF16LE
 #End If
 
+Public Enum LangEnum
+    Lang_English = 0
+    Lang_Russian
+    Lang_Ukrainian
+    Lang_French
+    Lang_Spanish
+End Enum
+
 Private Declare Function GetUserDefaultUILanguage Lib "kernel32.dll" () As Long
 'Private Declare Function GetSystemDefaultUILanguage Lib "kernel32.dll" () As Long
 'Private Declare Function GetSystemDefaultLCID Lib "kernel32.dll" () As Long
@@ -59,10 +67,24 @@ Function IsSlavianCultureCode(CultureCode As Long) As Boolean
 End Function
 
 '// check if Russian area locale code
-Public Function IsRussianLangCode(CultureCode As Long) As Boolean
+Public Function IsRussianAreaLangCode(CultureCode As Long) As Boolean
     Select Case CultureCode
         Case &H419&, &H422&, &H423&
-            IsRussianLangCode = True
+            IsRussianAreaLangCode = True
+    End Select
+End Function
+
+Public Function IsFrenchLangCode(CultureCode As Long) As Boolean
+    Select Case CultureCode
+        Case &H40C&, &H80C&, &HC0C&, &H140C&, &H180C&, &H100C&
+            IsFrenchLangCode = True
+    End Select
+End Function
+
+Public Function IsSpanishLangCode(CultureCode As Long) As Boolean
+    Select Case CultureCode
+        Case &H40A&, &HC0A&
+            IsSpanishLangCode = True
     End Select
 End Function
 
@@ -141,9 +163,9 @@ Public Sub LoadLanguage( _
             LangUA False, LoadChangelog
         Case &H419&, &H423&  'Russian, Belarusian
             LangRU False, LoadChangelog
-        Case &H40C&, &H80C&, &HC0C&, &H140C&, &H180C&, &H100C&  'French
+        Case IsFrenchLangCode(lCode)  'French
             LangFR False, LoadChangelog
-        Case &H40A&, &HC0A&  'Spanish
+        Case IsSpanishLangCode(lCode)  'Spanish
             LangSP False, LoadChangelog
         Case &H409& 'English
             LoadDefaultLanguage False, LoadChangelog
@@ -164,9 +186,9 @@ Public Sub LoadLanguage( _
             LangRU bUseResourcePriority, LoadChangelog
         Case &H422& 'Ukrainian
             LangUA bUseResourcePriority, LoadChangelog
-        Case &H40C&, &H80C&, &HC0C&, &H140C&, &H180C&, &H100C& 'French
+        Case IsFrenchLangCode(LangDisplayCode) 'French
             LangFR bUseResourcePriority, LoadChangelog
-        Case &H40A&, &HC0A&  'Spanish
+        Case IsSpanishLangCode(LangDisplayCode)  'Spanish
             LangSP bUseResourcePriority, LoadChangelog
         Case &H409& 'English
             LoadDefaultLanguage bUseResourcePriority, LoadChangelog
@@ -181,9 +203,9 @@ Public Sub LoadLanguage( _
             LangRU bUseResourcePriority, LoadChangelog
         Case &H422& 'Ukrainian
             LangUA bUseResourcePriority, LoadChangelog
-        Case &H40C&, &H80C&, &HC0C&, &H140C&, &H180C&, &H100C& 'French
+        Case IsFrenchLangCode(lCode) 'French
             LangFR bUseResourcePriority, LoadChangelog
-        Case &H40A&, &HC0A&  'Spanish
+        Case IsSpanishLangCode(lCode)  'Spanish
             LangSP bUseResourcePriority, LoadChangelog
         Case &H409& 'English
             LoadDefaultLanguage bUseResourcePriority, LoadChangelog
@@ -477,7 +499,7 @@ Public Function LoadEncryptedResFileAsCollection(sFilename As String, ResID As L
     Set LoadEncryptedResFileAsCollection = col
 End Function
 
-Private Function EnvironExtendedW(sPath As String) As String
+Public Function EnvironExtendedW(sPath As String) As String
     If Left$(sPath, 1) = "<" Then
         Dim prefix As String
         Dim pos As Long
@@ -495,6 +517,12 @@ Private Function EnvironExtendedW(sPath As String) As String
                 EnvironExtendedW = PF_64 & mid$(sPath, pos)
             Case "<PF32>"
                 EnvironExtendedW = PF_32 & mid$(sPath, pos)
+            Case "<LocalAppData>"
+                EnvironExtendedW = LocalAppData & mid$(sPath, pos)
+            Case "<AllUsersProfile>"
+                EnvironExtendedW = AllUsersProfile & mid$(sPath, pos)
+            Case "<UserProfile>"
+                EnvironExtendedW = UserProfile & mid$(sPath, pos)
             Case Else
                 ErrorMsg Err, "Invalid prefix in database: " & sPath
         End Select
@@ -842,8 +870,7 @@ Public Sub ReloadLanguage(Optional bDontTouchMainForm As Boolean)
                     Case "0041": .chkConfigTabs(0).Caption = Translation
                     
                     Case "0045": .lblFont.Caption = Translation
-                    Case "0046": .lblFontSize.Caption = Translation
-                    Case "0047": .chkFontWholeInterface.Caption = Translation
+                    Case "0047": .lblDefaultFont.Caption = Translation
                     Case "0048": .lblFont.ToolTipText = Translation
 
                     Case "0050": .chkAutoMark.Caption = Translation
@@ -851,24 +878,12 @@ Public Sub ReloadLanguage(Optional bDontTouchMainForm As Boolean)
                     Case "0052": .chkConfirm.Caption = Translation
                     'Case "0053": .chkIgnoreSafeDomains.Caption = Translation
                     Case "0054": .chkAutoMark.ToolTipText = Translation
-                    Case "0055": .chkSkipIntroFrameSettings.Caption = Translation
                     
                     Case "0058": .chkSkipErrorMsg.Caption = Translation
                     Case "0059": .chkConfigMinimizeToTray.Caption = Translation
                     
                     Case "1400": .chkConfigStartupScan.Caption = Translation
                     Case "1401": .chkConfigStartupScan.ToolTipText = Translation
-                    
-                    '; ================ Hosts manager ==================
-                    
-                    Case "0270": .fraHostsMan.Caption = Translation
-                    Case "0271": .lblHostsTip1.Caption = Translation
-                    Case "0272": .cmdHostsManDel.Caption = Translation
-                    Case "0273": .cmdHostsManToggle.Caption = Translation
-                    Case "0274": .cmdHostsManOpen.Caption = Translation
-                    Case "0276": .lblHostsTip2.Caption = Translation
-                    Case "0300": .cmdHostsManReset.Caption = Translation
-                    Case "0302": .cmdHostsManRefreshList.Caption = Translation
                     
                     '; === Other ===
                     'Case "9999": SetCharSet CInt(Translation)
@@ -880,6 +895,23 @@ Public Sub ReloadLanguage(Optional bDontTouchMainForm As Boolean)
                 If bAnotherForm Then
                     If True Then
                     
+                        '; =============== Hosts Manager ===============
+                        
+                        If IsFormInit(frmHostsMan) Then
+                            With frmHostsMan
+                                Select Case id
+                                    Case "0270": .Caption = Translation
+                                    Case "0271": .lblHostsTip1.Caption = Translation
+                                    Case "0272": .cmdHostsManDel.Caption = Translation
+                                    Case "0273": .cmdHostsManToggle.Caption = Translation
+                                    Case "0274": .cmdHostsManOpen.Caption = Translation
+                                    Case "0276": .lblHostsTip2.Caption = Translation
+                                    Case "0300": .cmdHostsManReset.Caption = Translation
+                                    Case "0302": .cmdHostsManRefreshList.Caption = Translation
+                                End Select
+                            End With
+                        End If
+                        
                         '; =============== Search form ===============
                         
                         If IsFormInit(frmSearch) Then
@@ -1210,8 +1242,10 @@ Public Sub ReloadLanguage(Optional bDontTouchMainForm As Boolean)
                                     Case "1901": .lblWhatToDo.Caption = Translation
                                     Case "1902": .chkRecur.Caption = Translation
                                     Case "1903": .cmdGo.Caption = Translation
-                                    'Case "1904": .cmdExit.Caption = Translation
                                     Case "1909": .cmdJump.Caption = Translation
+                                    Case "2484": .optPermDefault.Caption = Translation
+                                    Case "2485": .optPermCustom.Caption = Translation
+                                    Case "2486": .cmdPickSDDL.Caption = Translation
                                 End Select
                             End With
                         End If
@@ -1267,14 +1301,17 @@ Public Sub ReloadLanguage(Optional bDontTouchMainForm As Boolean)
                         If IsFormInit(frmUnlockFile) Then
                             With frmUnlockFile
                                 Select Case id
+                                    Case "1870": .cmdAddFile.Caption = Translation
+                                    Case "1872": .cmdAddFolder.Caption = Translation
                                     Case "2400": SetWindowTitleText .hWnd, Translation
                                     Case "2401": .lblWhatToDo.Caption = Translation
                                     Case "2402": .chkRecur.Caption = Translation
                                     Case "2403": .cmdGo.Caption = Translation
                                     'Case "2404": .cmdExit.Caption = Translation
                                     Case "2409": .cmdJump.Caption = Translation
-                                    Case "1870": .cmdAddFile.Caption = Translation
-                                    Case "1872": .cmdAddFolder.Caption = Translation
+                                    Case "2413": .optPermDefault.Caption = Translation
+                                    Case "2414": .optPermCustom.Caption = Translation
+                                    Case "2415": .cmdPickSDDL.Caption = Translation
                                 End Select
                             End With
                         End If
@@ -1706,4 +1743,56 @@ Public Function ConvertCodePage(SrcPtr As Long, inPage As idCodePage, Optional o
 ErrorHandler:
     ErrorMsg Err, "ConvertCodePage", "inPage:", inPage, "outPage:", outPage
     If inIDE Then Stop: Resume Next
+End Function
+
+Public Function GetPreferredLangId_ForURL(Optional bCheckLangByCurrentSelected As Boolean = False) As LangEnum
+
+    'by default, language has checked by OS interface
+    Dim id As LangEnum
+
+    If bForceLang Then
+        If bForceEN Then
+            id = Lang_English
+        ElseIf bForceRU Then
+            id = Lang_Russian
+        ElseIf bForceUA Then
+            id = Lang_Ukrainian
+        ElseIf bForceFR Then
+            id = Lang_French
+        ElseIf bForceSP Then
+            id = Lang_Spanish
+        End If
+
+    ElseIf bCheckLangByCurrentSelected Then
+        id = g_CurrentLangEnum
+        
+    ElseIf IsRussianAreaLangCode(OSver.LangSystemCode) Or IsRussianAreaLangCode(OSver.LangDisplayCode) Then
+        id = Lang_Russian
+        
+    ElseIf IsFrenchLangCode(OSver.LangSystemCode) Or IsFrenchLangCode(OSver.LangDisplayCode) Then
+        id = Lang_French
+        
+    ElseIf IsSpanishLangCode(OSver.LangSystemCode) Or IsSpanishLangCode(OSver.LangDisplayCode) Then
+        id = Lang_Spanish
+        
+    End If
+    
+    GetPreferredLangId_ForURL = id
+    
+End Function
+
+Public Function GetTutorialURL_ByLang(Lang As LangEnum) As String
+    If Lang = Lang_Russian Or Lang = Lang_Ukrainian Then
+        GetTutorialURL_ByLang = "https://regist.safezone.cc/hijackthis_help/hijackthis.html"
+    ElseIf Lang = Lang_French Then
+        GetTutorialURL_ByLang = "https://regist.safezone.cc/hijackthis_help/hijackthis_fr.html"
+    Else
+        GetTutorialURL_ByLang = "https://dragokas.com/tools/help/hjt_tutorial.html"
+    End If
+End Function
+
+Public Function GetTutorialURL(Optional bCheckLangByCurrentSelected As Boolean = False) As String
+    Dim id As LangEnum
+    id = GetPreferredLangId_ForURL(bCheckLangByCurrentSelected)
+    GetTutorialURL = GetTutorialURL_ByLang(id)
 End Function

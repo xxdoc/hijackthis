@@ -8,7 +8,7 @@ if exist "%cd%\_HJT_src.zip" (
 )
 
 :: Pack
-Tools\7zip\7za.exe a -mx1 -y -o"%cd%" -x!*.zip _HJT_src.zip *.* Tools Ico apps
+Tools\7zip\7za.exe a -mx1 -y -o"%cd%" -x!*.zip _HJT_src.zip *.* Tools Ico apps database
 :: Test
 Tools\7zip\7za.exe t "%cd%\_HJT_src.zip"
 :: If there was errors

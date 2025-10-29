@@ -4,6 +4,7 @@ Reference=*\G{00020430-0000-0000-C000-000000000046}#2.0#0#C:\Windows\SysWOW64\st
 IconForm="Form1"
 Startup="Form1"
 ExeName32="Compare-cert.exe"
+Path32=".."
 Command32=""
 Name="Project1"
 HelpContextID="0"

@@ -8,10 +8,11 @@ Attribute VB_Name = "modGlobals"
 Option Explicit
 
 Public Const LAST_CHECK_OTHER_SECTION_NUMBER As Long = 27
-
 Public Const MAX_TIMEOUT_DEFAULT As Long = 180 'Standard scan timeout
+Public Const LIMIT_CHARS_COUNT_FOR_LOGLINE = 3000
+Public Const LIMIT_CHARS_COUNT_FOR_LISTLINE = 600
 
-Public Const g_AppName As String = "HijackThis+"
+Public Const g_AppName As String = "HiJackThis+"
 
 Public Const g_Backup_Do_Every_Days As Long = 7
 Public Const g_Backup_Erase_Every_Days As Long = 28
@@ -28,8 +29,10 @@ Public Const STR_FOLDER_MISSING As String = "(folder missing)"
 Public Const STR_MISSING        As String = "(missing)"
 Public Const STR_ACCESS_DENIED  As String = "(access denied)"
 Public Const STR_NOT_SIGNED     As String = "(not signed)"
-Public Const STR_INVALID_SIGN   As String = "(invalid sign)"
+Public Const STR_INVALID_SIGN   As String = "invalid sign"
 Public Const STR_NO_FIX         As String = "(no fix)"
+Public Const STR_NO_COMPANY     As String = "no company"
+Public Const STR_OBFUSCATED     As String = "(obfuscated)"
 
 #If False Then 'for common var. names character case fixation
     Public x, y, Length, Index, sFilename, i, j, k, N, State, frm, ret, VT, isInit, hWnd, pv, Reg, pid, File, msg, VT, InArray, Self, status, FileName
@@ -58,6 +61,7 @@ End Enum
 #End If
 
 Public Enum HE_OPTIONAL_FLAGS
+    HE_OPTIONAL_FLAGS_NONE = 0
     HE_CONTROLSET_ALL = 1
     HE_CONTROLSET_EXCLUDE_CURRENT = 2
     HE_KEY_MUST_EXIST = 4
@@ -97,7 +101,6 @@ Public Enum FRAME_ALIAS
     FRAME_ALIAS_MISC_TOOLS
     FRAME_ALIAS_IGNORE_LIST
     FRAME_ALIAS_BACKUPS
-    FRAME_ALIAS_HOSTS
     FRAME_ALIAS_HELP_SECTIONS
     FRAME_ALIAS_HELP_KEYS
     FRAME_ALIAS_HELP_PURPOSE
@@ -158,6 +161,16 @@ Public Enum KEY_INFORMATION_CLASS
     MaxKeyInfoClass
 End Enum
 
+Public Enum KEY_VALUE_INFORMATION_CLASS
+    KeyValueBasicInformation = 0
+    KeyValueFullInformation
+    KeyValuePartialInformation
+    KeyValueFullInformationAlign64
+    KeyValuePartialInformationAlign64
+    KeyValueLayerInformation
+    MaxKeyValueInfoClass
+End Enum
+
 Public Type SCROLLINFO
     cbSize As Long
     fMask As Long
@@ -167,8 +180,6 @@ Public Type SCROLLINFO
     nPos As Long
     nTrackPos As Long
 End Type
-
-'frmEULA
 
 Public Type tagINITCOMMONCONTROLSEX
     dwSize  As Long
@@ -272,6 +283,7 @@ Public bMinToTray       As Boolean
 Public bStartupListSilent As Boolean
 Public g_bAppShutdown   As Boolean
 Public g_bScanInProgress      As Boolean
+Public g_bFixing              As Boolean
 Public g_bGeneralScanned      As Boolean
 Public g_bCalcHashInProgress  As Boolean
 Public g_bVTScanInProgress    As Boolean
@@ -282,6 +294,7 @@ Public bCheckForUpdates As Boolean
 Public bUpdateToTest    As Boolean
 Public bUpdateSilently  As Boolean
 Public bFirstRebootScan As Boolean
+Public bFirstScanAfterProgramStarted As Boolean
 Public bStartupScan     As Boolean
 Public gNotUserClick    As Boolean
 Public gNoGUI           As Boolean
@@ -291,9 +304,10 @@ Public h_HwndScanResults As Long
 Public g_NeedTerminate  As Boolean
 Public g_FileBackupFlag As Long
 Public g_FontName       As String
+Public g_DefaultFontName As String
 Public g_FontSize       As String
+Public g_DefaultFontSize As String
 Public g_bFontBold      As Boolean
-Public g_FontOnInterface As Boolean
 Public g_sLogFile       As String
 Public g_sDebugLogFile  As String
 Public g_hMutex         As Long
@@ -352,6 +366,7 @@ Public bForceEN As Boolean
 Public bForceUA As Boolean
 Public bForceFR As Boolean
 Public bForceSP As Boolean
+Public bForceLang As Boolean
 
 Public SysDisk          As String 'c:
 Public sWinDir          As String 'c:\windows
@@ -432,10 +447,52 @@ Public bGlobalDontFocusListBox As Boolean
 Public g_UninstallState     As Boolean  'HJT is beeing uninstalled
 Public g_ProgressMaxTags    As Long     'last progressbar tag number (count of items)
 Public g_HJT_Items_Count    As Long
-Public g_CurrentLang        As String
+Public g_CurrentLangEnum    As LangEnum
 Public g_CurrentLangID      As Long
 Public CryptVer             As Long
 Public g_sLastSearch        As String
+Public g_sLogHeaderCache    As String
+
+Public Enum ID_SECTION
+    ID_SECTION_B
+    ID_SECTION_R
+    ID_SECTION_F
+    ID_SECTION_O1
+    ID_SECTION_O2
+    ID_SECTION_O3
+    ID_SECTION_O4
+    ID_SECTION_O5
+    ID_SECTION_O6
+    ID_SECTION_O7
+    ID_SECTION_O8
+    ID_SECTION_O9
+    ID_SECTION_O10
+    ID_SECTION_O11
+    ID_SECTION_O12
+    ID_SECTION_O13
+    ID_SECTION_O14
+    ID_SECTION_O15
+    ID_SECTION_O16
+    ID_SECTION_O17
+    ID_SECTION_O18
+    ID_SECTION_O19
+    ID_SECTION_O20
+    ID_SECTION_O21
+    ID_SECTION_O22
+    ID_SECTION_O23
+    ID_SECTION_O24
+    ID_SECTION_O25
+    ID_SECTION_O26
+    ID_SECTION_O27
+    ID_SECTION_MAX
+End Enum
+
+Private Type SCAN_FILTER
+    DoExclude As Boolean
+    DoInclude As Boolean
+    Exclusion(ID_SECTION_MAX) As Boolean
+    Inclusion(ID_SECTION_MAX) As Boolean
+End Type
 
 Public ErrLogCustomText As clsStringBuilder
 Public bDebugMode   As Boolean
@@ -444,6 +501,7 @@ Public bScanMode    As Boolean
 Public g_hDebugLog  As Long
 Public g_hLog       As Long
 Public g_LogLocked  As Boolean
+Public g_ScanFilter As SCAN_FILTER
 
 Public Const SID_TEMPLATE As String = "S-{Template}"
 
@@ -922,7 +980,7 @@ Public Declare Function GetPrivateProfileString Lib "kernel32.dll" Alias "GetPri
 'Public Declare Sub CopyMemory Lib "kernel32.dll" Alias "RtlMoveMemory" (Dest As Any, Source As Any, ByVal lSize As Long)
 Public Declare Function GetLogicalDriveStrings Lib "kernel32.dll" Alias "GetLogicalDriveStringsW" (ByVal nBufferLength As Long, ByVal lpBuffer As Long) As Long
 Public Declare Function PathIsNetworkPath Lib "Shlwapi.dll" Alias "PathIsNetworkPathW" (ByVal pszPath As Long) As Long
-Public Declare Function DeviceIoControl Lib "kernel32.dll" (ByVal hDevice As Long, ByVal dwIoControlCode As Long, lpInBuffer As Any, ByVal nInBufferSize As Long, ByVal lpOutBuffer As Long, ByVal nOutBufferSize As Long, lpBytesReturned As Long, ByVal lpOverlapped As Long) As Long
+Public Declare Function DeviceIoControl Lib "kernel32.dll" (ByVal hDevice As Long, ByVal dwIoControlCode As Long, ByVal lpInBuffer As Long, ByVal nInBufferSize As Long, ByVal lpOutBuffer As Long, ByVal nOutBufferSize As Long, lpBytesReturned As Long, ByVal lpOverlapped As Long) As Long
 Public Declare Function CopyFile Lib "kernel32.dll" Alias "CopyFileW" (ByVal lpExistingFileName As Long, ByVal lpNewFileName As Long, ByVal bDontOverwrite As Long) As Long
 Public Declare Function SHFileOperation Lib "shell32.dll" Alias "SHFileOperationW" (lpFileOp As SHFILEOPSTRUCT) As Long
 Public Declare Function GetLongPathName Lib "kernel32.dll" Alias "GetLongPathNameW" (ByVal lpszShortPath As Long, ByVal lpszLongPath As Long, ByVal cchBuffer As Long) As Long
@@ -1292,13 +1350,13 @@ End Enum
 Public Declare Function GetSaveFileName Lib "comdlg32.dll" Alias "GetSaveFileNameW" (pOpenfilename As OPENFILENAME) As Long
 Public Declare Function GetUserName Lib "Advapi32.dll" Alias "GetUserNameW" (ByVal lpBuffer As Long, nSize As Long) As Long
 Public Declare Function GetComputerName Lib "kernel32.dll" Alias "GetComputerNameW" (ByVal lpBuffer As Long, nSize As Long) As Long
-Public Declare Function NetUserEnum Lib "netapi32.dll" (ByVal servername As Long, ByVal level As Long, ByVal Filter As Long, bufptr As Long, ByVal prefmaxlen As Long, entriesread As Long, totalentries As Long, resume_handle As Long) As Long
-Public Declare Function NetLocalGroupEnum Lib "netapi32.dll" (ByVal servername As Long, ByVal level As Long, bufptr As Long, ByVal prefmaxlen As Long, entriesread As Long, totalentries As Long, resume_handle As Long) As Long
-Public Declare Function NetUserGetGroups Lib "netapi32.dll" (ByVal servername As Long, ByVal UserName As Long, ByVal level As Long, bufptr As Long, ByVal prefmaxlen As Long, entriesread As Long, totalentries As Long) As Long
-Public Declare Function NetUserGetLocalGroups Lib "netapi32.dll" (ByVal servername As Long, ByVal UserName As Long, ByVal level As Long, ByVal Flags As Long, bufptr As Long, ByVal prefmaxlen As Long, entriesread As Long, totalentries As Long) As Long
+Public Declare Function NetUserEnum Lib "netapi32.dll" (ByVal servername As Long, ByVal Level As Long, ByVal Filter As Long, bufptr As Long, ByVal prefmaxlen As Long, entriesread As Long, totalentries As Long, resume_handle As Long) As Long
+Public Declare Function NetLocalGroupEnum Lib "netapi32.dll" (ByVal servername As Long, ByVal Level As Long, bufptr As Long, ByVal prefmaxlen As Long, entriesread As Long, totalentries As Long, resume_handle As Long) As Long
+Public Declare Function NetUserGetGroups Lib "netapi32.dll" (ByVal servername As Long, ByVal UserName As Long, ByVal Level As Long, bufptr As Long, ByVal prefmaxlen As Long, entriesread As Long, totalentries As Long) As Long
+Public Declare Function NetUserGetLocalGroups Lib "netapi32.dll" (ByVal servername As Long, ByVal UserName As Long, ByVal Level As Long, ByVal Flags As Long, bufptr As Long, ByVal prefmaxlen As Long, entriesread As Long, totalentries As Long) As Long
 Public Declare Function NetGroupDelUser Lib "netapi32.dll" (ByVal servername As Long, ByVal groupname As Long, ByVal UserName As Long) As Long
-Public Declare Function NetLocalGroupDelMembers Lib "netapi32.dll" (ByVal servername As Long, ByVal groupname As Long, ByVal level As Long, ByVal bufptr As Long, ByVal totalentries As Long) As Long
-Public Declare Function NetLocalGroupAddMembers Lib "netapi32.dll" (ByVal servername As Long, ByVal groupname As Long, ByVal level As Long, ByVal bufptr As Long, ByVal totalentries As Long) As Long
+Public Declare Function NetLocalGroupDelMembers Lib "netapi32.dll" (ByVal servername As Long, ByVal groupname As Long, ByVal Level As Long, ByVal bufptr As Long, ByVal totalentries As Long) As Long
+Public Declare Function NetLocalGroupAddMembers Lib "netapi32.dll" (ByVal servername As Long, ByVal groupname As Long, ByVal Level As Long, ByVal bufptr As Long, ByVal totalentries As Long) As Long
 Public Declare Function NetApiBufferFree Lib "netapi32.dll" (ByVal Buffer As Long) As Long
 Public Declare Function GetDateFormat Lib "kernel32.dll" Alias "GetDateFormatW" (ByVal Locale As Long, ByVal dwFlags As Long, lpDate As SYSTEMTIME, ByVal lpFormat As Long, ByVal lpDateStr As Long, ByVal cchDate As Long) As Long
 Public Declare Function QueryPerformanceFrequency Lib "kernel32.dll" (lpFrequency As Any) As Long
@@ -1475,7 +1533,7 @@ Public Type SECURITY_DESCRIPTOR
     Owner       As Long 'pSID
     Group       As Long 'pSID
     SACL        As Long 'pACL
-    Dacl        As Long 'pACL
+    dacl        As Long 'pACL
 End Type
 
 Public Type GENERIC_MAPPING 'https://docs.microsoft.com/en-us/windows/desktop/SecAuthZ/access-mask
@@ -1566,6 +1624,14 @@ Public Enum ACL_INFORMATION_CLASS
     AclRevisionInformation = 1
     AclSizeInformation
 End Enum
+
+Public Type ACL
+    AclRevision As Byte
+    Sbz1 As Byte
+    AclSize As Integer
+    AceCount As Integer
+    Sbz2 As Integer
+End Type
 
 'Public Type TOKEN_PRIVILEGES
 '    PrivilegeCount  As Long
@@ -1685,12 +1751,13 @@ End Enum
 
 Public Type MY_PROC_ENTRY
     Name        As String
-    Path        As String
+    path        As String
     pid         As Long
     Threads     As Long
     Priority    As Long
     SessionId   As Long
     CreationTime As Date
+    Minimal     As Boolean
 End Type
 
 Public Enum PROCESS_PRIORITY
@@ -1955,6 +2022,11 @@ Public Enum IO_PRIORITY_INFORMATION
     IO_PRIORITY_CRITICAL        'kernel mode?
 End Enum
 
+Public Type SYSTEM_PROCESS_ID_INFORMATION
+    ProcessID As LongPtr
+    ImageName As UNICODE_STRING
+End Type
+
 Public Declare Function NtQuerySystemInformation Lib "ntdll.dll" (ByVal infoClass As Long, Buffer As Any, ByVal BufferSize As Long, ret As Long) As Long
 Public Declare Function GetModuleFileNameEx Lib "psapi.dll" Alias "GetModuleFileNameExW" (ByVal hProcess As Long, ByVal hModule As Long, ByVal lpFileName As Long, ByVal nSize As Long) As Long
 Public Declare Function GetProcessImageFileName Lib "psapi.dll" Alias "GetProcessImageFileNameW" (ByVal hProcess As Long, ByVal lpImageFileName As Long, ByVal nSize As Long) As Long
@@ -1991,13 +2063,14 @@ Public Declare Function SetThreadPriorityBoost Lib "kernel32.dll" (ByVal hThread
 Public Declare Function GetThreadPriorityBoost Lib "kernel32.dll" (ByVal hThread As Long, pDisablePriorityBoost As Long) As Long
 Public Declare Function SetProcessInformation Lib "kernel32.dll" (ByVal hProcess As Long, ByVal ProcessInformationClass As PROCESS_INFORMATION_CLASS, ByVal lpData As Long, ByVal ProcessInformationSize As Long) As Long
 Public Declare Function GetProcessInformation Lib "kernel32.dll" (ByVal hProcess As Long, ByVal ProcessInformationClass As PROCESS_INFORMATION_CLASS, ByVal lpData As Long, ByVal ProcessInformationSize As Long) As Long
-Public Declare Function GetProcessId Lib "kernel32.dll" (ByVal Process As Long) As Long
+Public Declare Function GetProcessId Lib "kernel32.dll" (ByVal hProcess As Long) As Long
 Public Declare Function CreateProcessWithTokenW Lib "Advapi32.dll" (ByVal hToken As Long, ByVal dwLogonFlags As Long, ByVal lpApplicationName As Long, ByVal lpCommandLine As Long, ByVal dwCreationFlags As Long, ByVal lpEnvironment As Long, ByVal lpCurrentDirectory As Long, lpStartupInfo As STARTUPINFO, lpProcessInfo As PROCESS_INFORMATION) As Long
 'Public Declare Function OpenThreadToken Lib "Advapi32.dll" (ByVal ThreadHandle As Long, ByVal DesiredAccess As Long, ByVal OpenAsSelf As Long, TokenHandle As Long) As Long
 Public Declare Function NtSetInformationProcess Lib "ntdll.dll" (ByVal ProcessHandle As Long, ByVal ProcessInformationClass As PROCESSINFOCLASS, ByVal ProcessInformation As Long, ByVal ProcessInformationLength As Long) As Long
 Public Declare Function NtQueryInformationProcess Lib "ntdll.dll" (ByVal ProcessHandle As Long, ByVal ProcessInformationClass As PROCESSINFOCLASS, ByVal ProcessInformation As Long, ByVal ProcessInformationLength As Long, ByVal ReturnLength As Long) As Long
 Public Declare Function VirtualQuery Lib "kernel32.dll" (ByVal lpAddress As Long, lpBuffer As Any, ByVal dwLength As Long) As Long
 Public Declare Function VirtualQueryEx Lib "kernel32.dll" (ByVal hProcess As Long, ByVal lpAddress As Long, lpBuffer As Any, ByVal dwLength As Long) As Long
+Public Declare Function IsProcessCritical Lib "kernel32.dll" (ByVal hProcess As Long, Critical As Long) As Long
 
 Public Const TH32CS_SNAPPROCESS = &H2
 Public Const TH32CS_SNAPMODULE = &H8
@@ -2010,6 +2083,8 @@ Public Const THREAD_SUSPEND_RESUME = &H2
 Public Const PROCESS_SUSPEND_RESUME As Long = &H800&
 
 Public Const SystemProcessInformation      As Long = &H5&
+Public Const SystemProcessIdInformation As Long = &H58&
+
 Public Const STATUS_INFO_LENGTH_MISMATCH   As Long = &HC0000004
 Public Const STATUS_SUCCESS                As Long = 0&
 Public Const STATUS_UNSUCCESSFUL           As Long = &HC0000001
@@ -2046,6 +2121,7 @@ End Enum
 #End If
 
 Public Enum REG_VALUE_TYPE
+    REG_VALUE_TYPE_UNKNOWN = -1
     REG_NONE = 0&
     REG_SZ = 1&
     REG_EXPAND_SZ = 2&
@@ -2129,7 +2205,7 @@ End Enum
 'http://mygreenpaste.blogspot.com/2008/07/in-vista-how-does-flags-switch-of.html
 'https://github.com/rbmm/NtRegView/blob/master/registry.cpp
 Public Type KEY_FLAGS_INFORMATION
-    Unknown As Long
+    UNKNOWN As Long
     ControlFlags1 As KEY_CTRL_FL_W7_01
     ControlFlags2 As KEY_CTRL_FL_W7_02
 End Type
@@ -2172,8 +2248,14 @@ Public Declare Function DeleteService Lib "Advapi32.dll" (ByVal hService As Long
 Public Declare Function CloseServiceHandle Lib "Advapi32.dll" (ByVal hSCObject As Long) As Long
 Public Declare Function QueryServiceStatus Lib "Advapi32.dll" (ByVal hService As Long, lpServiceStatus As Any) As Long
 
+Public Const SC_MANAGER_CONNECT            As Long = &H1&
 Public Const SC_MANAGER_CREATE_SERVICE     As Long = &H2&
 Public Const SC_MANAGER_ENUMERATE_SERVICE  As Long = &H4&
+Public Const SC_MANAGER_LOCK               As Long = &H8&
+Public Const SC_MANAGER_QUERY_LOCK_STATUS  As Long = &H10&
+Public Const SC_MANAGER_MODIFY_BOOT_CONFIG As Long = &H20&
+Public Const SC_MANAGER_ALL_ACCESS         As Long = &HF003F
+
 Public Const SERVICE_QUERY_CONFIG          As Long = &H1&
 Public Const SERVICE_CHANGE_CONFIG         As Long = &H2&
 Public Const SERVICE_QUERY_STATUS          As Long = &H4&
@@ -2307,6 +2389,7 @@ Public Declare Function SystemTimeToTzSpecificLocalTime Lib "kernel32.dll" (ByVa
 Public Declare Function SystemTimeToFileTime Lib "kernel32.dll" (lpSystemTime As SYSTEMTIME, lpFileTime As FILETIME) As Long
 Public Declare Function LocalFileTimeToFileTime Lib "kernel32.dll" (lpLocalFileTime As FILETIME, lpFileTime As FILETIME) As Long
 Public Declare Function GetTimeZoneInformation Lib "kernel32.dll" (ByVal lpTimeZoneInformation As Long) As Long
+Public Declare Sub GetLocalTime Lib "kernel32.dll" (lpSystemTime As SYSTEMTIME)
 Public Declare Function IsWow64Process Lib "kernel32.dll" (ByVal hProcess As Long, ByRef Wow64Process As Long) As Long
 Public Declare Function DeleteObject Lib "gdi32.dll" (ByVal hObject As Long) As Long
 Public Declare Function GetPixel Lib "gdi32.dll" (ByVal hdc As Long, ByVal x As Long, ByVal y As Long) As Long
@@ -2326,6 +2409,7 @@ Public Declare Function CallNextHookEx Lib "user32.dll" (ByVal hhk As Long, ByVa
 Public Declare Function UnhookWindowsHookEx Lib "user32.dll" (ByVal hhk As Long) As Long
 Public Declare Function GetClientRect Lib "user32.dll" (ByVal hWnd As Long, lpRect As RECT) As Long
 Public Declare Function GetAsyncKeyState Lib "user32.dll" (ByVal vKey As Long) As Integer
+Public Declare Function GetKeyboardState Lib "user32.dll" (lpKeyState As Any) As Long
 
 Public Const GWL_STYLE As Long = -16&
 
@@ -2470,6 +2554,7 @@ Private Type STRING_CONSTANTS 'to support DBCS
     RU_PC               As String
     SHA1_PCRE2          As String
     SHA1_ABR            As String
+    SHA1_OCX            As String
     WINDOWS_DEFENDER    As String
     VIRUSTOTAL          As String
     AUTORUNS            As String

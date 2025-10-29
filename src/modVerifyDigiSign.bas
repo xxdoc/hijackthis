@@ -5,10 +5,13 @@ Option Explicit
 
 '
 ' Authenticode digital signature verifier / Driver's WHQL signature verifier
-' revision 3.2
+' revision 3.3
 '
 ' Copyrights: Alex Dragokas
 '
+
+' 19.02.2024
+' Fixed .cat files own signature verification failed
 
 ' 19.06.2023
 ' Added isThirdPartyDriver member
@@ -528,7 +531,7 @@ Private Const WTD_REVOKE_WHOLECHAIN         As Long = 1&    ' check for certific
 Private Const WTD_CHOICE_FILE               As Long = 1&    ' check internal signature
 Private Const WTD_CHOICE_CATALOG            As Long = 2&    ' check by certificate that is stored in local windows security storage
 ' flags
-Private Const WTD_SAFER_FLAG                As Long = 256&   ' ??? (probably, no UI for XP SP2)
+Private Const WTD_SAFER_FLAG                As Long = 256&   ' Undocumented
 Private Const WTD_REVOCATION_CHECK_NONE     As Long = 16&    ' do not execute revocation checking of cert. chain
 Private Const WTD_REVOCATION_CHECK_END_CERT As Long = &H20&  ' check for revocation end cert. only
 Private Const WTD_REVOCATION_CHECK_CHAIN    As Long = &H40&  ' check all cert. chain ( require internet connection to port 53 TCP/UDP )
@@ -691,6 +694,8 @@ Public Sub InitVerifyDigiSign()
         SV_LightCheckMS Or _
         SV_LightCheckOther
     
+    m_eJackFlags = m_eJackFlags Or SV_isDriver 'to check secondary signature when 'Microsoft' found
+    
     'Disabled:
     'C:\Windows\System32\spool\drivers\x64\3\CNAB4LAD.EXE - reported as Microsoft
     'Need a way to separate 3rd-party files signed via catalogue from real Microsoft files, without losing time efficiency
@@ -746,6 +751,9 @@ Public Function FormatSign(SignResult As SignResult_TYPE) As String
     
     If Not m_bEDS_Work Then Exit Function
     
+    Dim bShouldAddCompany As Boolean
+    Dim bShouldAddHash As Boolean
+    
     With SignResult
         If (.ApiErrorCode = ERROR_FILE_NOT_FOUND) Or (.ApiErrorCode = ERROR_PATH_NOT_FOUND) Then Exit Function
         If Len(.FilePathVerified) = 0 Then Exit Function
@@ -756,7 +764,9 @@ Public Function FormatSign(SignResult As SignResult_TYPE) As String
             
                 If .isMicrosoftSign Then
                     If .isThirdPartyDriver Then
-                        FormatSign = "(sign: 'Microsoft' - " & GetFilePropCompany(SignResult.FilePathVerified) & ")"
+                        
+                        FormatSign = "(sign: 'Microsoft' - "
+                        bShouldAddCompany = True
                     Else
                         FormatSign = "(sign: 'Microsoft')"
                     End If
@@ -769,15 +779,44 @@ Public Function FormatSign(SignResult As SignResult_TYPE) As String
                         FormatSign = "(sign: '" & .SubjectName & "', but untrusted root: '" & _
                             .IssuerRoot & "' with fingerprint: " & .HashRootCert & ")"
                     Case TRUST_E_NOSIGNATURE
-                        FormatSign = STR_INVALID_SIGN
+                        FormatSign = "(" & STR_INVALID_SIGN & " - "
+                        bShouldAddCompany = True
+                        bShouldAddHash = True
                     Case Else
-                        FormatSign = "(invalid sign: " & .ShortMessage & ")"
+                        FormatSign = "(" & STR_INVALID_SIGN & ": " & .ShortMessage & " - "
+                        bShouldAddCompany = True
+                        bShouldAddHash = True
                 End Select
             End If
         Else
-            FormatSign = STR_NOT_SIGNED
+            FormatSign = "(not signed - " 'STR_NOT_SIGNED
+            bShouldAddCompany = True
+            bShouldAddHash = True
         End If
     End With
+    
+    If bShouldAddCompany Then
+        Dim sCompany As String
+        sCompany = GetFilePropCompany(SignResult.FilePathVerified)
+        FormatSign = FormatSign & IIf(Len(sCompany) = 0, STR_NO_COMPANY, sCompany)
+        
+        If bShouldAddHash Then
+            Dim cFileSize As Currency
+            Dim sHash As String
+            sHash = GetFileSHA1(SignResult.FilePathVerified, cFileSize, True)
+            If Len(sHash) = 0 Then
+                If cFileSize > MAX_HASH_FILE_SIZE Then
+                    sHash = "size:" & CStr(cFileSize \ 1024 \ 1024) & " MiB"
+                Else
+                    sHash = "error getting hash"
+                End If
+            End If
+            FormatSign = FormatSign & " - " & sHash & ")"
+        Else
+            FormatSign = FormatSign & ")"
+        End If
+    End If
+    
     FormatSign = " " & FormatSign
 End Function
 
@@ -881,6 +920,7 @@ Public Function SignVerify( _
     Dim bSignIndexMissing As Boolean
     Dim NumSigners      As Long
     Dim ReturnValPrev   As Long
+    Dim bInternalSignPresenceChecked As Boolean
     
     #If UseSimpleCatCheck Then
         Dim sTag            As String
@@ -1096,6 +1136,8 @@ Public Function SignVerify( _
     If Flags And SV_PreferInternalSign Then
         'sExtension = modFile.GetExtensionName(sFilePath)
         'If StrInParamArray(sExtension, ".exe", ".sys", ".dll", ".ocx") Then
+            bInternalSignPresenceChecked = True
+            
             If IsInternalSignPresent(hFile) Then
                 SignResult.IsEmbedded = True
                 If Flags And SV_SelfTest Then Dbg "SkipCatCheck"
@@ -1238,7 +1280,9 @@ SkipCatCheck:
         'System does not use this flag!
         'By default, OS recognizes timestamped signatures valid even if certificate validity period is elapsed.
         'If Not CBool(Flags And SV_AllowExpired) Then .dwProvFlags = .dwProvFlags Or WTD_LIFETIME_SIGNING_FLAG        ' invalidate expired signatures
-        .dwProvFlags = .dwProvFlags Or WTD_SAFER_FLAG                                                     ' without UI
+        
+        'Do not use! Causes .cat file to fail the verification.
+        '.dwProvFlags = .dwProvFlags Or WTD_SAFER_FLAG
         
         If Flags And SV_DisableOutdatedAlgo Then .dwProvFlags = .dwProvFlags Or WTD_DISABLE_MD2_MD4
     End With
@@ -1447,7 +1491,7 @@ SkipCatCheck:
                 GetSignerInfo WintrustData.hWVTStateData, SignResult, Flags
                 
                 'if it's a Microsoft signature => restart context with secondary signature
-                'XP is not support partial restarting context. CryptCATAdminReleaseCatalogContext cause crash.
+                'XP doesn't support partial restarting context. CryptCATAdminReleaseCatalogContext cause crash.
                 If OSver.MajorMinor > 5.2 Then
 
                     If IsMicrosoftCertHash(SignResult.HashRootCert) Then
@@ -1576,7 +1620,11 @@ SkipCatCheck:
     
     'Sometimes WinVerifyTrust returns GetErrorCode == TRUST_E_NOSIGNATURE even if the file has signature
     If Not SignResult.isSigned Then
-        SignResult.isSigned = IsInternalSignPresent(hFile)
+        If bInternalSignPresenceChecked Then
+            SignResult.isSigned = SignResult.IsEmbedded
+        Else
+            SignResult.isSigned = IsInternalSignPresent(hFile)
+        End If
     End If
     
     If (ReturnVal = 0 Or _
@@ -2484,20 +2532,20 @@ Public Function ExtractPropertyFromCertificateByID(pCertContext As Long, id As L
     Dim bufSize As Long
     Dim buf()   As Byte
     Dim i       As Long
-    Dim hash    As String
+    Dim Hash    As String
 
     CertGetCertificateContextProperty pCertContext, id, 0&, bufSize
     If bufSize Then
         ReDim buf(bufSize - 1)
-        hash = String$(bufSize * 2, 0&)
+        Hash = String$(bufSize * 2, 0&)
         If CertGetCertificateContextProperty(pCertContext, id, buf(0), bufSize) Then
             For i = 0 To bufSize - 1
-                Mid$(hash, i * 2 + 1) = Right$("0" & Hex$(buf(i)), 2&)
+                Mid$(Hash, i * 2 + 1) = Right$("0" & Hex$(buf(i)), 2&)
             Next
         End If
     End If
     
-    ExtractPropertyFromCertificateByID = hash
+    ExtractPropertyFromCertificateByID = Hash
     
     Exit Function
 ErrorHandler:
@@ -2513,7 +2561,7 @@ Public Function ExtractPropertyStrFromCertificateByID(pCertContext As Long, id A
     Dim bufSize As Long
     Dim buf     As String
     Dim i       As Long
-    Dim hash    As String
+    Dim Hash    As String
 
     CertGetCertificateContextProperty pCertContext, id, 0&, bufSize
     If bufSize Then
@@ -2745,14 +2793,26 @@ Private Sub LoadMicrosoftHashes()
     oMsHash.Add "F40042E2E5F7E8EF8189FED15519AECE42C3BFA2", 0
     'Microsoft Intune Root Certification Authority; 12ECCCE41034DB56EC978443531DB185327E70F5; 6AAB6CC62ED96438F2E4CEB96A9DE488E9D6061C0D11250018CEBCC54407E823; 5B4342A039A7B238E44E6A5A0B1DD1F7
     oMsHash.Add "12ECCCE41034DB56EC978443531DB185327E70F5", 0
+    'Microsoft Windows Production PCA 2011;580A6F4CC4E4B669B9EBDC1B2B3E087B80D0678D;4E80BE107C860DE896384B3EFF50504DC2D76AC7151DF3102A4450637A032146;4448CDF199C6AD814E4A0B59F94EB246
+    oMsHash.Add "580A6F4CC4E4B669B9EBDC1B2B3E087B80D0678D", 0
+    'Microsoft Intune Root Certification Authority; 9EA77BA6D30BB2AB2DECE2DFDC2470429DCC3677; 67EF0624500B56095252319EA34C97AAD0B9C64A9149C1C66C9F56C02719623D; 25A49F238872AD5EC89C234C9FA624E8
+    oMsHash.Add "9EA77BA6D30BB2AB2DECE2DFDC2470429DCC3677", 0
+    'Microsoft Code Signing PCA; D07EA64088A80085F01BD40AA4EAD82F470482A6; 9D50E372989DF49F90CD0612D8593776B786FCFC; CD5F78D3A0D2B9DEE553561B125DB0A5
+    oMsHash.Add "D07EA64088A80085F01BD40AA4EAD82F470482A6", 0
+    'Microsoft Timestamping Service; A1DC024FC8B2A76745D4661F663B8741C3D35313; 5D2B03357A118267F74F0533145B8EFCE217164F; FCE89E67EA4C8C702BDA2AC5C6D7C8E7
+    oMsHash.Add "A1DC024FC8B2A76745D4661F663B8741C3D35313", 0
+    'Microsoft Corporation; 564E01066387F26C912010D06BD78D3CF1E845AB; 4C5CB611B829F78821015F839A12EC77DA253885; 78B4E648021368431BCD398DF7532CB3
+    oMsHash.Add "564E01066387F26C912010D06BD78D3CF1E845AB", 0
+    'Microsoft Timestamping PCA; 3EA99A60058275E0ED83B892A909449F8C33B245; 597D47D739B600AB811AA906F7273D557FA3B865; F01EA1FE6A0B9CBD71474399BA50180B
+    oMsHash.Add "3EA99A60058275E0ED83B892A909449F8C33B245", 0
     
     'Root Agency (MD5 digest); FEE449EE0E3965A5246F000E87FDE2A065FD89D4
     'Microsoft Development PCA 2014;98725873611882C17A9D478FDC46F9C172552D63 ? (same as Microsoft Testing Root Certificate Authority 2010)
 End Sub
 
-Public Function IsMicrosoftCertHash(hash As String) As Boolean
-    If Len(hash) = 0 Then Exit Function
-    If oMsHash.Exists(hash) Then IsMicrosoftCertHash = True
+Public Function IsMicrosoftCertHash(Hash As String) As Boolean
+    If Len(Hash) = 0 Then Exit Function
+    If oMsHash.Exists(Hash) Then IsMicrosoftCertHash = True
 End Function
 
 Public Sub FindNewMicrosoftCodeSignCert()

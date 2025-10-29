@@ -61,8 +61,8 @@ set "bRefreshRequired="
   echo 1. Open disallowedcert.sst ^(from folder: "tools\Cert\ms-new"^), select all, and export them to file in format p7b.
   echo 2. Import that storage to your system in "Untrusted" section by right click - "Install". Use certmgr.msc to verify.
   echo 3. Extract cert info using tools\Cert\enumerator\Disallowed\DisallowedCertEnumerator.exe
-  echo 4. Update hjt.txt with HJT source code of "colDisallowedCert" collection contents.
-  echo 5. Run "Compare-cert.exe" and receive Hashes_new.txt to append HJT source code with.
+  echo 4. Run "Compare-cert.exe" and receive Hashes_new.txt to append HJT source code with.
+  echo 5. Use "Hashes_new.txt" file to append database in "database\DisallowedCert.txt".
   echo.
   call :dlg "Open .sst container file? (Y/N)" && start "" "%certnew%\disallowedcert.sst"
 )

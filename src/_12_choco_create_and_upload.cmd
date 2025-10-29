@@ -33,5 +33,7 @@ for %a in ("cpack.exe") do if "%~$PATH:a"=="" (echo Choco is not installed. Skip
 cd "hijackthis/src"
 call 3-push-package.bat
 
+start "" "https://community.chocolatey.org/packages/hijackthis#files"
+
 :Skip_Choco
 pause

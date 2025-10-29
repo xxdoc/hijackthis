@@ -8,7 +8,7 @@ if exist "%cd%\_HJT_src.zip" (
 )
 
 :: Pack
-Tools\7zip\7za.exe a -mx1 -y -o"%cd%" -x!*.zip -x!tools/Align4byte/Align4byte.exe -x!tools/ChangeIcon/IC.exe -x!tools/RegTLib/RegTLib.exe -x!tools/TSAwarePatch/TSAwarePatch.exe -x!tools/VersionPatcher/VersionPatcher.exe -x!tools/RemoveSign/RemSign.exe _HJT_src.zip *.* Tools Ico
+Tools\7zip\7za.exe a -mx1 -y -o"%cd%" -x!*.zip -x!tools/Align4byte/Align4byte.exe -x!tools/ChangeIcon/IC.exe -x!tools/RegTLib/RegTLib.exe -x!tools/TSAwarePatch/TSAwarePatch.exe -x!tools/VersionPatcher/VersionPatcher.exe -x!tools/RemoveSign/RemSign.exe _HJT_src.zip *.* Tools Ico database
 :: Test
 Tools\7zip\7za.exe t "%cd%\_HJT_src.zip"
 :: If there was errors

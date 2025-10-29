@@ -210,7 +210,7 @@ Public Sub Init( _
     Hive_requested As HE_HIVE, _
     Optional SID_requested As HE_SID = HE_SID_ALL Or HE_SID_NO_VIRTUAL, _
     Optional Redirection_requested As HE_REDIRECTION = HE_REDIR_BOTH, _
-    Optional Flags As HE_OPTIONAL_FLAGS = 0&)
+    Optional Flags As HE_OPTIONAL_FLAGS = HE_OPTIONAL_FLAGS_NONE)
     
     If Not cell.lb_Class_Init Then
         cell.lb_Class_Init = True
@@ -815,15 +815,15 @@ ErrorHandler:
 End Sub
 
 '// get key part of the registry key of current iteration, e.g. "SOFTWARE\Microsoft"
-Public Property Get Key() As String
+Public Property Get key() As String
     If cell.lb_HavePlaceHolders Then
         If 0 <> Len(cell.la_Placeholder(cell.ll_KeyIndex)) Then
-            Key = cell.ls_Key & cell.la_Placeholder(cell.ll_KeyIndex)
+            key = cell.ls_Key & cell.la_Placeholder(cell.ll_KeyIndex)
         Else
-            Key = cell.ls_Key
+            key = cell.ls_Key
         End If
     Else
-        Key = cell.ls_Key
+        key = cell.ls_Key
     End If
 End Property
 '// get key part together with hive prefix of current iteration, e.g.: "HKLM\SOFTWARE\Microsoft"
@@ -1155,7 +1155,7 @@ Public Sub PrintAll()
             Debug.Print "Hive handle: " & Me.Hive
             Debug.Print "Hive name:   " & Me.HiveName
             Debug.Print "Hive + key:  " & Me.KeyAndHive
-            Debug.Print "Key:         " & Me.Key
+            Debug.Print "Key:         " & Me.key
             Debug.Print "Redirected:  " & Me.Redirected
             Debug.Print "Array index: " & Me.KeyIndex
             Debug.Print "User name:   " & Me.UserName

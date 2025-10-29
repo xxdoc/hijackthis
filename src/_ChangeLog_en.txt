@@ -1,7 +1,7 @@
 ﻿
 Version history:
 
-1. HijackThis+
+1. HiJackThis+
 2. StartupList
 3. ADSspy
 4. ProcMan
@@ -10,6 +10,127 @@ Version history:
 ==================================================
 |||||       1. HiJackThis: changelog         |||||
 ==================================================
+
+[3.4.0.17 Beta] - Jan 16, 2025
+ - Updated database of O4.
+ - Check if BootExecute is missing or empty.
+ - Step towards unifying the addition of new keys to open possibility moving them to the database.
+ - Fixed a bug with the inability to clear value of the REG_MULTI_SZ type, previously they were just deleted.
+
+[3.4.0.16 Beta] - Jan 13, 2025
+ - Updated databases of O4, O20, O26.
+ - Added detection of MS Office Addin. Microsoft and disabled records doesn't displayed.
+ - Impoved search order of executable files through CLSID.
+
+[3.4.0.15 Beta] - Jan 10, 2025
+ - Display free space of system drive, partition style (MBR, GPT) and storage technology (HDD, SSD)
+ - Fixed inaccurate RAM calculation, also total amount of memory displayed, MiB replaced into GiB.
+ - Added detection of Windows Server 2025.
+ - Updated O4, O27 databases.
+ - More reliable code for change services state.
+ - Some optimizations.
+
+[3.4.0.14 Alpha] - Dec 25, 2024
+ - O7 - Policy: added checking for plain login/password usage.
+ - O26 - Debugger fix (thanks to thyrex).
+ - Certificates and lolbin base has been updated.
+
+[3.4.0.13 Alpha] - Dec 21, 2024
+ - O26 - Debugger: Added detection of Stack Rumbling method.
+
+[3.4.0.12 Alpha] - Nov 10, 2024
+ - Fixed access denied in "AddToScanResults".
+
+[3.4.0.11 Alpha] - Oct 15, 2024
+ - Added warning when profile Sids enumeration failed.
+
+[3.4.0.10 Alpha] - Sep 23, 2024
+ - Microsoft certificates has been updated.
+
+[3.4.0.9 Alpha] - Apr 18, 2024
+ - Fixed false positive "User missing" in O22 - Tasks (thanks to picasso).
+ - Improved RegJump.
+
+[3.4.0.8 Alpha] - Mar 23, 2024
+ - The "Fix everything" option is blocked to protect inexperienced users.
+ - Registry Key Unlocker: added the ability to specify SDDL and retrieve it from the descriptor of specified key.
+ - Registry Key Unlocker: improved log formatting, added SDDL output before and after the fix.
+ - Added the ability to specify keys in the format Computer\HKEY...
+
+[3.4.0.7 Alpha] - Mar 14, 2024
+ - File Unlocker: added the ability to specify SDDL and extract it from the descriptor of the specified folder (the "Pick from folder" button).
+ - File Unlocker and Registry Key Unlocker: the "recursion" checkbox now sets the "inheritance" flag for all objects 2 and below level of hierarchy (previously inheritance was disabled and explicit permissions were set).
+
+[3.4.0.6 Alpha] - Feb 27, 2024
+ - O7 - Policy: Bitcoin wallet address hijacker: Added display of the attacker's crypto wallet address with a link to the blockchain explorer for convenience.
+
+[3.4.0.5 Alpha] - Feb 19, 2024
+ - Fixed: .cat file digital signature verification is failed.
+
+[3.4.0.4 Alpha] - Feb 08, 2024
+ - The maximum length of a log string is limited to 3000 characters.
+ - The maximum length of a result list string has been increased to 600 characters.
+ - Fixed regression: truncating long strings resulted in the removal of special annotations.
+ - Fixed regression: truncated items couldn't be added to the ignore list.
+ - Fixed regression: sometimes incorrect target expansion of shortcuts occurred.
+ - Fixed regression: the "Add Checked to ignore list" button became inactive when saving the log.
+ - O4 - Startup: the "(file missing)" annotation is now applied to the shortcut's target, not to the shortcut's own path.
+ - O4 - Startup: Added expansion of script contents.
+ - Removed duplication of some Jump list items.
+ - Fixed: the program icon wasn't displayed when minimizing to the notification area.
+
+[3.4.0.3 Alpha] - Feb 06, 2024
+ - Improved Windows Defender recovery procedure.
+ - Fixed regression: coudn't add some items to ignore list.
+
+[3.4.0.2 Alpha] - Jan 28, 2024
+ - Fix of previous build.
+
+[3.4.0.1 Alpha] - Jan 28, 2024
+ - Fixed a vulnerability in the buffer overflow of the scan results list.
+ - Fixed a critical error in the HiJackThis backup restoration function:
+	* It is not recommended to use the "Restore" button for backups in versions 3.3.0.5 - 3.3.0.11 without updating to this version, as it may destroy all other backups;
+	* However, it is safe to revert to backups created by previous versions of HiJackThis.
+ - Compatibility improvements and BCD fix when using registry restoration through Autobackup Registry:
+	* ABR updated to v1.12 (thanks to D.Kuznetsov).
+ - Fixed a crash on right-click on certain items in scan results (thanks to de-served for reporting).
+ - O7 - KnownFolder: (folder missing) false triggering on legal redirection fixed. The redirection fix now also includes creating folder structure (thanks to de-served).
+ - UI behavior fixes for Ctrl + F.
+ - Fixed regression: item not being marked on double-click.
+ - Added escaping www. => vvv.
+ - Improved program update procedure for certificate errors (thanks to regist).
+ - O22, O23 whitelists have been updated.
+ - MS certificates have been updated (thanks to Sandor).
+
+[3.3.0.11 Beta] - Dec 21, 2023
+ - O7 - KnownFolder: added checking for physically missing folders.
+ - Fixed HijackThis installation error.
+ - The Hosts File Manager tool is presented as a separate window.
+ - Added Anti-BSOD when deleting services.
+ - Fixed a bug where the standard font wasn't applied by some forms.
+ - Added the ability to change the standard UI font separately from the list font.
+ - Fixed errors in compatibility with XP/Vista, checking minimal processes on Win 8+.
+
+[3.3.0.10 Alpha] - Dec 18, 2023
+ - Unlocked the ability to remove services with Microsoft-signed executable.
+ - Added company and SHA1 hash output for files with damaged digital signature, marked as "(invalid sign)".
+ - The allowed file size for hash verification has been increased to 300 MiB. If the check exceeds or fails, this will be indicated in the log.
+ - Improved digital signature verification: for Win 8+, the secondary signature (of the manufacturer) is displayed, if the primary signature by Microsoft.
+ - Bugs of the previous build have been fixed.
+
+[3.3.0.9 Alpha] - Dec 15, 2023
+ - Added detection of autorun Null-values.
+ - Added the database of LolBin files with updates from lolbas-project.github.io service (thanks to @oddvarmoe, @bohops, @xenosCR, @ConsciousHacker, @liamsomerville, @Wietze, @_josehelps)
+ - HijackThis fix is protected against accidental deletion of LolBin files that didn't pass digital signature verification for some reason.
+ - Escaping http => hxxp.
+ - Additional information is displayed for unsigned files: company from the file properties and SHA1 hash.
+ - The way of obtaining paths to processes has been changed - it doesn't require opening the process (thanks to @fafalone).
+ - O7 - TroubleShooting: improved checking of %Temp% system profiles.
+ - Auto-removal of DACL locks of HJT settings keys.
+ - More reliable handling the clipboard (thanks to @wqweto).
+ - MS certificates list has been updated (thanks to Sandor).
+ - Whitelists have been updated.
+ - Other fixes.
 
 [3.3.0.8 Alpha] - Nov 27, 2023
  - Added escaping of line breaks and non-printable characters. Format: \x1F, where 1F is the ASCII code of the character in Hex.

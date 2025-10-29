@@ -37,19 +37,30 @@ ver |>NUL find " 5." && (
   exit /b
 )
 
-call :TaskExist
+chcp 437 >NUL 2>NUL
+sc query Schedule | find /i "STATE" |>NUL find "4" && set Schedule=true
+if not defined Schedule (
+  echo ERROR: Task Scheduler service is not running!
+  net session >NUL 2>NUL && (
+    sc start Schedule
+	timeout /t 5
+	set Schedule=true
+  )
+)
+
+if defined Schedule call :TaskExist
 
 if defined TaskExist (
   call :RunProjectAsTask NoCheck
 ) else (
   if "%~1" neq "Admin" (
     call :GetPrivileges
-  ) else (
-    call :RegLibs
-    call :CreateTask
-	call :CheckErrorHandler
-    call :RunProjectAsTask
+	if errorlevel 1 exit /b
   )
+  call :RegLibs
+  call :CreateTask
+  call :CheckErrorHandler
+  call :RunProjectAsTask
 )
 goto :eof
 
@@ -105,7 +116,7 @@ exit /b
 :RunProjectAsTask
   if "%~1"=="NoCheck" (
     rem if project already run
-	chcp 437
+	chcp 437 >NUL 2>NUL
     schtasks.exe /query /FO LIST /tn "%TaskName%" | findstr /i /C:"Running" && (
       echo.&echo Project already run !
       pause >NUL

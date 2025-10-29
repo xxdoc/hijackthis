@@ -297,7 +297,7 @@ Public Sub CheckO25Item()
                 
                 If Not (objFilter Is Nothing) Then
                 
-                    If Not IsNull(objFilter.Query) Then sFilterQuery = objFilter.Query
+                    If Not IsNull(objFilter.query) Then sFilterQuery = objFilter.query
                 
                     'receives events from timer ?
                     If InStr(1, sFilterQuery, "__timerevent", 1) <> 0 Then
@@ -422,17 +422,17 @@ Public Sub CheckO25Item()
                                 
                                 .Consumer.Name = ConsumerName
                                 .Consumer.NameSpace = ConsumerNameSpace
-                                .Consumer.Path = ConsumerPath
+                                .Consumer.path = ConsumerPath
                                 .Consumer.KillTimeout = lKillTimeout
                                 
                                 .Timer.id = sTimerName
-                                .Timer.className = sTimerClassName
+                                .Timer.ClassName = sTimerClassName
                                 .Timer.Interval = lTimerInterval
                                 
-                                .Filter.Query = sFilterQuery
+                                .Filter.query = sFilterQuery
                                 .Filter.Name = FilterName
                                 .Filter.NameSpace = FilterNameSpace
-                                .Filter.Path = FilterPath
+                                .Filter.path = FilterPath
                                 
                             End With
                             AddCustomToFix .Custom, CUSTOM_ACTION_O25
@@ -516,17 +516,17 @@ Public Sub RemoveSubscriptionWMI(O25 As O25_ENTRY)
         On Error Resume Next
         'filter
         Set objService = GetObject("winmgmts:{impersonationLevel=Impersonate, (Security, Backup)}!\\.\" & .Filter.NameSpace)
-        objService.Get(.Filter.Path).Delete_
+        objService.Get(.Filter.path).Delete_
         
         'consumer
         Set objService = GetObject("winmgmts:{impersonationLevel=Impersonate, (Security, Backup)}!\\.\" & .Consumer.NameSpace)
-        objService.Get(.Consumer.Path).Delete_
+        objService.Get(.Consumer.path).Delete_
         
         'timer
         If 0 <> Len(.Timer.id) Then
         
             Set objService = GetObject("winmgmts:{impersonationLevel=Impersonate, (Security, Backup)}!\\.\root\subscription")
-            objService.Get(.Timer.className & ".TimerId=" & """" & .Timer.id & """").Delete_
+            objService.Get(.Timer.ClassName & ".TimerId=" & """" & .Timer.id & """").Delete_
         
         End If
         
@@ -557,7 +557,7 @@ Public Sub RemoveSubscriptionWMI(O25 As O25_ENTRY)
         
                 If Not IsNull(objBinding.Filter) And Not IsNull(objBinding.Consumer) Then
                 
-                    If objBinding.Filter = .Filter.Path And objBinding.Consumer = .Consumer.Path Then
+                    If objBinding.Filter = .Filter.path And objBinding.Consumer = .Consumer.path Then
                 
                         Set objBindingToDelete = objBinding
                         Finish = True
@@ -600,7 +600,7 @@ Public Function RecoverO25Item(O25 As O25_ENTRY) As Boolean
             'set up filter properties
             objFilter.Name = .Filter.Name
             objFilter.QueryLanguage = "WQL"
-            objFilter.Query = .Filter.Query
+            objFilter.query = .Filter.query
             'save filter
             objFilter.Put_
         End If
@@ -785,22 +785,48 @@ Public Sub CheckO26Item()
     'Area:
     'HKLM\Software\Microsoft\Windows NT\CurrentVersion\Image File Execution Options
     'HKLM\Software\Microsoft\Windows\CurrentVersion\PackagedAppXDebug
-    '
+    'HKLM\Software\Microsoft\Windows NT\CurrentVersion\SilentProcessExit
     
     'Articles:
     'https://docs.microsoft.com/en-us/windows-hardware/drivers/debugger/gflags-overview
     'http://www.alex-ionescu.com/Estoteric%20Hooks.pdf
-    '
+    'https://learn.microsoft.com/en-us/windows-hardware/drivers/debugger/registry-entries-for-silent-process-exit
     
     On Error GoTo ErrorHandler:
     AppendErrorLogCustom "CheckO26Item - Begin"
     
     Const FLG_APPLICATION_VERIFIER As Long = &H100&
     
-    Dim sKeys$(), sSubkeys$(), i&, j&, sFile$, sArgs$, sHit$, sData$, result As SCAN_RESULT
+    Dim sKeys$(), sSubkeys$(), i&, j&, sFile$, sArgs$, sHit$, sData$, iData&, result As SCAN_RESULT
     Dim bDisabled As Boolean, sGFlag As String
     Dim bPerUser As Boolean, aTmp() As String, sAlias As String
     Dim bSafe As Boolean, sOrigLine As String
+    
+    'SilentProcessExit Global check
+    ' ------
+    sData = Reg.GetString(HKLM, "SOFTWARE\Microsoft\Windows NT\CurrentVersion\SilentProcessExit", "MonitorProcess", False)
+    If Len(sData) <> 0 Then
+        SplitIntoPathAndArgs sData, sFile, sArgs, bIsRegistryData:=True
+        sFile = FormatFileMissing(sFile, sArgs)
+        
+        SignVerifyJack sFile, result.SignResult
+        
+        sHit = "O26 - Debugger (SilentProcessExit): {Global} -> " & _
+            ConcatFileArg(sFile, sArgs) & FormatSign(result.SignResult)
+        
+        If g_bCheckSum Then sHit = sHit & GetFileCheckSum(sFile)
+        
+        If Not IsOnIgnoreList(sHit) Then
+            With result
+                .Section = "O26"
+                .HitLineW = sHit
+                AddRegToFix .Reg, REMOVE_VALUE, HKLM, "SOFTWARE\Microsoft\Windows NT\CurrentVersion\SilentProcessExit", "MonitorProcess", , False
+                .CureType = REGISTRY_BASED
+            End With
+            AddToScanResults result
+        End If
+    End If
+    ' ------
     
     If bIsWinVistaAndNewer Then
         If IsProcedureAvail("VerifierIsPerUserSettingsEnabled", "Verifier.dll") Then
@@ -829,7 +855,49 @@ Public Sub CheckO26Item()
         sKeys = Split(Reg.EnumSubKeys(HE.Hive, HE.Key, HE.Redirected), "|")    'for each image
         
         For i = 0 To UBound(sKeys)
+            
+            iData = Reg.GetDword(HE.Hive, HE.Key & "\" & sKeys(i), "MinimumStackCommitInBytes", HE.Redirected)
+            If (iData < 0 Or iData > &H10000) Or bIgnoreAllWhitelists Then
+                sHit = sAlias & " - Debugger (Stack Rumbling): " & HE.HiveNameAndSID & "\..\" & sKeys(i) & ": [MinimumStackCommitInBytes] = 0x" & Hex(iData)
+                
+                If Not IsOnIgnoreList(sHit) Then
+                    With result
+                        .Section = "O26"
+                        .HitLineW = sHit
+                        AddRegToFix .Reg, REMOVE_VALUE, HE.Hive, HE.Key & "\" & sKeys(i), "MinimumStackCommitInBytes", , HE.Redirected
+                        .CureType = REGISTRY_BASED
+                    End With
+                    AddToScanResults result
+                End If
+            End If
+            
+            iData = Reg.GetDword(HE.Hive, HE.Key & "\" & sKeys(i), "GlobalFlag", HE.Redirected)
+            If (iData And 512) <> 0 Then
+                
+                sData = Reg.GetString(HKLM, "SOFTWARE\Microsoft\Windows NT\CurrentVersion\SilentProcessExit\" & sKeys(i), "MonitorProcess", False)
 
+                SplitIntoPathAndArgs sData, sFile, sArgs, bIsRegistryData:=True
+                sFile = FormatFileMissing(sFile, sArgs)
+                
+                SignVerifyJack sFile, result.SignResult
+                
+                sHit = sAlias & " - Debugger (SilentProcessExit): " & HE.HiveNameAndSID & "\..\" & sKeys(i) & ": [GlobalFlag] = " & iData & " -> " & _
+                    ConcatFileArg(sFile, sArgs) & FormatSign(result.SignResult)
+                
+                If g_bCheckSum Then sHit = sHit & GetFileCheckSum(sFile)
+                
+                If Not IsOnIgnoreList(sHit) Then
+                    With result
+                        .Section = "O26"
+                        .HitLineW = sHit
+                        AddRegToFix .Reg, REMOVE_KEY, HE.Hive, HE.Key & "\" & sKeys(i), "", , HE.Redirected
+                        AddRegToFix .Reg, REMOVE_KEY, HKLM, "SOFTWARE\Microsoft\Windows NT\CurrentVersion\SilentProcessExit\" & sKeys(i), "", , False
+                        .CureType = REGISTRY_BASED
+                    End With
+                    AddToScanResults result
+                End If
+            End If
+            
             sData = Reg.GetString(HE.Hive, HE.Key & "\" & sKeys(i), "Debugger", HE.Redirected)
             
             If Len(sData) <> 0 Then
@@ -1028,6 +1096,7 @@ Public Sub CheckO26Item()
     End If
     
     CheckO26ToolsHiJack
+    CheckO26OfficeHiJack
     
     AppendErrorLogCustom "CheckO26Item - End"
     Exit Sub
@@ -1236,7 +1305,7 @@ Public Sub CheckO26ToolsHiJack()
             End If
         End If
         
-        If Not bSafe Then
+        If Not bSafe Or bIgnoreAllWhitelists Then
             
             sHit = "O26 - Tools: " & "HKLM\" & sKey & " (default) = " & ConcatFileArg(sFile, sArgs) & FormatSign(result.SignResult)
             
@@ -1263,6 +1332,206 @@ Public Sub CheckO26ToolsHiJack()
     Exit Sub
 ErrorHandler:
     ErrorMsg Err, "modMain2_CheckO26ToolsHiJack"
+    If inIDE Then Stop: Resume Next
+End Sub
+
+Public Sub CheckO26OfficeHiJack()
+    On Error GoTo ErrorHandler:
+    AppendErrorLogCustom "CheckO26OfficeHiJack - Begin"
+    
+    'Area:
+    'HKLM\SOFTWARE\Microsoft\VBA\Monitors
+    'HKLM\Software\Microsoft\VBA\VBE\6.0\Addins
+    'HKLM\Software\Microsoft\VBA\VBE\6.0\Addins64
+    'HKLM\SOFTWARE\Microsoft\Office => Addins keys
+        
+    'Articles:
+    'https://www.hexacorn.com/blog/2014/01/10/beyond-good-ol-run-key-part-6-2/
+    'https://github.com/boyan-soubachov/Excelerator
+    
+    Dim i As Long, k As Long
+    Dim aKeyName() As String, sClassName As String, sClassID As String, aKeys() As String
+    Dim sFile$, sHit$, result As SCAN_RESULT
+    Dim HE As clsHiveEnum: Set HE = New clsHiveEnum
+    
+    HE.Init HE_HIVE_ALL
+    HE.AddKey "SOFTWARE\Microsoft\VBA\Monitors"
+    
+    Do While HE.MoveNext
+        For i = 1 To Reg.EnumSubKeysToArray(HE.Hive, HE.Key, aKeyName(), HE.Redirected)
+            sClassName = Reg.GetString(HE.Hive, HE.Key & "\" & aKeyName(i), "CLSID", HE.Redirected)
+            If Len(sClassName) <> 0 Or bIgnoreAllWhitelists Then
+                sClassID = Reg.GetString(HKCR, sClassName & "\Clsid", "", HE.Redirected)
+                GetFileByCLSID sClassID, sFile, , HE.Redirected
+                sFile = FormatFileMissing(sFile)
+                SignVerifyJack sFile, result.SignResult
+                
+                sHit = "O26 - Office: HKLM\..\Monitors\" & aKeyName(i) & " -> " & sFile & FormatSign(result.SignResult)
+                If g_bCheckSum Then sHit = sHit & GetFileCheckSum(sFile)
+                
+                If Not IsOnIgnoreList(sHit) Then
+                    With result
+                        .Section = "O26"
+                        .HitLineW = sHit
+                        AddRegToFix .Reg, REMOVE_KEY, HE.Hive, HE.Key & "\" & aKeyName(i), , , HE.Redirected
+                        AddJumpFile .Jump, JUMP_FILE, sFile
+                        .CureType = REGISTRY_BASED
+                    End With
+                    AddToScanResults result
+                End If
+            End If
+        Next
+    Loop
+    
+    Dim iLoadMode As Long
+    Dim bClsidRedirected As Boolean
+    Dim sName As String
+    Dim sParentKey As String
+    
+    HE.Init HE_HIVE_ALL
+    HE.AddKey "Software\Microsoft\VBA\VBE\6.0\Addins"
+    HE.AddKey "Software\Microsoft\VBA\VBE\6.0\Addins64"
+    
+    Do While HE.MoveNext
+        For i = 1 To Reg.EnumSubKeysToArray(HE.Hive, HE.Key, aKeyName(), HE.Redirected)
+            sClassName = aKeyName(i)
+            iLoadMode = Reg.GetDword(HE.Hive, HE.Key & "\" & sClassName, "LoadBehavior", HE.Redirected)
+            If iLoadMode <> 0 Or bIgnoreAllWhitelists Then
+                bClsidRedirected = StrEndWith(HE.Key, "Addins") And OSver.IsWin64
+                
+                sClassID = Reg.GetString(HKCR, sClassName & "\Clsid", "", bClsidRedirected)
+                GetFileByCLSID sClassID, sFile, , bClsidRedirected
+                sName = Reg.GetString(HE.Hive, HE.Key & "\" & sClassName, "FriendlyName", HE.Redirected)
+                
+                sFile = FormatFileMissing(sFile)
+                SignVerifyJack sFile, result.SignResult
+                
+                sHit = BitPrefixBool("O26", bClsidRedirected) & " - Office Addin (VBE): " & _
+                    HE.HiveName & "\..\" & Reg.GetKeyName(HE.Key) & "\" & aKeyName(i) & " - " & _
+                    IIf(Len(sName) <> 0, "(" & sName & ")", STR_NO_NAME) & " -> " & sFile & FormatSign(result.SignResult)
+                
+                If g_bCheckSum Then sHit = sHit & GetFileCheckSum(sFile)
+                
+                If Not IsOnIgnoreList(sHit) Then
+                    With result
+                        .Section = "O26"
+                        .HitLineW = sHit
+                        AddRegToFix .Reg, REMOVE_KEY, HE.Hive, HE.Key & "\" & aKeyName(i), , , HE.Redirected
+                        AddJumpFile .Jump, JUMP_FILE, sFile
+                        .CureType = REGISTRY_BASED
+                    End With
+                    AddToScanResults result
+                End If
+            End If
+        Next
+    Loop
+    
+    Dim dictCom As clsTrickHashTable
+    Set dictCom = New clsTrickHashTable
+    Dim com As clsCLSID
+    Dim sPhysicalKey As String
+    Dim sManifest As String
+    Dim pos As Long
+    
+    HE.Init HE_HIVE_ALL
+    HE.AddKey "SOFTWARE\Microsoft\Office"
+    
+    Do While HE.MoveNext
+        For k = 1 To Reg.SearchKeyName(HE.Hive, HE.Key, "Addins", aKeys(), HE.Redirected)
+        
+            For i = 1 To Reg.EnumSubKeysToArray(HE.Hive, aKeys(k), aKeyName(), HE.Redirected)
+                
+                sClassName = aKeyName(i)
+                iLoadMode = Reg.GetDword(HE.Hive, aKeys(k) & "\" & sClassName, "LoadBehavior", HE.Redirected)
+                If iLoadMode <> 0 Or bIgnoreAllWhitelists Then
+                    bClsidRedirected = HE.Redirected ' StrEndWith(HE.Key, "Addins") And OSver.IsWin64
+                    
+                    Set com = New clsCLSID
+                    com.InitByClassName sClassName, bClsidRedirected
+                    
+                    If Len(com.FileName) = 0 Or FileMissing(com.FileName) Then
+                        sManifest = Reg.GetString(HE.Hive, aKeys(k) & "\" & sClassName, "Manifest", HE.Redirected)
+                        If Len(sManifest) <> 0 Then
+                            sManifest = PathNormalize(sManifest)
+                            pos = InStr(sManifest, "|")
+                            If pos <> 0 Then
+                                sManifest = Left$(sManifest, pos - 1)
+                            End If
+                            com.FileName = sManifest
+                        Else
+                            com.FileName = STR_NO_FILE
+                        End If
+                    End If
+                    
+                    sName = Reg.GetString(HE.Hive, aKeys(k) & "\" & aKeyName(i), "FriendlyName", HE.Redirected)
+                    If Len(com.FriendlyName) = 0 Then
+                        com.FriendlyName = sName
+                    End If
+                    
+                    sPhysicalKey = HE.HiveName & "\" & aKeys(k) & "\" & aKeyName(i)
+                    If HE.Redirected Then
+                        sPhysicalKey = Replace$(sPhysicalKey, "\SOFTWARE\", "\SOFTWARE\Wow6432Node\")
+                    End If
+                    
+                    'make each file name to be unique in HJT log to make it more compact
+                    If dictCom.Exists(com.FileName) Then
+                        Set com = dictCom(com.FileName)
+                        com.AddUserData sPhysicalKey
+                    Else
+                        com.AddUserData sPhysicalKey
+                        dictCom.Add com.FileName, com
+                    End If
+                    
+                End If
+            Next
+        Next
+    Loop
+    Dim sChecksum As String
+    Dim vKey As Variant
+    Dim sKey As String
+    Dim SignResult As SignResult_TYPE
+    For i = 0 To dictCom.Count - 1
+        Set com = dictCom.Items(i)
+        
+        com.FileName = FormatFileMissing(com.FileName)
+        SignVerifyJack com.FileName, SignResult
+        
+        If (Not SignResult.isMicrosoftSign) Or (Not bHideMicrosoft) Or bIgnoreAllWhitelists Then
+        
+            sChecksum = GetFileCheckSum(sFile)
+            
+            sKey = CStr(com.UserData(1))
+            
+            sHit = BitPrefixBool("O26", com.RegRedirected) & " - Office Addin: " & _
+                Reg.GetShortHiveName(sKey) & "\..\" & Reg.GetKeyName(sKey) & " - " & _
+                IIf(Len(com.FriendlyName) <> 0, "(" & com.FriendlyName & ")", STR_NO_NAME) & " -> " & com.FileName & FormatSign(SignResult)
+            
+            If g_bCheckSum Then sHit = sHit & sChecksum
+            
+            If Not IsOnIgnoreList(sHit) Then
+                With result
+                    .Section = "O26"
+                    .HitLineW = sHit
+                    
+                    For Each vKey In com.UserData
+                        AddRegToFix .Reg, REMOVE_KEY, HKEY_ANY, CStr(vKey) 'WOW Physical key
+                    Next
+                    AddJumpFile .Jump, JUMP_FILE, com.FileName
+                    .CureType = REGISTRY_BASED
+                End With
+                AddToScanResults result
+            End If
+        End If
+    Next
+    
+    '// TODO?
+    'https://stackoverflow.com/questions/41987072/adding-powerpoint-add-in-from-registry-throws-powerpoint-couldnt-load-the-fil
+    ' AutoLoad + Path
+    
+    AppendErrorLogCustom "CheckO26OfficeHiJack - End"
+    Exit Sub
+ErrorHandler:
+    ErrorMsg Err, "CheckO26OfficeHiJack"
     If inIDE Then Stop: Resume Next
 End Sub
 
@@ -1336,10 +1605,13 @@ Public Sub CheckO27Item()
     Dim aProfiles() As String
     Dim sProfilePath As String
     Dim sKey As String
+    Dim iCount As Long
     
     sKey = "SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList"
     
-    For i = 1 To Reg.EnumSubKeysToArray(HKLM, sKey, sidList)
+    iCount = Reg.EnumSubKeysToArray(HKLM, sKey, sidList)
+    
+    For i = 1 To iCount
         
         sProfilePath = Reg.GetString(HKLM, sKey & "\" & sidList(i), "ProfileImagePath")
         ArrayAddStr aProfiles, sProfilePath
@@ -1359,8 +1631,12 @@ Public Sub CheckO27Item()
         End If
     Next
     
+    If iCount = 0 Then
+        AddWarning "Profile Sids enumeration failed in HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList with error: " & Reg.StatusCode
+    End If
+    
     'O27 - Account: (Bad profile)
-    If Len(ProfilesDir) <> 0 Then
+    If Len(ProfilesDir) <> 0 And AryItems(aProfiles) <> 0 Then
         Dim aFolders() As String
         Dim sName As String
         Dim aWhiteUsers(3) As String
@@ -1452,6 +1728,7 @@ Public Sub CheckO27Item_RDP()
     Loop
     
     'https://learn.microsoft.com/en-us/troubleshoot/windows-server/remote/shadow-terminal-server-session
+    'https://habr.com/en/articles/147273/
     
     HE.Clear: DC.Clear
     
@@ -1460,7 +1737,10 @@ Public Sub CheckO27Item_RDP()
     
     '0 - Disable shadow
     '1 - Full access with user's permission
-    DC.AddValueData "Shadow", Array(0, 1)
+    '2 - Allow shadowing with full control but do not require user consent.
+    '3 - Allow shadowing in view-only mode and require user consent.
+    '4 - Allow shadowing in view-only mode without requiring user consent.
+    DC.AddValueData "Shadow", Array(0, 1, 3)
     
     Do While HE.MoveNext
         Do While DC.MoveNext

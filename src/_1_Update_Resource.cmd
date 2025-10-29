@@ -47,6 +47,8 @@ call :AddResource ae 114 CUSTOM database\LoLBin.txt
 call :AddResource ae 115 CUSTOM database\ServicePath.txt
 call :AddResource ae 116 CUSTOM database\ServiceFilename.txt
 call :AddResource ae 117 CUSTOM database\DriverMapped.txt
+call :AddResource ae 118 CUSTOM database\LoLBin_Protect.txt
+call :AddResource ae 119 CUSTOM database\CriticalRm.txt
 call :AddResource ae 201 CUSTOM _Lang_EN.lng
 call :AddResource ae 202 CUSTOM _Lang_RU.lng
 call :AddResource ae 203 CUSTOM _Lang_UA.lng
@@ -113,12 +115,14 @@ For /L %%C in (1 1 %ResCnt%) do (
 :: Adding string table
 call :GetFileSha1 "tools\PCRE2\pcre2-16.dll" ShaPCRE
 call :GetFileSha1 "apps\abr.exe" ShaABR
+call :GetFileSha1 "apps\VBCCR17.OCX" ShaOCX
 set StrN=0
 set Label=STRINGS
 for /f "delims=[]" %%a in ('^< "%~f0" find /n ":%Label%"') do set StrN=%%a
 if "%StrN%" neq "0" more /E +%StrN% < "%~f0" >> 1.RC
 echo 700, 	"%ShaPCRE%">> 1.RC
 echo 701, 	"%ShaABR%">> 1.RC
+echo 702, 	"%ShaOCX%">> 1.RC
 echo END>>1.RC
 
 :: preparing multilingual VerInfo section

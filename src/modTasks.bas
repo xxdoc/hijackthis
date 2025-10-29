@@ -80,12 +80,12 @@ End Type
 
 Private Type JOB_UNICODE_STRING
     Length As Integer
-    Data As String
+    data As String
 End Type
 
 Private Type JOB_USER_DATA
     Size As Integer
-    Data() As Byte
+    data() As Byte
 End Type
 
 Private Type JOB_RESERVED_DATA
@@ -160,7 +160,7 @@ End Type
 
 Private Type JOB_FILE
     head As JOB_HEADER
-    prop As JOB_PROPERTY
+    Prop As JOB_PROPERTY
 End Type
 
 ' Task state
@@ -236,7 +236,7 @@ Public Function CreateTask(TaskName As String, FullPath As String, Arguments As 
             Set pActionCollection = pTask.Actions
             Set pAction = pActionCollection.Create(TASK_ACTION_EXEC)
             Set pExecAction = pAction
-            pExecAction.Path = FullPath
+            pExecAction.path = FullPath
             pExecAction.Arguments = Arguments
             pExecAction.WorkingDirectory = GetParentDir(FullPath)
             Set pAction = Nothing
@@ -284,9 +284,7 @@ Public Function PathNormalize(ByVal sPath As String) As String
     End If
     
     If StrBeginWith(sPath, "\") Then sPath = SysDisk & sPath
-    
-    '???
-    'sPath = Replace(sPath, "/", "\")
+    sPath = Replace(sPath, "/", "\")
     
     If mid$(sPath, 2, 1) <> ":" Then
         bShouldSeek = True  'relative or on the %PATH%
@@ -646,6 +644,7 @@ Sub EnumTaskFolder(LogHandle As Integer, dXmlPathFromDisk As clsTrickHashTable, 
             
             bNoFile = False
             If te(j).ActionType = TASK_ACTION_COM_HANDLER Then
+                '// TODO: Check this!
                 If FileMissing(te(j).RunObjCom) Then
                     te(j).RunObj = te(j).RunObj & " - (no file)"
                     bNoFile = True
@@ -737,13 +736,15 @@ Sub EnumTaskFolder(LogHandle As Integer, dXmlPathFromDisk As clsTrickHashTable, 
                     bTelemetry = True
                 ElseIf StrComp(sRunFilename, "OLicenseHeartbeat.exe", 1) = 0 Then
                     bTelemetry = True
-                ElseIf StrComp(DirXml, "\Microsoft\Windows\IME\SQM data sender", 1) = 0 Then
-                    bTelemetry = True
                 ElseIf StrComp(sRunFilename, "NvTmRep.exe", 1) = 0 Then
                     bTelemetry = True
                 ElseIf StrComp(sRunFilename, "NvTmMon.exe", 1) = 0 Then
                     bTelemetry = True
                 ElseIf StrComp(sRunFilename, "PLUGscheduler.exe", 1) = 0 Then
+                    bTelemetry = True
+                ElseIf StrComp(sRunFilename, "operfmon.exe", 1) = 0 Then
+                    bTelemetry = True
+                ElseIf StrComp(DirXml, "\Microsoft\Windows\IME\SQM data sender", 1) = 0 Then
                     bTelemetry = True
                 End If
                 
@@ -1350,10 +1351,12 @@ Private Function AnalyzeTask(sFilename As String, te() As TASK_ENTRY) As Long
 '                        te(j).PrincipalId = xmlAttribute.Value
 '                    End If
 '                Next
-                te(j).GroupId = xmlElement.Node(i).NodeValueByName("GroupId")
-                te(j).UserId = xmlElement.Node(i).NodeValueByName("UserId")
+                te(0).GroupId = xmlElement.Node(i).NodeValueByName("GroupId")
+                te(0).UserId = xmlElement.Node(i).NodeValueByName("UserId")
                 
                 'Debug.Print te(j).PrincipalId & " = " & te(j).UserId & "( " & te(j).GroupId & " )"
+                
+                Exit For
             End If
         Next
     End If
@@ -1434,6 +1437,8 @@ Private Function AnalyzeTask(sFilename As String, te() As TASK_ENTRY) As Long
     
     For i = 1 To UBound(te)
         te(i).Enabled = te(0).Enabled
+        te(i).UserId = te(0).UserId
+        te(i).GroupId = te(0).GroupId
     Next
     
     AnalyzeTask = j
@@ -1457,7 +1462,7 @@ Public Function KillTask2(TaskFullPath As String) As Boolean
     
     sWinTasksFolder = BuildPath(sWinSysDir, "Tasks")
     
-    KillTask2 = DeleteFilePtr(StrPtr(BuildPath(sWinTasksFolder, TaskFullPath)))
+    KillTask2 = DeleteFileForce(BuildPath(sWinTasksFolder, TaskFullPath))
     
     id = Reg.GetString(HKEY_LOCAL_MACHINE, BuildPath("SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\TaskCache\Tree", TaskFullPath), "Id")
     
@@ -1507,11 +1512,11 @@ Public Sub EnumJobs()
             
             sJobName = GetFileName(aFiles(i), True)
             
-            sFile = EnvironW(PathNormalize(Job.prop.AppName.Data))
+            sFile = EnvironW(PathNormalize(Job.Prop.AppName.data))
             
             If mid$(sFile, 2, 1) <> ":" Then
-                If Len(Job.prop.WorkDir.Data) <> 0 Then
-                    sTmp = BuildPath(Job.prop.WorkDir.Data, sFile)
+                If Len(Job.Prop.WorkDir.data) <> 0 Then
+                    sTmp = BuildPath(Job.Prop.WorkDir.data, sFile)
                     If FileExists(sTmp) Then sFile = sTmp 'if only file exists in this work. folder
                 End If
             End If
@@ -1519,8 +1524,8 @@ Public Sub EnumJobs()
             bEnabled = False
             
             'task is enabled if there are at least 1 trigger without TASK_TRIGGER_FLAG_DISABLED flag
-            For j = 0 To Job.prop.Triggers.ccTriggers - 1
-                bEnabled = bEnabled Or Not CBool(Job.prop.Triggers.aTrigger(j).Flags And TASK_TRIGGER_FLAG_DISABLED)
+            For j = 0 To Job.Prop.Triggers.ccTriggers - 1
+                bEnabled = bEnabled Or Not CBool(Job.Prop.Triggers.aTrigger(j).Flags And TASK_TRIGGER_FLAG_DISABLED)
             Next
             
             sRunState = vbNullString
@@ -1542,7 +1547,7 @@ Public Sub EnumJobs()
                 If IsMicrosoftFile(sFile) Then bActivation = True
             End If
             
-            sFile = FormatFileMissing(sFile, Job.prop.Parameters.Data)
+            sFile = FormatFileMissing(sFile, Job.Prop.Parameters.data)
             
             SignVerifyJack sFile, result.SignResult
             
@@ -1598,30 +1603,30 @@ Private Function ParseJob(sFile As String, Job As JOB_FILE) As Boolean
     Else
         cStream.BufferPointer = 0
         cStream.ReadData VarPtr(Job.head), LenB(Job.head)
-        cStream.ReadData VarPtr(Job.prop.ccRunInstance), 2
-        Read_Job_String cStream, Job.prop.AppName
-        Read_Job_String cStream, Job.prop.Parameters
-        Read_Job_String cStream, Job.prop.WorkDir
-        Read_Job_String cStream, Job.prop.Author
-        Read_Job_String cStream, Job.prop.Comment
-        cStream.ReadData VarPtr(Job.prop.UserData.Size), 2
-        If Job.prop.UserData.Size > 0 Then
-            ReDim Job.prop.UserData.Data(Job.prop.UserData.Size - 1)
-            cStream.ReadData VarPtr(Job.prop.UserData.Data(0)), Job.prop.UserData.Size
+        cStream.ReadData VarPtr(Job.Prop.ccRunInstance), 2
+        Read_Job_String cStream, Job.Prop.AppName
+        Read_Job_String cStream, Job.Prop.Parameters
+        Read_Job_String cStream, Job.Prop.WorkDir
+        Read_Job_String cStream, Job.Prop.Author
+        Read_Job_String cStream, Job.Prop.Comment
+        cStream.ReadData VarPtr(Job.Prop.UserData.Size), 2
+        If Job.Prop.UserData.Size > 0 Then
+            ReDim Job.Prop.UserData.data(Job.Prop.UserData.Size - 1)
+            cStream.ReadData VarPtr(Job.Prop.UserData.data(0)), Job.Prop.UserData.Size
         End If
-        cStream.ReadData VarPtr(Job.prop.ReservedData.Size), 2
-        If Job.prop.ReservedData.Size = 8 Then
-            cStream.ReadData VarPtr(Job.prop.ReservedData.StartError), 4
-            cStream.ReadData VarPtr(Job.prop.ReservedData.TaskFlags), 4
+        cStream.ReadData VarPtr(Job.Prop.ReservedData.Size), 2
+        If Job.Prop.ReservedData.Size = 8 Then
+            cStream.ReadData VarPtr(Job.Prop.ReservedData.StartError), 4
+            cStream.ReadData VarPtr(Job.Prop.ReservedData.TaskFlags), 4
         End If
-        cStream.ReadData VarPtr(Job.prop.Triggers.ccTriggers), 2
-        If Job.prop.Triggers.ccTriggers > 0 Then
-            ReDim Job.prop.Triggers.aTrigger(Job.prop.Triggers.ccTriggers - 1)
-            For i = 0 To Job.prop.Triggers.ccTriggers - 1
-                cStream.ReadData VarPtr(Job.prop.Triggers.aTrigger(i)), LenB(Job.prop.Triggers.aTrigger(i))
+        cStream.ReadData VarPtr(Job.Prop.Triggers.ccTriggers), 2
+        If Job.Prop.Triggers.ccTriggers > 0 Then
+            ReDim Job.Prop.Triggers.aTrigger(Job.Prop.Triggers.ccTriggers - 1)
+            For i = 0 To Job.Prop.Triggers.ccTriggers - 1
+                cStream.ReadData VarPtr(Job.Prop.Triggers.aTrigger(i)), LenB(Job.Prop.Triggers.aTrigger(i))
             Next
         End If
-        cStream.ReadData VarPtr(Job.prop.JobSignature), LenB(Job.prop.JobSignature)
+        cStream.ReadData VarPtr(Job.Prop.JobSignature), LenB(Job.Prop.JobSignature)
     End If
     
     ParseJob = True
@@ -1638,7 +1643,7 @@ Private Sub Read_Job_String(cStream As clsStream, JobUniStr As JOB_UNICODE_STRIN
     
     Dim cchText As Long
     
-    JobUniStr.Data = vbNullString
+    JobUniStr.data = vbNullString
     
     cStream.ReadData VarPtr(JobUniStr.Length), 2
     
@@ -1648,9 +1653,9 @@ Private Sub Read_Job_String(cStream As clsStream, JobUniStr As JOB_UNICODE_STRIN
         
         If cchText > 300 Then cchText = 300
     
-        JobUniStr.Data = String$(cchText - 1, 0&)
+        JobUniStr.data = String$(cchText - 1, 0&)
         
-        cStream.ReadData StrPtr(JobUniStr.Data), (cchText - 1) * 2& 'minus null terminator
+        cStream.ReadData StrPtr(JobUniStr.data), (cchText - 1) * 2& 'minus null terminator
         
         cStream.BufferPointer = cStream.BufferPointer + 2
         
@@ -2014,7 +2019,7 @@ Public Function RestoreBitsJob(sName As String, sURL As String, sDestination As 
     If Not OSver.IsWindowsVistaOrGreater Then Exit Function
     
     If GetServiceStartMode("bits") = SERVICE_MODE_DISABLED Then SetServiceStartMode "bits", SERVICE_MODE_MANUAL
-    If GetServiceRunState("bits") <> SERVICE_RUNNING Then StartService "bits", True, False
+    If GetServiceRunState("bits") <> SERVICE_RUNNING Then StartService "bits", True, True
     
     BitsAdmin = PathX64(BuildPath(sWinSysDir, "bitsadmin.exe"))
     

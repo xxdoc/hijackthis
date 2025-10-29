@@ -256,7 +256,6 @@ Const MAX_FILE_SIZE As Currency = 314572800@
 'Private Declare Sub CopyMemory Lib "kernel32.dll" Alias "RtlMoveMemory" (Dest As Any, Source As Any, ByVal lSize As Long)
 'Private Declare Function GetLogicalDriveStrings Lib "kernel32.dll" Alias "GetLogicalDriveStringsW" (ByVal nBufferLength As Long, ByVal lpBuffer As Long) As Long
 'Private Declare Function PathIsNetworkPath Lib "Shlwapi.dll" Alias "PathIsNetworkPathW" (ByVal pszPath As Long) As Long
-'Private Declare Function DeviceIoControl Lib "kernel32.dll" (ByVal hDevice As Long, ByVal dwIoControlCode As Long, lpInBuffer As Any, ByVal nInBufferSize As Long, ByVal lpOutBuffer As Long, ByVal nOutBufferSize As Long, lpBytesReturned As Long, ByVal lpOverlapped As Long) As Long
 'Private Declare Function CopyFile Lib "kernel32.dll" Alias "CopyFileW" (ByVal lpExistingFileName As Long, ByVal lpNewFileName As Long, ByVal bDontOverwrite As Long) As Long
 'Private Declare Function SHFileOperation Lib "shell32.dll" Alias "SHFileOperationW" (lpFileOp As SHFILEOPSTRUCT) As Long
 'Private Declare Function GetLongPathName Lib "kernel32.dll" Alias "GetLongPathNameW" (ByVal lpszShortPath As Long, ByVal lpszLongPath As Long, ByVal cchBuffer As Long) As Long
@@ -444,10 +443,10 @@ End Function
 'End Sub
 
 
-Public Function FileLenW(Optional Path As String, Optional hFileHandle As Long) As Currency ', Optional DoNotUseCache As Boolean
+Public Function FileLenW(Optional path As String, Optional hFileHandle As Long) As Currency ', Optional DoNotUseCache As Boolean
     On Error GoTo ErrorHandler
     
-    AppendErrorLogCustom "FileLenW - Begin", "Path: " & Path, "Handle: " & hFileHandle
+    AppendErrorLogCustom "FileLenW - Begin", "Path: " & path, "Handle: " & hFileHandle
     
 '    ' Last cached File
 '    Static CachedFile As String
@@ -466,8 +465,8 @@ Public Function FileLenW(Optional Path As String, Optional hFileHandle As Long) 
 '    End If
     
     If hFileHandle = 0 Then
-        Redirect = ToggleWow64FSRedirection(False, Path, bOldStatus)
-        hFile = CreateFile(StrPtr(Path), 0&, FILE_SHARE_READ Or FILE_SHARE_WRITE Or FILE_SHARE_DELETE, ByVal 0&, OPEN_EXISTING, ByVal 0&, ByVal 0&)
+        Redirect = ToggleWow64FSRedirection(False, path, bOldStatus)
+        hFile = CreateFile(StrPtr(path), 0&, FILE_SHARE_READ Or FILE_SHARE_WRITE Or FILE_SHARE_DELETE, ByVal 0&, OPEN_EXISTING, ByVal 0&, ByVal 0&)
     Else
         hFile = hFileHandle
     End If
@@ -491,12 +490,11 @@ Public Function FileLenW(Optional Path As String, Optional hFileHandle As Long) 
     AppendErrorLogCustom "FileLenW - End", "Size: " & FileSize
     Exit Function
 ErrorHandler:
-    ErrorMsg Err, "modFile.FileLenW", "File:", Path, "hFile:", hFile, "FileSize:", FileLenW, "Return:", lr
+    ErrorMsg Err, "modFile.FileLenW", "File:", path, "hFile:", hFile, "FileSize:", FileLenW, "Return:", lr
 End Function
 
 
-
-Public Function OpenW(FileName As String, Access As VB_FILE_ACCESS_MODE, retHandle As Long, Optional Flags As Long) As Boolean
+Public Function OpenW(FileName As String, Access As VB_FILE_ACCESS_MODE, retHandle As Long, Optional Flags As Long, Optional bLockFile As Boolean) As Boolean
     
     AppendErrorLogCustom "OpenW - Begin", "File: " & FileName, "Access: " & Access
     
@@ -543,11 +541,20 @@ Public Function OpenW(FileName As String, Access As VB_FILE_ACCESS_MODE, retHand
                 Err.Clear: AppendErrorLogNoErr Err, "modFile.OpenW", "Trying to open too big file" & ": (" & (FSize \ 1024 \ 1024) & " MB.) " & FileName
             End If
         End If
+        If bLockFile And OpenW Then
+            Dim ov As OVERLAPPED
+            ov.offset = 0
+            ov.InternalHigh = 0
+            ov.hEvent = 0
+            If (0 = LockFileEx(retHandle, LOCKFILE_EXCLUSIVE_LOCK Or LOCKFILE_FAIL_IMMEDIATELY, 0&, 1& * 1024 * 1024, 0&, VarPtr(ov))) Then
+                AppendErrorLogCustom "Can't lock file. Err = " & Err.LastDllError
+            End If
+        End If
     Else
         AppendErrorLogNoErr Err, "modFile.OpenW", "Cannot open file: " & FileName
         'Err.Raise 75 ' Path/File Access error
     End If
-
+    
     AppendErrorLogCustom "OpenW - End", "Handle: " & retHandle
 End Function
 
@@ -635,19 +642,23 @@ Public Function GetW(hFile As Long, Optional vPos As Variant, Optional vOut As V
 '    Resume Next
 End Function
 
-Public Function PutStringW(hFile As Long, Optional pos As Long, Optional sStr As String, Optional bUnicode As Boolean = True) As Boolean
+Public Function PutStringUnicode(hFile As Long, Optional pos As Long, Optional sStr As String) As Boolean
+    PutStringUnicode = PutString(hFile, pos, sStr, True)
+End Function
+
+Public Function PutString(hFile As Long, Optional pos As Long, Optional sStr As String, Optional bUnicode As Boolean = True) As Boolean
     Dim doAppend As Boolean
     If Len(sStr) <> 0 Then
         If pos = 0 Then doAppend = True
         If bUnicode Then
-            PutStringW = PutW(hFile, pos, StrPtr(sStr), LenB(sStr), doAppend)
+            PutString = PutW(hFile, pos, StrPtr(sStr), LenB(sStr), doAppend)
         Else
             Dim ansi As String
             ansi = StrConv(sStr, vbFromUnicode)
-            PutStringW = PutW(hFile, pos, StrPtr(ansi), LenB(ansi), doAppend)
+            PutString = PutW(hFile, pos, StrPtr(ansi), LenB(ansi), doAppend)
         End If
     Else
-        PutStringW = True
+        PutString = True
     End If
 End Function
 
@@ -706,9 +717,6 @@ Public Function LOFW(hFile As Long) As Currency
         If lr Then
             If FileSize < 10000000000@ Then
                 LOFW = FileSize * 10000&
-            Else
-                Err.Clear
-                ErrorMsg Err, "File is too big. Size: " & FileSize
             End If
         End If
     End If
@@ -744,9 +752,29 @@ Public Function PrintBOM(hFile As Long) As Boolean
     PrintBOM = PutW(hFile, 0, StrPtr(BOM), 2, True)
 End Function
 
+Public Sub CloseLockedFileW(hFile As Long)
+
+    Dim lret As Long
+    Dim ov As OVERLAPPED
+    ov.offset = 0
+    ov.InternalHigh = 0
+    ov.hEvent = 0
+    
+    If g_LogLocked Then
+        lret = UnlockFileEx(hFile, 0&, 1& * 1024 * 1024, 0&, VarPtr(ov))
+        If lret = 0 Then
+            AppendErrorLogCustom "UnlockFileEx is failed with err = " & Err.LastDllError
+        End If
+    End If
+    
+    FlushFileBuffers hFile
+    CloseW hFile
+End Sub
+
 Public Function CloseW(hFile As Long, Optional bFlushBuffers As Boolean) As Long
     AppendErrorLogCustom "CloseW", "Handle: " & hFile
     If hFile = 0 Then Exit Function
+    If hFile = INVALID_HANDLE_VALUE Then Exit Function
     
 '    Dim AccessMode As Long
 '    Dim IO As IO_STATUS_BLOCK
@@ -763,7 +791,6 @@ Public Function CloseW(hFile As Long, Optional bFlushBuffers As Boolean) As Long
     End If
 
     CloseW = CloseHandle(hFile)
-    If CloseW Then hFile = INVALID_HANDLE_VALUE
 End Function
 
 '// TODO. I don't like it. Re-check it !!!
@@ -834,10 +861,10 @@ Public Function ToggleWow64FSRedirection(bEnable As Boolean, Optional PathNecess
 End Function
 
 
-Public Function GetExtensionName(Path As String) As String  'вернет .ext
+Public Function GetExtensionName(path As String) As String  'вернет .ext
     Dim pos As Long
-    pos = InStrRev(Path, ".")
-    If pos <> 0 Then GetExtensionName = mid$(Path, pos)
+    pos = InStrRev(path, ".")
+    If pos <> 0 Then GetExtensionName = mid$(path, pos)
 End Function
 
 '' Является ли файл форматом PE EXE
@@ -916,26 +943,26 @@ End Function
 '    End If
 'End Function
 
-Public Function FolderHasFile(Path As String) As Boolean
+Public Function FolderHasFile(path As String) As Boolean
     On Error GoTo ErrorHandler
     
-    If Len(GetFirstFileName(Path)) <> 0 Then FolderHasFile = True
+    If Len(GetFirstFileName(path)) <> 0 Then FolderHasFile = True
     
     Exit Function
 ErrorHandler:
-    ErrorMsg Err, "FolderHasFile", "Path:", Path
+    ErrorMsg Err, "FolderHasFile", "Path:", path
     If inIDE Then Stop: Resume Next
 End Function
 
 
-Public Function FolderHasSubfolder(Path As String) As Boolean
+Public Function FolderHasSubfolder(path As String) As Boolean
     On Error GoTo ErrorHandler
     
-    If Len(GetFirstSubFolderName(Path)) <> 0 Then FolderHasSubfolder = True
+    If Len(GetFirstSubFolderName(path)) <> 0 Then FolderHasSubfolder = True
     
     Exit Function
 ErrorHandler:
-    ErrorMsg Err, "FolderHasSubfolder", "Path:", Path
+    ErrorMsg Err, "FolderHasSubfolder", "Path:", path
     If inIDE Then Stop: Resume Next
 End Function
 
@@ -943,10 +970,10 @@ End Function
 
 ' Возвращает массив путей.
 ' Если ничего не найдено - возвращается неинициализированный массив.
-Public Function ListSubfolders(Path As String, Optional Recursively As Boolean = False) As String()
+Public Function ListSubfolders(path As String, Optional Recursively As Boolean = False) As String()
     On Error GoTo ErrorHandler
 
-    AppendErrorLogCustom "ListSubfolders - Begin", "Path:", Path, "Recur:", Recursively
+    AppendErrorLogCustom "ListSubfolders - Begin", "Path:", path, "Recur:", Recursively
 
     Dim bRedirStateChanged As Boolean, bOldState As Boolean
     
@@ -956,13 +983,13 @@ Public Function ListSubfolders(Path As String, Optional Recursively As Boolean =
     Total_Folders = 0&
     
     If bIsWin64 Then
-        If StrBeginWith(Path, sWinDir) Then
+        If StrBeginWith(path, sWinDir) Then
             bRedirStateChanged = ToggleWow64FSRedirection(False, , bOldState)
         End If
     End If
     
     'вызов тушки
-    Call ListSubfolders_Ex(Path, Recursively)
+    Call ListSubfolders_Ex(path, Recursively)
     If Total_Folders > 0 Then
         Total_Folders = Total_Folders - 1
         ReDim Preserve arrPathFolders(Total_Folders)      '0 to Max -1
@@ -975,13 +1002,13 @@ Public Function ListSubfolders(Path As String, Optional Recursively As Boolean =
     
     Exit Function
 ErrorHandler:
-    ErrorMsg Err, "modFile.ListSubfolders", "Path:", Path, "Recur:", Recursively
+    ErrorMsg Err, "modFile.ListSubfolders", "Path:", path, "Recur:", Recursively
     If bRedirStateChanged Then Call ToggleWow64FSRedirection(bOldState)
     If inIDE Then Stop: Resume Next
 End Function
 
 
-Private Sub ListSubfolders_Ex(Path As String, Optional Recursively As Boolean = False)
+Private Sub ListSubfolders_Ex(path As String, Optional Recursively As Boolean = False)
     On Error GoTo ErrorHandler
     
     Dim SubPathName     As String
@@ -1000,7 +1027,7 @@ Private Sub ListSubfolders_Ex(Path As String, Optional Recursively As Boolean = 
         If hFind <> 0& Then
             If FindNextFile(hFind, fd) = 0& Then FindClose hFind: Exit Do
         Else
-            hFind = FindFirstFile(StrPtr(Path & ch_SlashAsterisk), fd)  '"\*"
+            hFind = FindFirstFile(StrPtr(path & ch_SlashAsterisk), fd)  '"\*"
             If hFind = INVALID_HANDLE_VALUE Then Exit Do
         End If
         
@@ -1018,7 +1045,7 @@ Private Sub ListSubfolders_Ex(Path As String, Optional Recursively As Boolean = 
             If fd.dwFileAttributes And vbDirectory Then
                 If PathName <> ch_Dot Then  '"."
                     If PathName <> ch_DotDot Then '".."
-                        SubPathName = Path & "\" & PathName
+                        SubPathName = path & "\" & PathName
                         If UBound(arrPathFolders) < Total_Folders Then ReDim Preserve arrPathFolders(UBound(arrPathFolders) + 100&) As String
                         arrPathFolders(Total_Folders) = SubPathName
                         Total_Folders = Total_Folders + 1&
@@ -1034,7 +1061,7 @@ Private Sub ListSubfolders_Ex(Path As String, Optional Recursively As Boolean = 
     
     Exit Sub
 ErrorHandler:
-    ErrorMsg Err, "modFile.ListSubfolders", "Folder:", Path
+    ErrorMsg Err, "modFile.ListSubfolders", "Folder:", path
     Resume Next
 End Sub
 
@@ -1046,14 +1073,14 @@ End Sub
 'ret - string array( 0 to MAX-1 ) or non-touched array if none.
 '
 Public Function ListFiles( _
-    Path As String, _
+    path As String, _
     Optional ExtensionWithDot As String = vbNullString, _
     Optional Recursively As Boolean = False, _
     Optional bIncludePeExe As Boolean) As String()
     
     On Error GoTo ErrorHandler
 
-    AppendErrorLogCustom "ListFiles - Begin", "Path: " & Path, "Ext-s: " & ExtensionWithDot, "Recur: " & Recursively
+    AppendErrorLogCustom "ListFiles - Begin", "Path: " & path, "Ext-s: " & ExtensionWithDot, "Recur: " & Recursively
 
     Dim bRedirStateChanged As Boolean, bOldState As Boolean
     'прежде, чем использовать ListFiles_Ex, нужно инициализировать глобальные массивы.
@@ -1062,13 +1089,13 @@ Public Function ListFiles( _
     Total_Files = 0&
     
     If bIsWin64 Then
-        If StrBeginWith(Path, sWinDir) Then
+        If StrBeginWith(path, sWinDir) Then
             bRedirStateChanged = ToggleWow64FSRedirection(False, , bOldState)
         End If
     End If
     
     'вызов тушки
-    Call ListFiles_Ex(Path, ExtensionWithDot, Recursively, bIncludePeExe)
+    Call ListFiles_Ex(path, ExtensionWithDot, Recursively, bIncludePeExe)
     If Total_Files > 0 Then
         Total_Files = Total_Files - 1
         ReDim Preserve arrPathFiles(Total_Files)      '0 to Max -1
@@ -1080,14 +1107,14 @@ Public Function ListFiles( _
     AppendErrorLogCustom "ListFiles - End"
     Exit Function
 ErrorHandler:
-    ErrorMsg Err, "modFile.ListFiles", "Path:", Path, "Ext-s:", ExtensionWithDot, "Recur:", Recursively
+    ErrorMsg Err, "modFile.ListFiles", "Path:", path, "Ext-s:", ExtensionWithDot, "Recur:", Recursively
     If bRedirStateChanged Then Call ToggleWow64FSRedirection(bOldState)
     If inIDE Then Stop: Resume Next
 End Function
 
 
 Private Sub ListFiles_Ex( _
-    Path As String, _
+    path As String, _
     Optional Extension As String = vbNullString, _
     Optional Recursively As Boolean = False, _
     Optional bIncludePeExe As Boolean)
@@ -1119,7 +1146,7 @@ Private Sub ListFiles_Ex( _
         If hFind <> 0& Then
             If FindNextFile(hFind, fd) = 0& Then FindClose hFind: Exit Do
         Else
-            hFind = FindFirstFile(StrPtr(Path & ch_SlashAsterisk), fd)  '"\*"
+            hFind = FindFirstFile(StrPtr(path & ch_SlashAsterisk), fd)  '"\*"
             If hFind = INVALID_HANDLE_VALUE Then Exit Do
         End If
         
@@ -1137,7 +1164,7 @@ Private Sub ListFiles_Ex( _
             If fd.dwFileAttributes And vbDirectory Then
                 If PathName <> ch_Dot Then  '"."
                     If PathName <> ch_DotDot Then '".."
-                        SubPathName = BuildPath(Path, PathName)
+                        SubPathName = BuildPath(path, PathName)
                         If Recursively Then
                             Call ListFiles_Ex(SubPathName, Extension, Recursively, bIncludePeExe)
                         End If
@@ -1150,11 +1177,11 @@ Private Sub ListFiles_Ex( _
                 ElseIf InArray(GetExtensionName(PathName), ext, , , 1) Then
                     bComply = True
                 ElseIf bIncludePeExe Then
-                    SubPathName = BuildPath(Path, PathName)
+                    SubPathName = BuildPath(path, PathName)
                     If isPE(SubPathName) Then bComply = True
                 End If
                 If bComply Then
-                    SubPathName = BuildPath(Path, PathName)
+                    SubPathName = BuildPath(path, PathName)
                     If UBound(arrPathFiles) < Total_Files Then ReDim Preserve arrPathFiles(UBound(arrPathFiles) + 100&) As String
                     arrPathFiles(Total_Files) = SubPathName
                     Total_Files = Total_Files + 1&
@@ -1168,7 +1195,7 @@ Private Sub ListFiles_Ex( _
     
     Exit Sub
 ErrorHandler:
-    ErrorMsg Err, "modFile.ListFiles_Ex", "Folder:", Path
+    ErrorMsg Err, "modFile.ListFiles_Ex", "Folder:", path
     Resume Next
 End Sub
 
@@ -1381,7 +1408,7 @@ Public Function GetFilePropCompany(sFilename As String) As String
             lstrcpy ByVal StrPtr(sCompanyName), ByVal hData
         End If
         
-        GetFilePropCompany = RTrimNull(sCompanyName)
+        GetFilePropCompany = RTrim$(RTrimNull(LTrim$(sCompanyName)))
     End If
 Finalize:
     If Redirect Then Call ToggleWow64FSRedirection(bOldStatus)
@@ -1534,16 +1561,17 @@ Public Function GetEmptyName(ByVal sFullPath As String) As String
     Dim sPath As String
     Dim i As Long
 
-    If Not FileExists(sFullPath) Then
+    If Not FileExists(sFullPath, , True) Then
         GetEmptyName = sFullPath
     Else
         sExt = GetExtensionName(sFullPath)
         sPath = GetPathName(sFullPath)
         sName = GetFileName(sFullPath)
+        i = 1
         Do
             i = i + 1
             sFullPath = BuildPath(sPath, sName & "(" & i & ")" & sExt)
-        Loop While FileExists(sFullPath)
+        Loop While FileExists(sFullPath, , True)
         
         GetEmptyName = sFullPath
     End If
@@ -1712,57 +1740,57 @@ Public Function RTrimNull(s$) As String
     Next
 End Function
 
-Public Function GetRootPath(Path As String) As String
+Public Function GetRootPath(path As String) As String
     Dim pos As Long
-    If InStr(Path, ":") <> 0 Then
-        GetRootPath = Left$(Path, 2)
+    If InStr(path, ":") <> 0 Then
+        GetRootPath = Left$(path, 2)
     Else
-        pos = InStr(Path, "\")
+        pos = InStr(path, "\")
         If pos <> 0 Then
-            GetRootPath = Left$(Path, pos - 1)
+            GetRootPath = Left$(path, pos - 1)
         Else
-            GetRootPath = Path
+            GetRootPath = path
         End If
     End If
 End Function
 
-Public Function GetPathName(Path As String) As String   ' получить родительский каталог
+Public Function GetPathName(path As String) As String   ' получить родительский каталог
     Dim pos As Long
-    pos = InStrRev(Path, "\")
-    If pos <> 0 Then GetPathName = Left$(Path, pos - 1)
+    pos = InStrRev(path, "\")
+    If pos <> 0 Then GetPathName = Left$(path, pos - 1)
 End Function
 
 ' Получить имя файла
-Public Function GetFileName(ByVal Path As String, Optional bWithExtension As Boolean) As String
+Public Function GetFileName(ByVal path As String, Optional bWithExtension As Boolean) As String
     On Error GoTo ErrorHandler
     Dim posDot      As Long
     Dim posSl       As Long
     Dim posColon    As Long
     
     'trim ADS
-    posColon = InStr(4, Path, ":")
+    posColon = InStr(4, path, ":")
     If posColon Then
         'not URL ?
-        If mid$(Path, posColon, 3) <> ":\\" Then
-            Path = Left$(Path, posColon - 1)
+        If mid$(path, posColon, 3) <> ":\\" Then
+            path = Left$(path, posColon - 1)
         End If
     End If
     
-    posSl = InStrRev(Path, "\")
+    posSl = InStrRev(path, "\")
     If Not bWithExtension Then
         If posSl <> 0 Then
-            posDot = InStrRev(Path, ".")
+            posDot = InStrRev(path, ".")
             If posDot < posSl Then posDot = 0
         Else
-            posDot = InStrRev(Path, ".")
+            posDot = InStrRev(path, ".")
         End If
     End If
-    If posDot = 0 Then posDot = Len(Path) + 1
+    If posDot = 0 Then posDot = Len(path) + 1
     
-    GetFileName = mid$(Path, posSl + 1, posDot - posSl - 1)
+    GetFileName = mid$(path, posSl + 1, posDot - posSl - 1)
     Exit Function
 ErrorHandler:
-    ErrorMsg Err, "Parser.GetFileName", "Path: ", Path
+    ErrorMsg Err, "Parser.GetFileName", "Path: ", path
 End Function
 
 Private Function MapDriveTypeToDriveTypeBit(DriveType As DRIVE_TYPE) As DRIVE_TYPE_BIT
@@ -1834,7 +1862,7 @@ Public Function GetDrives(Optional DriveTypeBit As DRIVE_TYPE_BIT = DRIVE_BIT_AN
                 'проверяем готово ли устройство (вставлен ли диск)
                 If DeviceIoControl(hDevice, _
                             lControlCode, _
-                             ByVal 0&, 0&, _
+                            0&, 0&, _
                             0&, 0&, _
                             cbBytesReturned, _
                             0&) Then
@@ -2003,7 +2031,7 @@ ErrorHandler:
     If inIDE Then Stop: Resume Next
 End Function
 
-Public Function ReadFileContents(sFile As String, isUnicode As Boolean) As String
+Public Function ReadFileContents(sFile As String, isUnicode As Boolean, Optional MaxBytesToProcess As Long = -1) As String
     On Error GoTo ErrorHandler:
     AppendErrorLogCustom "ReadFileContents - Begin", "File: " & sFile
     Dim hFile   As Long
@@ -2025,6 +2053,11 @@ Public Function ReadFileContents(sFile As String, isUnicode As Boolean) As Strin
         CloseW hFile
         If Redirect Then Call ToggleWow64FSRedirection(bOldStatus)
         Exit Function
+    End If
+    If MaxBytesToProcess <> -1 Then
+        If lSize > MaxBytesToProcess Then
+            lSize = MaxBytesToProcess
+        End If
     End If
     ReDim b(lSize - 1)
     GetW hFile, 1, , VarPtr(b(0)), UBound(b) + 1
@@ -2212,9 +2245,9 @@ Public Function IniSetString( _
         End If
     End If
     
-    If Not CheckAccessWrite(sIniFile) Then
+    If Not CheckFileAccessWrite_Physically(sIniFile) Then
         TryUnlock sIniFile
-        If Not CheckAccessWrite(sIniFile) Then
+        If Not CheckFileAccessWrite_Physically(sIniFile) Then
             If Not bAutoLogSilent Then
                 'The value '[*]' could not be written to the settings file '[**]'. Please verify that write access is allowed to that file.
                 MsgBoxW Replace$(Replace$(Translate(1008), "[*]", vData), "[**]", sIniFile), vbCritical
@@ -2317,9 +2350,9 @@ Public Function IniRemoveString( _
         End If
     End If
 
-    If Not CheckAccessWrite(sIniFile) Then
+    If Not CheckFileAccessWrite_Physically(sIniFile) Then
         TryUnlock sIniFile
-        If Not CheckAccessWrite(sIniFile) Then
+        If Not CheckFileAccessWrite_Physically(sIniFile) Then
             If Not bAutoLogSilent Then
                 'The parameter '[*]' could not be removed from the settings file '[**]'. Please verify that write access is allowed for that file.
                 MsgBoxW Replace$(Replace$(Translate(1009), "[*]", sParameter), "[**]", sIniFile), vbCritical
@@ -2407,7 +2440,7 @@ Public Function WriteDataToFile(sFile As String, sContents As String, Optional i
     
     If Redirect Then Call ToggleWow64FSRedirection(bOldStatus)
     
-    If 0 = DeleteFilePtr(StrPtr(sFile)) Then
+    If Not DeleteFileEx(sFile) Then
         If (Not bAutoLogSilent) And bShowWarning Then
             'The value '[*]' could not be written to the settings file '[**]'. Please verify that write access is allowed to that file.
             MsgBoxW Replace$(Replace$(Translate(1008), "[*]", sContents), "[**]", sFile), vbCritical
@@ -2484,21 +2517,21 @@ ErrorHandler:
     If inIDE Then Stop: Resume Next
 End Function
 
-Public Function GetFileNameAndExt(ByVal Path As String) As String ' вернет только имя файла вместе с расширением
+Public Function GetFileNameAndExt(ByVal path As String) As String ' вернет только имя файла вместе с расширением
     Dim pos As Long
     Dim posColon    As Long
     
     'trim ADS
-    posColon = InStr(4, Path, ":")
+    posColon = InStr(4, path, ":")
     If posColon Then
-        Path = Left$(Path, posColon - 1)
+        path = Left$(path, posColon - 1)
     End If
     
-    pos = InStrRev(Path, "\")
+    pos = InStrRev(path, "\")
     If pos <> 0 Then
-        GetFileNameAndExt = mid$(Path, pos + 1)
+        GetFileNameAndExt = mid$(path, pos + 1)
     Else
-        GetFileNameAndExt = Path
+        GetFileNameAndExt = path
     End If
 End Function
 
@@ -2540,7 +2573,7 @@ Public Function FileCopyW(FileSource As String, FileDestination As String, Optio
         TryUnlock FileDestination
         FileCopyW = CopyFile(StrPtr(FileSource), StrPtr(FileDestination), Not bOverwrite)
         If Not FileCopyW Then
-            If DeleteFilePtr(StrPtr(FileDestination), , True) Then
+            If DeleteFileEx(FileDestination, True, True) Then
                 FileCopyW = CopyFile(StrPtr(FileSource), StrPtr(FileDestination), Not bOverwrite)
             End If
         End If
@@ -2790,13 +2823,13 @@ ErrorHandler:
     If inIDE Then Stop: Resume Next
 End Function
 
-Public Sub SplitIntoPathAndArgs(ByVal InLine As String, Path As String, Optional Args As String, Optional bIsRegistryData As Boolean)
+Public Sub SplitIntoPathAndArgs(ByVal InLine As String, path As String, Optional Args As String, Optional bIsRegistryData As Boolean)
     On Error GoTo ErrorHandler
     Dim pos As Long
     Dim sTmp As String
     Dim bFail As Boolean
     
-    Path = vbNullString
+    path = vbNullString
     Args = vbNullString
     If Len(InLine) = 0& Then Exit Sub
     
@@ -2804,10 +2837,10 @@ Public Sub SplitIntoPathAndArgs(ByVal InLine As String, Path As String, Optional
     If Left$(InLine, 1) = """" Then
         pos = InStr(2, InLine, """")
         If pos <> 0 Then
-            Path = mid$(InLine, 2, pos - 2)
+            path = mid$(InLine, 2, pos - 2)
             Args = Trim$(mid$(InLine, pos + 1))
         Else
-            Path = mid$(InLine, 2)
+            path = mid$(InLine, 2)
             Args = vbNullString
         End If
     Else
@@ -2815,7 +2848,7 @@ Public Sub SplitIntoPathAndArgs(ByVal InLine As String, Path As String, Optional
     
         If bIsRegistryData Then
             If FileExists(InLine) Then
-                Path = InLine
+                path = InLine
                 Args = vbNullString
                 Exit Sub
             End If
@@ -2825,9 +2858,9 @@ Public Sub SplitIntoPathAndArgs(ByVal InLine As String, Path As String, Optional
                 If pos <> 0 Then
                     sTmp = mid$(InLine, pos + 4, 1)
                     If sTmp = " " Or sTmp = "/" Then
-                        Path = Left$(InLine, pos + 3)
+                        path = Left$(InLine, pos + 3)
                         Args = LTrim$(mid$(InLine, pos + 4))
-                        If Not FileExists(Path) Then bFail = True
+                        If Not FileExists(path) Then bFail = True
                     End If
                 End If
             End If
@@ -2835,24 +2868,24 @@ Public Sub SplitIntoPathAndArgs(ByVal InLine As String, Path As String, Optional
             bFail = True
         End If
         
-        If bFail Or Len(Path) = 0 Then
+        If bFail Or Len(path) = 0 Then
             pos = InStr(InLine, " ")
             If pos <> 0 Then
-                Path = Left$(InLine, pos - 1)
+                path = Left$(InLine, pos - 1)
                 Args = mid$(InLine, pos + 1)
             Else
-                Path = InLine
+                path = InLine
                 Args = vbNullString
             End If
         End If
     End If
-    If Len(Path) <> 0 Then
-        If Not FileExists(Path) Then  'find on %PATH%
-            sTmp = FindOnPath(Path)
+    If Len(path) <> 0 Then
+        If Not FileExists(path) Then  'find on %PATH%
+            sTmp = FindOnPath(path)
             If Len(sTmp) <> 0 Then
-                Path = sTmp
+                path = sTmp
             Else
-                Path = InLine
+                path = InLine
                 Args = vbNullString
             End If
         End If
@@ -2924,7 +2957,7 @@ Public Function DeleteFolderForce(sFolder As String, Optional bForceDeleteMicros
                     aFiles = ListFiles(sFolder)
                     If AryItems(aFiles) Then
                         For i = 0 To UBound(aFiles)
-                            DeleteFilePtr StrPtr(aFiles(i)), bForceDeleteMicrosoft
+                            DeleteFileForce aFiles(i), bForceDeleteMicrosoft
                         Next
                     End If
                 End If
@@ -3195,35 +3228,35 @@ ErrorHandler:
     If inIDE Then Stop: Resume Next
 End Function
 
-Public Function MkDirW(ByVal Path As String, Optional ByVal LastComponentIsFile As Boolean = False) As Boolean
+Public Function MkDirW(ByVal path As String, Optional ByVal LastComponentIsFile As Boolean = False, Optional bNotifyShell As Boolean) As Boolean
     On Error GoTo ErrorHandler
     ' Create folders struct
     ' LastComponentIsFile - true, if you specify filename as a last part of path component
     ' Return value: true, if successfully created or if folder is already exists
     Dim FC As String, lr As Boolean, pos As Long
     Dim bRedirect As Boolean, bOldStatus As Boolean
-    If LastComponentIsFile Then Path = Left$(Path, InStrRev(Path, "\") - 1) ' cut off file name
-    If InStr(Path, ":") = 0 And Not StrBeginWith(Path, "\\") Then 'if relative path
+    If LastComponentIsFile Then path = Left$(path, InStrRev(path, "\") - 1) ' cut off file name
+    If InStr(path, ":") = 0 And Not StrBeginWith(path, "\\") Then 'if relative path
         Dim sCurDir$, nChar As Long
         sCurDir = String$(MAX_PATH, 0&)
         nChar = GetCurrentDirectory(MAX_PATH + 1, StrPtr(sCurDir))
         sCurDir = Left$(sCurDir, nChar)
         If Right$(sCurDir, 1) <> "\" Then sCurDir = sCurDir & "\"
-        Path = sCurDir & Path
+        path = sCurDir & path
     End If
-    If FolderExists(Path, , True) Then
+    If FolderExists(path, , True) Then
         MkDirW = True
         Exit Function
     End If
-    bRedirect = ToggleWow64FSRedirection(False, Path, bOldStatus)
-    If StrBeginWith(Path, "\\") Then
-        pos = InStr(3, Path, "\")
+    bRedirect = ToggleWow64FSRedirection(False, path, bOldStatus)
+    If StrBeginWith(path, "\\") Then
+        pos = InStr(3, path, "\")
         If pos = 0 Then Exit Function
     End If
     Do 'looping through each path component
         pos = pos + 1
-        pos = InStr(pos, Path, "\")
-        If pos Then FC = Left$(Path, pos - 1) Else FC = Path
+        pos = InStr(pos, path, "\")
+        If pos Then FC = Left$(path, pos - 1) Else FC = path
         If FolderExists(FC, , True) Then
             lr = True 'if folder is already created
         Else
@@ -3232,10 +3265,13 @@ Public Function MkDirW(ByVal Path As String, Optional ByVal LastComponentIsFile 
         End If
     Loop While (pos <> 0) And (lr <> 0)
     MkDirW = lr
+    If MkDirW And bNotifyShell Then
+        SHChangeNotify SHCNE_MKDIR, SHCNF_PATH, StrPtr(path), 0
+    End If
     If bRedirect Then ToggleWow64FSRedirection bOldStatus
     Exit Function
 ErrorHandler:
-    ErrorMsg Err, "modFile.MkDirW", "Path:", Path, "IsFile:", LastComponentIsFile
+    ErrorMsg Err, "modFile.MkDirW", "Path:", path, "IsFile:", LastComponentIsFile
     If inIDE Then Stop: Resume Next
 End Function
 
@@ -3281,21 +3317,6 @@ End Function
 
 Function ReplaceEV(p_Path As String, p_What As String, p_Into As String) As Boolean
   If StrBeginWith(p_Path, p_What) Then p_Path = p_Into & mid$(p_Path, Len(p_What) + 1): ReplaceEV = True
-End Function
-
-Public Function GetFreeDiscSpace(sRoot As String, bForCurrentUser As Boolean) As Currency ' result = Int64
-    On Error GoTo ErrorHandler
-    If IsProcedureAvail("GetDiskFreeSpaceExW", "kernel32.dll") Then
-        If bForCurrentUser Then
-            If GetDiskFreeSpaceEx(StrPtr(sRoot), VarPtr(GetFreeDiscSpace), 0&, 0&) = 0 Then Dbg "GetDiskFreeSpaceEx is failed with: " & Err.LastDllError
-        Else
-            If GetDiskFreeSpaceEx(StrPtr(sRoot), 0&, 0&, VarPtr(GetFreeDiscSpace)) = 0 Then Dbg "GetDiskFreeSpaceEx is failed with: " & Err.LastDllError
-        End If
-    End If
-    Exit Function
-ErrorHandler:
-    ErrorMsg Err, "modFile.GetFreeDiscSpace", "Root:", sRoot
-    If inIDE Then Stop: Resume Next
 End Function
 
 Public Function GetFilenameFromHandle(hFile As Long) As String
@@ -3491,11 +3512,11 @@ Public Function CreateFileStream(sPath As String, sStreamName As String, binData
         0&, _
         0&)
     
-    If status = STATUS_SUCCESS And hFile <> -1 Then
+    If NT_SUCCESS(status) And hFile <> -1 Then
 
         status = NtWriteFile(hFile, ByVal 0, ByVal 0, ByVal 0, iosb, VarPtr(binData(0)), UBound(binData) + 1, ByVal 0, ByVal 0)
         
-        If status = STATUS_SUCCESS Then
+        If NT_SUCCESS(status) Then
             CreateFileStream = True
         End If
         

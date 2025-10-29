@@ -1,12 +1,21 @@
 OSver;Dir\Name;RunObj;Args;Note
+11; \Microsoft\Windows\AppListBackup\BackupNonMaintenance; {E0DCC2CC-3354-45F2-8914-519E07809082}; %SystemRoot%\system32\AppListBackupLauncher.dll
+11; \Microsoft\Windows\AppxDeploymentClient\UCPD velocity; %SystemRoot%\system32\UCPDMgr.exe
+11; \Microsoft\Windows\CloudRestore\Backup; {722D0F89-B69C-4700-AE8C-4A44350E4876},$(Arg0); %SystemRoot%\System32\CloudRestoreLauncher.dll
 11; \Microsoft\Windows\CloudRestore\Restore; {B4BCFA6F-948D-46B8-BF27-E8B1117E23B3}; %SystemRoot%\system32\CloudRestoreLauncher.dll
+11; \Microsoft\Windows\Input\InputSettingsRestoreDataAvailable; {378EAB97-EFD6-4ED5-9AD9-E64A6AA1E6FA},InputSettingsRestoreDataAvailable; %SystemRoot%\System32\InputCloudStore.dll
+11; \Microsoft\Windows\Input\syncpensettings; {3ECEE215-83F5-4123-A592-74F1FE4C3D59},SYNC_PEN_SETTINGS; %SystemRoot%\System32\SettingsHandlers_Pen.dll
+11; \Microsoft\Windows\InstallService\RestoreDevice; {7F019157-05C8-473F-8664-2BA04A090DC8}; %SystemRoot%\System32\InstallServiceTasks.dll
 11; \Microsoft\Windows\PI\SecureBootEncodeUEFI; %SystemRoot%\system32\SecureBootEncodeUEFI.exe
 11; \Microsoft\Windows\Printing\PrintJobCleanupTask; {8ABCE260-32B6-476C-AE13-B34D0C91292D}; %SystemRoot%\System32\PrinterCleanupTask.dll
 11; \Microsoft\Windows\Security\Pwdless\IntelligentPwdlessTask; {8702A841-D5CA-47C3-812D-9CEDC304C200}; %SystemRoot%\system32\IntelligentPwdlessTask.dll
 11; \Microsoft\Windows\SoftwareProtectionPlatform\SvcTrigger; {B1AEBB5D-EAD9-4476-B375-9C3ED9F32AFC},logon; %SystemRoot%\System32\sppcext.dll
-11; \Microsoft\Windows\UpdateOrchestrator\StartOobeAppsScan_LicenseAccepted; %SystemRoot%\system32\usoclient.exe; StartOobeAppsScan
 11; \Microsoft\Windows\UpdateOrchestrator\Schedule Wake To Work; %SystemRoot%\system32\usoclient.exe; StartWork
-11; \Microsoft\Windows\WlanSvc\MoProfileManagement; {085EDA12-CF4A-4944-8222-8ADCADE137CB}; %SystemRoot%\System32\WlanMediaManager.dll
+11; \Microsoft\Windows\UpdateOrchestrator\StartOobeAppsScan_LicenseAccepted; %SystemRoot%\system32\usoclient.exe; StartOobeAppsScan
+11; \Microsoft\Windows\WindowsUpdate\Refresh Group Policy Cache; {07369A67-07A6-4608-ABEA-379491CB7C46}; %SystemRoot%\system32\UpdatePolicy.dll
+11; \Microsoft\Windows\WlanSvc\MoProfileManagement; {085EDA12-CF4A-4944-8222-8ADCADE137CB}; %SystemRoot%\system32\WlanMediaManager.dll
+11; {root}\OneDrive Per-Machine Standalone Update Task; %ProgramFiles%\Microsoft OneDrive\OneDriveStandaloneUpdater.exe
+10; \Microsoft\Configuration Manager\Configuration Manager Health Evaluation; %SystemRoot%\CCM\ccmeval.exe
 10; \Microsoft\Office\Office Automatic Updates 2.0; %ProgramFiles%\Common Files\Microsoft Shared\ClickToRun\OfficeC2RClient.exe; /frequentupdate SCHEDULEDTASK displaylevel=False
 10; \Microsoft\Office\Office Automatic Updates; %ProgramFiles%\Common Files\Microsoft Shared\ClickToRun\OfficeC2RClient.exe; /update SCHEDULEDTASK displaylevel=False
 10; \Microsoft\Office\Office Automatic Updates; %ProgramFiles%\Microsoft Office 15\ClientX64\OfficeC2RClient.exe; /update SCHEDULEDTASK displaylevel=False
@@ -44,11 +53,12 @@ OSver;Dir\Name;RunObj;Args;Note
 10; \Microsoft\Windows\Application Experience\Microsoft Compatibility Appraiser; %SystemRoot%\system32\compattelrunner.exe
 10; \Microsoft\Windows\Application Experience\ProgramDataUpdater; %SystemRoot%\system32\compattelrunner.exe; -maintenance
 10; \Microsoft\Windows\Application Experience\StartupAppTask; %SystemRoot%\system32\rundll32.exe; Startupscan.dll,SusRunTask
-10; \Microsoft\Windows\ApplicationData\CleanupTemporaryState; %SystemRoot%\system32\rundll32.exe; Windows.Storage.ApplicationData.dll,CleanupTemporaryState
-10; \Microsoft\Windows\ApplicationData\DsSvcCleanup; %SystemRoot%\system32\dstokenclean.exe
 10; \Microsoft\Windows\ApplicationData\appuriverifierdaily; %SystemRoot%\system32\AppHostRegistrationVerifier.exe
 10; \Microsoft\Windows\ApplicationData\appuriverifierinstall; %SystemRoot%\system32\AppHostRegistrationVerifier.exe
+10; \Microsoft\Windows\ApplicationData\CleanupTemporaryState; %SystemRoot%\system32\rundll32.exe; Windows.Storage.ApplicationData.dll,CleanupTemporaryState
+10; \Microsoft\Windows\ApplicationData\DsSvcCleanup; %SystemRoot%\system32\dstokenclean.exe
 10; \Microsoft\Windows\AppListBackup\Backup; {E0DCC2CC-3354-45F2-8914-519E07809082}; %SystemRoot%\system32\AppListBackupLauncher.dll
+10; \Microsoft\Windows\AppListBackup\BackupNonMaintenance; {E0DCC2CC-3354-45F2-8914-519E07809082}; %SystemRoot%\system32\AppListBackupLauncher.dll
 10; \Microsoft\Windows\AppxDeploymentClient\Pre-staged app cleanup; %SystemRoot%\system32\rundll32.exe; %SystemRoot%\system32\AppxDeploymentClient.dll,AppxPreStageCleanupRunTask
 10; \Microsoft\Windows\Autochk\Proxy; %SystemRoot%\system32\rundll32.exe; /d acproxy.dll,PerformAutochkOperations
 10; \Microsoft\Windows\BitLocker\BitLocker Encrypt All Drives; {61BCD1B9-340C-40EC-9D41-D7F1C0632F05},BitLockerEncryptAllDrives; %SystemRoot%\System32\edptask.dll
@@ -56,7 +66,6 @@ OSver;Dir\Name;RunObj;Args;Note
 10; \Microsoft\Windows\Bluetooth\UninstallDeviceTask; %SystemRoot%\System32\BthUdTask.exe; $(Arg0)
 10; \Microsoft\Windows\BrokerInfrastructure\BgTaskRegistrationMaintenanceTask; {E984D939-0E00-4DD9-AC3A-7ACA04745521};(no file)
 10; \Microsoft\Windows\capabilityaccessmanager\maintenancetasks; %SystemRoot%\system32\rundll32.exe; %SystemRoot%\system32\CapabilityAccessManager.dll,CapabilityAccessManagerDoStoreMaintenance
-10; \Microsoft\Windows\CUAssistant\CULauncher; %ProgramFiles%\CUAssistant\culauncher.exe
 10; \Microsoft\Windows\CertificateServicesClient\AikCertEnrollTask; {47E30D54-DAC1-473A-AFF7-2355BF78881F},AIKCertEnroll; %SystemRoot%\system32\ngctasks.dll
 10; \Microsoft\Windows\CertificateServicesClient\CryptoPolicyTask; {47E30D54-DAC1-473A-AFF7-2355BF78881F},CryptoPolicy; %SystemRoot%\system32\ngctasks.dll
 10; \Microsoft\Windows\CertificateServicesClient\KeyPreGenTask; {47E30D54-DAC1-473A-AFF7-2355BF78881F},NGCKeyPregen; %SystemRoot%\system32\ngctasks.dll
@@ -67,17 +76,19 @@ OSver;Dir\Name;RunObj;Args;Note
 10; \Microsoft\Windows\Chkdsk\SyspartRepair; %SystemRoot%\system32\bcdboot.exe; %SystemRoot% /sysrepair
 10; \Microsoft\Windows\Clip\License Validation; %SystemRoot%\system32\ClipUp.exe; -p -s -o
 10; \Microsoft\Windows\CloudExperienceHost\CreateObjectTask; {E4544ABA-62BF-4C54-AAB2-EC246342626C}; %SystemRoot%\System32\CloudExperienceHostBroker.exe
+10; \Microsoft\Windows\CloudRestore\Backup; {722D0F89-B69C-4700-AE8C-4A44350E4876},$(Arg0); %SystemRoot%\System32\CloudRestoreLauncher.dll
+10; \Microsoft\Windows\ConsentUX\UnifiedConsent\UnifiedConsentSyncTask; {82aa0895-198a-4c1b-b2d1-c16894218afb}; %SystemRoot%\System32\unifiedconsent.dll
+10; \Microsoft\Windows\CUAssistant\CULauncher; %ProgramFiles%\CUAssistant\culauncher.exe
 10; \Microsoft\Windows\Customer Experience Improvement Program\Consolidator; %SystemRoot%\System32\wsqmcons.exe
 10; \Microsoft\Windows\Customer Experience Improvement Program\UsbCeip; {C27F6B1D-FE0B-45E4-9257-38799FA69BC8},SYSTEM; %SystemRoot%\System32\usbceip.dll
-10; \Microsoft\Windows\DUSM\dusmtask; %SystemRoot%\System32\dusmtask.exe
 10; \Microsoft\Windows\Data Integrity Scan\Data Integrity Check And Scan; {DCFD3EA8-D960-4719-8206-490AE315F94F}; %SystemRoot%\System32\discan.dll
 10; \Microsoft\Windows\Data Integrity Scan\Data Integrity Scan for Crash Recovery; {DCFD3EA8-D960-4719-8206-490AE315F94F},-CrashRecovery; %SystemRoot%\System32\discan.dll
 10; \Microsoft\Windows\Data Integrity Scan\Data Integrity Scan; {DCFD3EA8-D960-4719-8206-490AE315F94F},-Manual; %SystemRoot%\System32\discan.dll
 10; \Microsoft\Windows\Data Integrity Scan\Data Integrity Scan; {DCFD3EA8-D960-4719-8206-490AE315F94F}; %SystemRoot%\System32\discan.dll
 10; \Microsoft\Windows\Defrag\HDD-Defrag; %SystemRoot%\system32\defrag.exe; D: -h -o
-10; \Microsoft\Windows\Defrag\SSD-Trim; %SystemRoot%\system32\defrag.exe; %SystemDrive% -l -h
 10; \Microsoft\Windows\Defrag\ScheduledDefrag; %SystemRoot%\system32\defrag.exe; -c -h -k -g -$
 10; \Microsoft\Windows\Defrag\ScheduledDefrag; %SystemRoot%\system32\defrag.exe; -c -h -o -$
+10; \Microsoft\Windows\Defrag\SSD-Trim; %SystemRoot%\system32\defrag.exe; %SystemDrive% -l -h
 10; \Microsoft\Windows\Device Information\Device User; %SystemRoot%\system32\devicecensus.exe; UserCxt
 10; \Microsoft\Windows\Device Information\Device; %SystemRoot%\system32\devicecensus.exe
 10; \Microsoft\Windows\Device Information\Device; %SystemRoot%\system32\devicecensus.exe; SystemCxt
@@ -104,14 +115,15 @@ OSver;Dir\Name;RunObj;Args;Note
 10; \Microsoft\Windows\Diagnosis\RecommendedTroubleshootingScanner; %SystemRoot%\system32\mitigationscanner.exe
 10; \Microsoft\Windows\Diagnosis\RecommendedTroubleshootingScanner; {AD08DCC2-4E35-4486-9D49-547CBD30942D}; %SystemRoot%\System32\MitigationClient.dll
 10; \Microsoft\Windows\Diagnosis\Scheduled; {C1F85EF8-BCC2-4606-BB39-70C523715EB3}; %SystemRoot%\System32\sdiagschd.dll
-10; \Microsoft\Windows\DirectX\DXGIAdapterCache; %SystemRoot%\system32\dxgiadaptercache.exe
 10; \Microsoft\Windows\DirectX\DirectXDatabaseUpdater; %SystemRoot%\system32\directxdatabaseupdater.exe
+10; \Microsoft\Windows\DirectX\DXGIAdapterCache; %SystemRoot%\system32\dxgiadaptercache.exe
 10; \Microsoft\Windows\DiskCleanup\SilentCleanup; %SystemRoot%\system32\cleanmgr.exe; /autoclean /d %systemdrive%|/autocleanstoragesense /d C:
 10; \Microsoft\Windows\DiskDiagnostic\Microsoft-Windows-DiskDiagnosticDataCollector; %SystemRoot%\system32\rundll32.exe; dfdts.dll,DfdGetDefaultPolicyAndSMART
 10; \Microsoft\Windows\DiskDiagnostic\Microsoft-Windows-DiskDiagnosticResolver; %SystemRoot%\system32\DFDWiz.exe
 10; \Microsoft\Windows\DiskFootprint\Diagnostics; %SystemRoot%\system32\disksnapshot.exe; -z
 10; \Microsoft\Windows\DiskFootprint\StorageSense; %SystemRoot%\system32\rundll32.exe; %SystemRoot%\system32\StorageUsage.dll,GetStorageUsageInfo
 10; \Microsoft\Windows\DiskFootprint\StorageSense; {AB2A519B-03B0-43CE-940A-A73DF850B49A}; %SystemRoot%\system32\StorageUsage.dll
+10; \Microsoft\Windows\DUSM\dusmtask; %SystemRoot%\System32\dusmtask.exe
 10; \Microsoft\Windows\EDP\EDP App Launch Task; {61BCD1B9-340C-40EC-9D41-D7F1C0632F05},AppLaunch; %SystemRoot%\System32\edptask.dll
 10; \Microsoft\Windows\EDP\EDP Auth Task; {61BCD1B9-340C-40EC-9D41-D7F1C0632F05},ReAuth; %SystemRoot%\System32\edptask.dll
 10; \Microsoft\Windows\EDP\EDP Inaccessible Credentials Task; {61BCD1B9-340C-40EC-9D41-D7F1C0632F05},MissingCredentials; %SystemRoot%\System32\edptask.dll
@@ -148,9 +160,6 @@ OSver;Dir\Name;RunObj;Args;Note
 10; \Microsoft\Windows\License Manager\TempSignedLicenseExchange; {77646A68-AD14-4D53-897D-7BE4DDE5F929}; %SystemRoot%\System32\TempSignedLicenseExchangeTask.dll
 10; \Microsoft\Windows\Location\Notifications; %SystemRoot%\System32\LocationNotificationWindows.exe
 10; \Microsoft\Windows\Location\WindowsActionDialog; %SystemRoot%\System32\WindowsActionDialog.exe
-10; \Microsoft\Windows\MUI\LPRemove; %SystemRoot%\system32\lpremove.exe
-10; \Microsoft\Windows\MUI\Lpksetup; %SystemRoot%\System32\lpksetup.exe; -v
-10; \Microsoft\Windows\MUI\Mcbuilder; %SystemRoot%\System32\mcbuilder.exe
 10; \Microsoft\Windows\Maintenance\WinSAT; {A9A33436-678B-4C9C-A211-7CC38785E79D}; %SystemRoot%\system32\WinSATAPI.dll
 10; \Microsoft\Windows\Management\Provisioning\Cellular; %SystemRoot%\system32\ProvTool.exe; /turn 7 /source CellStateChangeTask
 10; \Microsoft\Windows\Management\Provisioning\Logon; %SystemRoot%\system32\ProvTool.exe; /turn 5
@@ -164,6 +173,9 @@ OSver;Dir\Name;RunObj;Args;Note
 10; \Microsoft\Windows\MemoryDiagnostic\ProcessMemoryDiagnosticEvents; {8168E74A-B39F-46D8-ADCD-7BED477B80A3},Event; %SystemRoot%\System32\MemoryDiagnostic.dll
 10; \Microsoft\Windows\MemoryDiagnostic\RunFullMemoryDiagnostic; {8168E74A-B39F-46D8-ADCD-7BED477B80A3},Time; %SystemRoot%\System32\MemoryDiagnostic.dll
 10; \Microsoft\Windows\Mobile Broadband Accounts\MNO Metadata Parser; %SystemRoot%\System32\MbaeParserTask.exe
+10; \Microsoft\Windows\MUI\Lpksetup; %SystemRoot%\System32\lpksetup.exe; -v
+10; \Microsoft\Windows\MUI\LPRemove; %SystemRoot%\system32\lpremove.exe
+10; \Microsoft\Windows\MUI\Mcbuilder; %SystemRoot%\System32\mcbuilder.exe
 10; \Microsoft\Windows\Multimedia\SystemSoundsService; {2DEA658F-54C1-4227-AF9B-260AB5FC3543}; %SystemRoot%\System32\PlaySndSrv.dll
 10; \Microsoft\Windows\NetTrace\GatherNetworkInfo; %SystemRoot%\system32\gatherNetworkInfo.vbs
 10; \Microsoft\Windows\NlaSvc\WiFiTask; %SystemRoot%\System32\WiFiTask.exe; nla
@@ -190,6 +202,8 @@ OSver;Dir\Name;RunObj;Args;Note
 10; \Microsoft\Windows\RemoteAssistance\RemoteAssistanceTask; %SystemRoot%\system32\RAServer.exe; /offerraupdate
 10; \Microsoft\Windows\RemovalTools\MRT_ERROR_HB; %SystemRoot%\system32\MRT.exe; /EHB /HeartbeatFailure "SubmitHeartbeatReportData" /HeartbeatError "0x83760002"
 10; \Microsoft\Windows\RemovalTools\MRT_HB; %SystemRoot%\system32\MRT.exe; /EHB /Q
+10; \Microsoft\Windows\rempl\LaunchLowDiskToast; %ProgramFiles%\rempl\disktoast.exe; showtoast
+10; \Microsoft\Windows\rempl\shell; %ProgramFiles%\rempl\sedlauncher.exe
 10; \Microsoft\Windows\RetailDemo\CleanupOfflineContent; {61f77d5e-afe9-400b-a5e6-e9e80fc8e601}; %SystemRoot%\System32\RDXTaskFactory.dll
 10; \Microsoft\Windows\Server Manager\CleanupOldPerfLogs; %SystemRoot%\system32\cscript.exe; /B /nologo %SystemRoot%\system32\calluxxprovider.vbs $(Arg0) $(Arg1) $(Arg2)
 10; \Microsoft\Windows\Server Manager\ServerManager; %SystemRoot%\system32\ServerManagerLauncher.exe
@@ -228,20 +242,21 @@ OSver;Dir\Name;RunObj;Args;Note
 10; \Microsoft\Windows\Sysmain\ResPriStaticDbSync; {297EE78C-BA95-4E94-81D3-D6E7F089C7B5}; %SystemRoot%\system32\sysmain.dll
 10; \Microsoft\Windows\Sysmain\WsSwapAssessmentTask; %SystemRoot%\system32\rundll32.exe; sysmain.dll,PfSvWsSwapAssessmentTask
 10; \Microsoft\Windows\SystemRestore\SR; %SystemRoot%\system32\srtasks.exe; ExecuteScheduledSPPCreation
-10; \Microsoft\Windows\TPM\Tpm-HASCertRetr; {5014B7C8-934E-4262-9816-887FA745A6C4},HASCertRetr; %SystemRoot%\system32\TpmTasks.dll
-10; \Microsoft\Windows\TPM\Tpm-Maintenance; {5014B7C8-934E-4262-9816-887FA745A6C4},TpmTasks; %SystemRoot%\system32\TpmTasks.dll
 10; \Microsoft\Windows\Task Manager\Interactive; {855FEC53-D2E4-4999-9E87-3414E9CF0FF4},$(Arg0); %SystemRoot%\system32\wdc.dll
+10; \Microsoft\Windows\termsrv\licensing\TlsWarning; %SystemRoot%\system32\tlsbln.exe
+10; \Microsoft\Windows\termsrv\RemoteFX\RemoteFXvGPUDisableTask; %SystemRoot%\System32\RemoteFXvGPUDisablement.exe; Disable
+10; \Microsoft\Windows\termsrv\RemoteFX\RemoteFXWarningTask; %SystemRoot%\System32\RemoteFXvGPUDisablement.exe; Warning
 10; \Microsoft\Windows\TextServicesFramework\MsCtfMonitor; {01575CFE-9A55-4003-A5E1-F38D1EBDCBE1}; %SystemRoot%\system32\MsCtfMonitor.dll
 10; \Microsoft\Windows\Time Synchronization\ForceSynchronizeTime; {A31AD6C2-FF4C-43D4-8E90-7101023096F9},TimeSyncTask; %SystemRoot%\system32\TimeSyncTask.dll
 10; \Microsoft\Windows\Time Synchronization\SynchronizeTime; %SystemRoot%\system32\sc.exe; start w32time task_started
 10; \Microsoft\Windows\Time Zone\SynchronizeTimeZone; %SystemRoot%\system32\tzsync.exe
-10; \Microsoft\Windows\UNP\RunCampaignManager; %SystemRoot%\System32\UNP\UNPCampaignManager.exe
-10; \Microsoft\Windows\UNP\RunUpdateNotificationMgr; %SystemRoot%\System32\UNP\UpdateNotificationMgr.exe
-10; \Microsoft\Windows\UPnP\UPnPHostConfig; %SystemRoot%\System32\sc.exe; config upnphost start= auto
-10; \Microsoft\Windows\USB\Usb-Notifications; {E05BE1C8-92A8-4757-B575-ACAECB4E6A40}; %SystemRoot%\System32\UsbTask.dll
+10; \Microsoft\Windows\TPM\Tpm-HASCertRetr; {5014B7C8-934E-4262-9816-887FA745A6C4},HASCertRetr; %SystemRoot%\system32\TpmTasks.dll
+10; \Microsoft\Windows\TPM\Tpm-Maintenance; {5014B7C8-934E-4262-9816-887FA745A6C4},TpmTasks; %SystemRoot%\system32\TpmTasks.dll
 10; \Microsoft\Windows\Unified Write Filter\Overlay Critical; %SystemRoot%\system32\uwfux.exe; -notifycritical
 10; \Microsoft\Windows\Unified Write Filter\Overlay Normal; %SystemRoot%\system32\uwfux.exe; -notifynormal
 10; \Microsoft\Windows\Unified Write Filter\Overlay Warning; %SystemRoot%\system32\uwfux.exe; -notifywarning
+10; \Microsoft\Windows\UNP\RunCampaignManager; %SystemRoot%\System32\UNP\UNPCampaignManager.exe
+10; \Microsoft\Windows\UNP\RunUpdateNotificationMgr; %SystemRoot%\System32\UNP\UpdateNotificationMgr.exe
 10; \Microsoft\Windows\UpdateOrchestrator\AC Power Download; %SystemRoot%\system32\usoclient.exe; StartDownload
 10; \Microsoft\Windows\UpdateOrchestrator\AC Power Install; %SystemRoot%\system32\usoclient.exe; StartInstall
 10; \Microsoft\Windows\UpdateOrchestrator\Backup Scan; %SystemRoot%\system32\usoclient.exe; StartScan
@@ -263,10 +278,6 @@ OSver;Dir\Name;RunObj;Args;Note
 10; \Microsoft\Windows\UpdateOrchestrator\Start Oobe Expedite Work; %systemroot%\system32\usoclient.exe; StartWork
 10; \Microsoft\Windows\UpdateOrchestrator\StartOobeAppsScan; %systemroot%\system32\usoclient.exe; StartOobeAppsScan
 10; \Microsoft\Windows\UpdateOrchestrator\StartOobeAppsScanAfterUpdate; %systemroot%\system32\usoclient.exe; StartOobeAppsScanAfterUpdate
-10; \Microsoft\Windows\UpdateOrchestrator\USO_Broker_Display; %SystemRoot%\system32\MusNotification.exe; Display
-10; \Microsoft\Windows\UpdateOrchestrator\USO_UxBroker; %SystemRoot%\system32\MusNotification.exe
-10; \Microsoft\Windows\UpdateOrchestrator\USO_UxBroker_Display; %SystemRoot%\system32\MusNotification.exe; Display
-10; \Microsoft\Windows\UpdateOrchestrator\USO_UxBroker_ReadyToReboot; %systemroot%\system32\MusNotification.exe; ReadyToReboot
 10; \Microsoft\Windows\UpdateOrchestrator\Universal Orchestrator Idle Start; %SystemRoot%\system32\usoclient.exe; StartUWorkIdle
 10; \Microsoft\Windows\UpdateOrchestrator\Universal Orchestrator Start; %SystemRoot%\system32\usoclient.exe; StartUWork
 10; \Microsoft\Windows\UpdateOrchestrator\UpdateAssistant; %SystemRoot%\UpdateAssistant\UpdateAssistant.exe; /ClientID Win10Upgrade:VNL:EosSih1D:{}
@@ -277,32 +288,34 @@ OSver;Dir\Name;RunObj;Args;Note
 10; \Microsoft\Windows\UpdateOrchestrator\UpdateAssistant; %SystemRoot%\UpdateAssistant\UpdateAssistant.exe; /ClientID Win10Upgrade:VNL:NHV16:{}
 10; \Microsoft\Windows\UpdateOrchestrator\UpdateAssistant; %SystemRoot%\UpdateAssistant\UpdateAssistant.exe; /ClientID Win10Upgrade:VNL:NHV19:{}
 10; \Microsoft\Windows\UpdateOrchestrator\UpdateAssistant; %SystemRoot%\UpdateAssistant\UpdateAssistant.exe; /ClientID Win10Upgrade:VNL:Th1Eos:{}
-10; \Microsoft\Windows\UpdateOrchestrator\UpdateAssistantAllUsersRun; %SystemRoot%\UpdateAssistant\UpdateAssistant.exe; /ClientID Win10Upgrade:VNL:NHV19:{} /AllUsersRun
-10; \Microsoft\Windows\UpdateOrchestrator\UpdateAssistantAllUsersRun; %SystemRoot%\UpdateAssistant\UpdateAssistant.exe; /ClientID Win10Upgrade:VNL:NHV16:{} /AllUsersRun
 10; \Microsoft\Windows\UpdateOrchestrator\UpdateAssistantAllUsersRun; %SystemRoot%\UpdateAssistant\UpdateAssistant.exe; /ClientID Win10Upgrade:VNL:NHV15:{} /AllUsersRun
-10; \Microsoft\Windows\UpdateOrchestrator\UpdateAssistantCalendarRun; %SystemRoot%\UpdateAssistant\UpdateAssistant.exe; /ClientID Win10Upgrade:VNL:Th1Eos:{} /CalendarRun
+10; \Microsoft\Windows\UpdateOrchestrator\UpdateAssistantAllUsersRun; %SystemRoot%\UpdateAssistant\UpdateAssistant.exe; /ClientID Win10Upgrade:VNL:NHV16:{} /AllUsersRun
+10; \Microsoft\Windows\UpdateOrchestrator\UpdateAssistantAllUsersRun; %SystemRoot%\UpdateAssistant\UpdateAssistant.exe; /ClientID Win10Upgrade:VNL:NHV19:{} /AllUsersRun
 10; \Microsoft\Windows\UpdateOrchestrator\UpdateAssistantCalendarRun; %SystemRoot%\UpdateAssistant\UpdateAssistant.exe; /ClientID Win10Upgrade:VNL:EosSih1D:{} /CalendarRun
 10; \Microsoft\Windows\UpdateOrchestrator\UpdateAssistantCalendarRun; %SystemRoot%\UpdateAssistant\UpdateAssistant.exe; /ClientID Win10Upgrade:VNL:EosWu:{} /CalendarRun
 10; \Microsoft\Windows\UpdateOrchestrator\UpdateAssistantCalendarRun; %SystemRoot%\UpdateAssistant\UpdateAssistant.exe; /ClientID Win10Upgrade:VNL:NHV13SIH:{} /CalendarRun
 10; \Microsoft\Windows\UpdateOrchestrator\UpdateAssistantCalendarRun; %SystemRoot%\UpdateAssistant\UpdateAssistant.exe; /ClientID Win10Upgrade:VNL:NHV15:{} /CalendarRun
 10; \Microsoft\Windows\UpdateOrchestrator\UpdateAssistantCalendarRun; %SystemRoot%\UpdateAssistant\UpdateAssistant.exe; /ClientID Win10Upgrade:VNL:NHV16:{} /CalendarRun
 10; \Microsoft\Windows\UpdateOrchestrator\UpdateAssistantCalendarRun; %SystemRoot%\UpdateAssistant\UpdateAssistant.exe; /ClientID Win10Upgrade:VNL:NHV19:{} /CalendarRun
+10; \Microsoft\Windows\UpdateOrchestrator\UpdateAssistantCalendarRun; %SystemRoot%\UpdateAssistant\UpdateAssistant.exe; /ClientID Win10Upgrade:VNL:Th1Eos:{} /CalendarRun
 10; \Microsoft\Windows\UpdateOrchestrator\UpdateAssistantWakeupRun; %SystemRoot%\UpdateAssistant\UpdateAssistant.exe; /ClientID Win10Upgrade:VNL:EosSih1D:{} /WakeupRun
 10; \Microsoft\Windows\UpdateOrchestrator\UpdateAssistantWakeupRun; %SystemRoot%\UpdateAssistant\UpdateAssistant.exe; /ClientID Win10Upgrade:VNL:NHV13SIH:{} /WakeupRun
 10; \Microsoft\Windows\UpdateOrchestrator\UpdateAssistantWakeupRun; %SystemRoot%\UpdateAssistant\UpdateAssistant.exe; /ClientID Win10Upgrade:VNL:NHV15:{} /WakeupRun
 10; \Microsoft\Windows\UpdateOrchestrator\UpdateAssistantWakeupRun; %SystemRoot%\UpdateAssistant\UpdateAssistant.exe; /ClientID Win10Upgrade:VNL:NHV16:{} /WakeupRun
 10; \Microsoft\Windows\UpdateOrchestrator\UpdateAssistantWakeupRun; %SystemRoot%\UpdateAssistant\UpdateAssistant.exe; /ClientID Win10Upgrade:VNL:NHV19:{} /WakeupRun
 10; \Microsoft\Windows\UpdateOrchestrator\UpdateModelTask; %SystemRoot%\system32\usoclient.exe; StartModelUpdates
+10; \Microsoft\Windows\UpdateOrchestrator\USO_Broker_Display; %SystemRoot%\system32\MusNotification.exe; Display
+10; \Microsoft\Windows\UpdateOrchestrator\USO_UxBroker; %SystemRoot%\system32\MusNotification.exe
+10; \Microsoft\Windows\UpdateOrchestrator\USO_UxBroker_Display; %SystemRoot%\system32\MusNotification.exe; Display
+10; \Microsoft\Windows\UpdateOrchestrator\USO_UxBroker_ReadyToReboot; %systemroot%\system32\MusNotification.exe; ReadyToReboot
 10; \Microsoft\Windows\UpdateOrchestrator\UUS Failover Task; %systemroot%\system32\usoclient.exe; HandleUusFailoverSignal
+10; \Microsoft\Windows\UPnP\UPnPHostConfig; %SystemRoot%\System32\sc.exe; config upnphost start= auto
+10; \Microsoft\Windows\USB\Usb-Notifications; {E05BE1C8-92A8-4757-B575-ACAECB4E6A40}; %SystemRoot%\System32\UsbTask.dll
 10; \Microsoft\Windows\User Profile Service\HiveUploadTask; {BA677074-762C-444B-94C8-8C83F93F6605}; %SystemRoot%\system32\profsvc.dll
-10; \Microsoft\Windows\WCM\WiFiTask; %SystemRoot%\System32\WiFiTask.exe
-10; \Microsoft\Windows\WDI\ResolutionHost; {900BE39D-6BE8-461A-BC4D-B0FA71F5ECB1}; %SystemRoot%\System32\wdi.dll
-10; \Microsoft\Windows\WOF\WIM-Hash-Management; {B7BFFB5A-EFA8-4D8C-BBDE-C8D5FAAF54A1},WimHashManagement; %SystemRoot%\system32\WofTasks.dll
-10; \Microsoft\Windows\WOF\WIM-Hash-Validation; {B7BFFB5A-EFA8-4D8C-BBDE-C8D5FAAF54A1},WimHashValidation; %SystemRoot%\system32\WofTasks.dll
-10; \Microsoft\Windows\WS\License Validation; %SystemRoot%\System32\rundll32.exe; WSClient.dll,WSpTLR licensing
-10; \Microsoft\Windows\WS\WSTask; {E52C9A25-F3E8-49E4-BAA7-FAD0EF620129},$(Arg0)\;$(Arg1); %SystemRoot%\System32\WSService.dll
 10; \Microsoft\Windows\WaaSMedic\PerformRemediation; %SystemRoot%\System32\WaaSMedic.exe; None
 10; \Microsoft\Windows\WaaSMedic\PerformRemediation; {72566E27-1ABB-4EB3-B4F0-EB431CB1CB32},None; %SystemRoot%\System32\WaaSMedicSvc.dll
+10; \Microsoft\Windows\WCM\WiFiTask; %SystemRoot%\System32\WiFiTask.exe
+10; \Microsoft\Windows\WDI\ResolutionHost; {900BE39D-6BE8-461A-BC4D-B0FA71F5ECB1}; %SystemRoot%\System32\wdi.dll
 10; \Microsoft\Windows\Windows Defender\Windows Defender Cache Maintenance; %ProgramFiles%\Windows Defender\MpCmdRun.exe; -IdleTask -TaskName WdCacheMaintenance
 10; \Microsoft\Windows\Windows Defender\Windows Defender Cache Maintenance; MpCmdRun.exe; -IdleTask -TaskName WdCacheMaintenance
 10; \Microsoft\Windows\Windows Defender\Windows Defender Cleanup; %ProgramFiles%\Windows Defender\MpCmdRun.exe; -IdleTask -TaskName WdCleanup
@@ -319,7 +332,11 @@ OSver;Dir\Name;RunObj;Args;Note
 10; \Microsoft\Windows\WindowsUpdate\AUScheduledInstall; {F3B4E234-7A68-4E43-B813-E4BA55A065F6}; %SystemRoot%\system32\wuaueng.dll
 10; \Microsoft\Windows\WindowsUpdate\AUSessionConnect; {784E29F4-5EBE-4279-9948-1E8FE941646D}; %SystemRoot%\system32\wuaueng.dll
 10; \Microsoft\Windows\WindowsUpdate\Automatic App Update; {A6BA00FE-40E8-477C-B713-C64A14F18ADB}; %SystemRoot%\System32\wuautoappupdate.dll
+10; \Microsoft\Windows\WindowsUpdate\Refresh Group Policy Cache; {07369A67-07A6-4608-ABEA-379491CB7C46}; %SystemRoot%\System32\UpdatePolicy.dll
 10; \Microsoft\Windows\WindowsUpdate\RUXIM\PLUGScheduler; %ProgramFiles%\RUXIM\PLUGscheduler.exe
+10; \Microsoft\Windows\WindowsUpdate\RUXIM\PLUGScheduler; %ProgramFiles%\RUXIM\PLUGscheduler.exe
+10; \Microsoft\Windows\WindowsUpdate\RUXIM\RUXIMDisplay; %ProgramFiles%\ruxim\ruximics.exe; /nonetwork
+10; \Microsoft\Windows\WindowsUpdate\RUXIM\RUXIMSync; %ProgramFiles%\ruxim\ruximics.exe; /onlyloadcampaigns
 10; \Microsoft\Windows\WindowsUpdate\Scheduled Start With Network; %SystemRoot%\system32\sc.exe; start wuauserv
 10; \Microsoft\Windows\WindowsUpdate\Scheduled Start; %SystemRoot%\system32\sc.exe; start wuauserv
 10; \Microsoft\Windows\WindowsUpdate\sih; %systemroot%\System32\sihclient.exe
@@ -327,6 +344,8 @@ OSver;Dir\Name;RunObj;Args;Note
 10; \Microsoft\Windows\WindowsUpdate\sihpostreboot; %SystemRoot%\system32\sihclient.exe; /PostReboot
 10; \Microsoft\Windows\Wininet\CacheTask; {0358B920-0AC7-461F-98F4-58E32CD89148}; %SystemRoot%\system32\wininet.dll
 10; \Microsoft\Windows\WlanSvc\CDSSync; {B0D2B535-12E1-439F-86B3-BADA289510F0},$(Arg0); %SystemRoot%\System32\WiFiCloudStore.dll
+10; \Microsoft\Windows\WOF\WIM-Hash-Management; {B7BFFB5A-EFA8-4D8C-BBDE-C8D5FAAF54A1},WimHashManagement; %SystemRoot%\system32\WofTasks.dll
+10; \Microsoft\Windows\WOF\WIM-Hash-Validation; {B7BFFB5A-EFA8-4D8C-BBDE-C8D5FAAF54A1},WimHashValidation; %SystemRoot%\system32\WofTasks.dll
 10; \Microsoft\Windows\Work Folders\Work Folders Logon Synchronization; {97D47D56-3777-49FB-8E8F-90D7E30E1A1E},Logon; %SystemRoot%\System32\WorkFoldersShell.dll
 10; \Microsoft\Windows\Work Folders\Work Folders Maintenance Work; {63260BCE-A3FB-4A34-AA51-D4D8E877B62B}; %SystemRoot%\System32\WorkFoldersShell.dll
 10; \Microsoft\Windows\Workplace Join\Automatic-Device-Join; %SystemRoot%\System32\dsregcmd.exe
@@ -334,32 +353,30 @@ OSver;Dir\Name;RunObj;Args;Note
 10; \Microsoft\Windows\Workplace Join\Automatic-Workplace-Join; %SystemRoot%\System32\AutoWorkplace.exe; join
 10; \Microsoft\Windows\Workplace Join\Device-Sync; {C662D912-E4D6-44A3-89A0-20550514951D},DeviceUpdate; %SystemRoot%\System32\dsregtask.dll
 10; \Microsoft\Windows\Workplace Join\Recovery-Check; %SystemRoot%\System32\dsregcmd.exe; /checkrecovery
+10; \Microsoft\Windows\WS\License Validation; %SystemRoot%\System32\rundll32.exe; WSClient.dll,WSpTLR licensing
+10; \Microsoft\Windows\WS\WSTask; {E52C9A25-F3E8-49E4-BAA7-FAD0EF620129},$(Arg0)\;$(Arg1); %SystemRoot%\System32\WSService.dll
 10; \Microsoft\Windows\WwanSvc\NotificationTask; %SystemRoot%\System32\WiFiTask.exe; wwan
 10; \Microsoft\Windows\WwanSvc\OobeDiscovery; {C93CF9D5-031B-4AAA-AB0B-EF802347B381}; %SystemRoot%\System32\MBMediaManager.dll
-10; \Microsoft\Windows\rempl\LaunchLowDiskToast; %ProgramFiles%\rempl\disktoast.exe; showtoast
-10; \Microsoft\Windows\rempl\shell; %ProgramFiles%\rempl\sedlauncher.exe
-10; \Microsoft\Windows\termsrv\RemoteFX\RemoteFXWarningTask; %SystemRoot%\System32\RemoteFXvGPUDisablement.exe; Warning
-10; \Microsoft\Windows\termsrv\RemoteFX\RemoteFXvGPUDisableTask; %SystemRoot%\System32\RemoteFXvGPUDisablement.exe; Disable
-10; \Microsoft\Windows\termsrv\licensing\TlsWarning; %SystemRoot%\system32\tlsbln.exe
 10; \Microsoft\XblGameSave\XblGameSaveTask; %SystemRoot%\System32\XblGameSaveTask.exe; standby
 10; \Microsoft\XblGameSave\XblGameSaveTaskLogon; %SystemRoot%\System32\XblGameSaveTask.exe; logon
 10; \OfficeSoftwareProtectionPlatform\SvcRestartTask; %SystemRoot%\system32\sc.exe; start osppsvc
 10; {root}\CreateExplorerShellUnelevatedTask; %SystemRoot%\explorer.exe; /NOUACCHECK
 10; {root}\MicrosoftEdgeUpdateBrowserReplacementTask; %ProgramFiles(x86)%\Microsoft\EdgeUpdate\MicrosoftEdgeUpdate.exe; /browserreplacement
 10; {root}\MicrosoftEdgeUpdateTaskMachineCore; %ProgramFiles(x86)%\Microsoft\EdgeUpdate\MicrosoftEdgeUpdate.exe; /c
+10; {root}\OneDrive Per-Machine Standalone Update Task; %ProgramFiles%\Microsoft OneDrive\OneDriveStandaloneUpdater.exe
 10; {root}\OneDrive Standalone Update Task v2; %LOCALAPPDATA%\Microsoft\OneDrive\OneDriveStandaloneUpdater.exe
 10; {root}\User_Feed_Synchronization-{87B814C1-CCB9-4FA2-8B36-7914DEC60311}; %SystemRoot%\system32\msfeedssync.exe; sync
-5,2; {438755C2-A8BA-11D1-B96B-00A0C90312E1}\Browseui preloader; %SystemRoot%\system32\browseui.dll
-5,2; {8C7461EF-2B13-11d2-BE35-3078302C2030}\Component Categories cache daemon; %SystemRoot%\system32\browseui.dll
 5.1; {438755C2-A8BA-11D1-B96B-00A0C90312E1}\Browseui preloader; %SystemRoot%\system32\browseui.dll
 5.1; {438755C2-A8BA-11D1-B96B-00A0C90312E1}\╧ЁхфчруЁєчўшъ Browseui; %SystemRoot%\system32\browseui.dll
 5.1; {8C7461EF-2B13-11d2-BE35-3078302C2030}\Component Categories cache daemon; %SystemRoot%\system32\browseui.dll
 5.1; {8C7461EF-2B13-11d2-BE35-3078302C2030}\─хьюэ ъ¤°р ърЄхуюЁшщ ъюьяюэхэЄют; %SystemRoot%\system32\browseui.dll
+5.2; {438755C2-A8BA-11D1-B96B-00A0C90312E1}\Browseui preloader; %SystemRoot%\system32\browseui.dll
+5.2; {8C7461EF-2B13-11d2-BE35-3078302C2030}\Component Categories cache daemon; %SystemRoot%\system32\browseui.dll
 5; {438755C2-A8BA-11D1-B96B-00A0C90312E1}\Browseui preloader; %SystemRoot%\system32\browseui.dll
 5; {8C7461EF-2B13-11d2-BE35-3078302C2030}\Component Categories cache daemon; %SystemRoot%\system32\browseui.dll
 6.1; \Microsoft\Configuration Manager\Configuration Manager Health Evaluation; %SystemRoot%\CCM\ccmeval.exe
-6.1; \Microsoft\Microsoft Antimalware\MP Scheduled Scan; %ProgramFiles%\Microsoft Security Client\Antimalware\MpCmdRun.exe; Scan -ScheduleJob -WinTask -RestrictPrivilegesScan
 6.1; \Microsoft\Microsoft Antimalware\Microsoft Antimalware Scheduled Scan; %ProgramFiles%\Microsoft Security Client\MpCmdRun.exe; Scan -ScheduleJob -RestrictPrivileges
+6.1; \Microsoft\Microsoft Antimalware\MP Scheduled Scan; %ProgramFiles%\Microsoft Security Client\Antimalware\MpCmdRun.exe; Scan -ScheduleJob -WinTask -RestrictPrivilegesScan
 6.1; \Microsoft\Microsoft Antimalware\MpIdleTask; %ProgramFiles%\Microsoft Security Client\MpCmdRun.exe; -IdleTask -TaskName MpIdleTask
 6.1; \Microsoft\VisualStudio\Updates\BackgroundDownload; %ProgramFiles(x86)%\Microsoft Visual Studio\Installer\resources\app\ServiceHub\Services\Microsoft.VisualStudio.Setup.Service\BackgroundDownload.exe
 6.1; \Microsoft\VisualStudio\VSIX Auto Update; %ProgramFiles(x86)%\Microsoft Visual Studio\Installer\resources\app\ServiceHub\Services\Microsoft.VisualStudio.Setup.Service\VSIXAutoUpdate.exe
@@ -387,19 +404,19 @@ OSver;Dir\Name;RunObj;Args;Note
 6.1; \Microsoft\Windows\DiskDiagnostic\Microsoft-Windows-DiskDiagnosticDataCollector; %SystemRoot%\system32\rundll32.exe; dfdts.dll,DfdGetDefaultPolicyAndSMART
 6.1; \Microsoft\Windows\DiskDiagnostic\Microsoft-Windows-DiskDiagnosticResolver; %SystemRoot%\system32\DFDWiz.exe
 6.1; \Microsoft\Windows\Location\Notifications; %SystemRoot%\System32\LocationNotifications.exe
-6.1; \Microsoft\Windows\MUI\LPRemove; %SystemRoot%\system32\lpremove.exe
-6.1; \Microsoft\Windows\MUI\Lpksetup; %SystemRoot%\System32\lpksetup.exe; -v
-6.1; \Microsoft\Windows\MUI\Mcbuilder; %SystemRoot%\System32\mcbuilder.exe
 6.1; \Microsoft\Windows\Maintenance\WinSAT; A9A33436-678B-4c9c-A211-7CC38785E79D; %SystemRoot%\system32\WinSATAPI.dll
 6.1; \Microsoft\Windows\Maintenance\WinSAT; {A9A33436-678B-4C9C-A211-7CC38785E79D}; %SystemRoot%\system32\WinSATAPI.dll
 6.1; \Microsoft\Windows\Media Center\ActivateWindowsSearch; %SystemRoot%\ehome\ehPrivJob.exe; /DoActivateWindowsSearch
 6.1; \Microsoft\Windows\Media Center\ConfigureInternetTimeService; %SystemRoot%\ehome\ehPrivJob.exe; /DoConfigureInternetTimeService
 6.1; \Microsoft\Windows\Media Center\DispatchRecoveryTasks; %SystemRoot%\ehome\ehPrivJob.exe; /DoRecoveryTasks $(Arg0)
+6.1; \Microsoft\Windows\Media Center\ehDRMInit; %SystemRoot%\ehome\ehPrivJob.exe; /DRMInit
 6.1; \Microsoft\Windows\Media Center\InstallPlayReady; %SystemRoot%\ehome\ehPrivJob.exe; /InstallPlayReady $(Arg0)
+6.1; \Microsoft\Windows\Media Center\mcupdate; %SystemRoot%\ehome\mcupdate.exe; $(Arg0)
+6.1; \Microsoft\Windows\Media Center\mcupdate_scheduled; %SystemRoot%\ehome\mcupdate.exe; -crl -hms -pscn 15
 6.1; \Microsoft\Windows\Media Center\MediaCenterRecoveryTask; %SystemRoot%\ehome\mcupdate.exe; -MediaCenterRecoveryTask
+6.1; \Microsoft\Windows\Media Center\ObjectStoreRecoveryTask; %SystemRoot%\ehome\mcupdate.exe; -ObjectStoreRecoveryTask
 6.1; \Microsoft\Windows\Media Center\OCURActivate; %SystemRoot%\ehome\ehPrivJob.exe; /OCURActivate
 6.1; \Microsoft\Windows\Media Center\OCURDiscovery; %SystemRoot%\ehome\ehPrivJob.exe; /OCURDiscovery $(Arg0)
-6.1; \Microsoft\Windows\Media Center\ObjectStoreRecoveryTask; %SystemRoot%\ehome\mcupdate.exe; -ObjectStoreRecoveryTask
 6.1; \Microsoft\Windows\Media Center\PBDADiscovery; %SystemRoot%\ehome\ehPrivJob.exe; /PBDADiscovery
 6.1; \Microsoft\Windows\Media Center\PBDADiscoveryW1; %SystemRoot%\ehome\ehPrivJob.exe; /wait:7 /PBDADiscovery
 6.1; \Microsoft\Windows\Media Center\PBDADiscoveryW2; %SystemRoot%\ehome\ehPrivJob.exe; /wait:90 /PBDADiscovery
@@ -413,12 +430,12 @@ OSver;Dir\Name;RunObj;Args;Note
 6.1; \Microsoft\Windows\Media Center\StartRecording; %SystemRoot%\ehome\ehrec.exe; /StartRecording
 6.1; \Microsoft\Windows\Media Center\UpdateRecordPath; %SystemRoot%\ehome\ehPrivJob.exe; /DoUpdateRecordPath $(Arg0)
 6.1; \Microsoft\Windows\Media Center\VCore; %ALLUSERSPROFILE%\vCore\VCore.exe; /check
-6.1; \Microsoft\Windows\Media Center\ehDRMInit; %SystemRoot%\ehome\ehPrivJob.exe; /DRMInit
-6.1; \Microsoft\Windows\Media Center\mcupdate; %SystemRoot%\ehome\mcupdate.exe; $(Arg0)
-6.1; \Microsoft\Windows\Media Center\mcupdate_scheduled; %SystemRoot%\ehome\mcupdate.exe; -crl -hms -pscn 15
 6.1; \Microsoft\Windows\MemoryDiagnostic\CorruptionDetector; {190BA3F6-0205-4f46-B589-95C6822899D2},PageNotZero; %SystemRoot%\System32\memdiag.dll
 6.1; \Microsoft\Windows\MemoryDiagnostic\DecompressionFailureDetector; {190BA3F6-0205-4f46-B589-95C6822899D2},Decompression; %SystemRoot%\System32\memdiag.dll
 6.1; \Microsoft\Windows\MobilePC\HotStart; {06DA0625-9701-43da-BFD7-FBEEA2180A1E}; %SystemRoot%\System32\HotStartUserAgent.dll
+6.1; \Microsoft\Windows\MUI\Lpksetup; %SystemRoot%\System32\lpksetup.exe; -v
+6.1; \Microsoft\Windows\MUI\LPRemove; %SystemRoot%\system32\lpremove.exe
+6.1; \Microsoft\Windows\MUI\Mcbuilder; %SystemRoot%\System32\mcbuilder.exe
 6.1; \Microsoft\Windows\Multimedia\SystemSoundsService; {2DEA658F-54C1-4227-AF9B-260AB5FC3543}; %SystemRoot%\System32\PlaySndSrv.dll
 6.1; \Microsoft\Windows\NetTrace\GatherNetworkInfo; %SystemRoot%\system32\gatherNetworkInfo.vbs
 6.1; \Microsoft\Windows\Offline Files\Background Synchronization; {FA3F3DD9-4C1A-456B-A8FA-C76EF3ED83B8}; %SystemRoot%\System32\cscui.dll
@@ -443,6 +460,7 @@ OSver;Dir\Name;RunObj;Args;Note
 6.1; \Microsoft\Windows\Task Manager\Interactive; {855fec53-d2e4-4999-9e87-3414e9cf0ff4},$(Arg0); %SystemRoot%\system32\wdc.dll
 6.1; \Microsoft\Windows\Tcpip\IpAddressConflict1; %SystemRoot%\system32\rundll32.exe; ndfapi.dll,NdfRunDllDuplicateIPOffendingSystem
 6.1; \Microsoft\Windows\Tcpip\IpAddressConflict2; %SystemRoot%\system32\rundll32.exe; ndfapi.dll,NdfRunDllDuplicateIPDefendingSystem
+6.1; \Microsoft\Windows\termsrv\licensing\TlsWarning; %SystemRoot%\system32\tlsbln.exe
 6.1; \Microsoft\Windows\TextServicesFramework\MsCtfMonitor; {01575cfe-9a55-4003-a5e1-f38d1ebdcbe1}; %SystemRoot%\system32\MsCtfMonitor.dll
 6.1; \Microsoft\Windows\Time Synchronization\SynchronizeTime; %SystemRoot%\system32\sc.exe; start w32time task_started
 6.1; \Microsoft\Windows\UPnP\UPnPHostConfig; %SystemRoot%\System32\sc.exe; config upnphost start= auto
@@ -456,7 +474,6 @@ OSver;Dir\Name;RunObj;Args;Note
 6.1; \Microsoft\Windows\WindowsBackup\Windows Backup Monitor; %SystemRoot%\system32\sdclt.exe; /CHECKSKIPPED
 6.1; \Microsoft\Windows\WindowsColorSystem\Calibration Loader; {B210D694-C8DF-490d-9576-9E20CDBC20BD}; %SystemRoot%\System32\mscms.dll
 6.1; \Microsoft\Windows\Wininet\CacheTask; {0358b920-0ac7-461f-98f4-58e32cd89148}; %SystemRoot%\system32\wininet.dll
-6.1; \Microsoft\Windows\termsrv\licensing\TlsWarning; %SystemRoot%\system32\tlsbln.exe
 6.1; \OfficeSoftwareProtectionPlatform\SvcRestartTask; %SystemRoot%\system32\sc.exe; start osppsvc
 6.1; {root}\SidebarExecute; %ProgramFiles%\Windows Sidebar\sidebar.exe; |/showGadgets|/addGadget|/factory,{75dff2b7-6936-4c06-a8bb-676a7b00b24b} -Embedding|/stopHidingGadgets
 6.1; {root}\SidebarExecute; %ProgramFiles(x86)%\Windows Sidebar\sidebar.exe; /S
@@ -473,8 +490,8 @@ OSver;Dir\Name;RunObj;Args;Note
 6.2; \Microsoft\Windows\DiskDiagnostic\Microsoft-Windows-DiskDiagnosticDataCollector; %SystemRoot%\system32\rundll32.exe; dfdts.dll,DfdGetDefaultPolicyAndSMART
 6.2; \Microsoft\Windows\DiskDiagnostic\Microsoft-Windows-DiskDiagnosticResolver; %SystemRoot%\system32\DFDWiz.exe
 6.2; \Microsoft\Windows\Location\Notifications; %SystemRoot%\System32\LocationNotifications.exe
-6.2; \Microsoft\Windows\MUI\LPRemove; %SystemRoot%\system32\lpremove.exe
 6.2; \Microsoft\Windows\Mobile Broadband Accounts\MNO Metadata Parser; %SystemRoot%\System32\MbaeParserTask.exe
+6.2; \Microsoft\Windows\MUI\LPRemove; %SystemRoot%\system32\lpremove.exe
 6.2; \Microsoft\Windows\NetTrace\GatherNetworkInfo; %SystemRoot%\system32\gatherNetworkInfo.vbs
 6.2; \Microsoft\Windows\Plug and Play\Sysprep Generalize Drivers; %SystemRoot%\System32\drvinst.exe;6
 6.2; \Microsoft\Windows\RemoteAssistance\RemoteAssistanceTask; %SystemRoot%\system32\RAServer.exe; /offerraupdate
@@ -487,8 +504,6 @@ OSver;Dir\Name;RunObj;Args;Note
 6.2; \Microsoft\Windows\SystemRestore\SR; %SystemRoot%\system32\srtasks.exe; ExecuteScheduledSPPCreation
 6.2; \Microsoft\Windows\Time Synchronization\SynchronizeTime; %SystemRoot%\system32\sc.exe; start w32time task_started
 6.2; \Microsoft\Windows\UPnP\UPnPHostConfig; %SystemRoot%\System32\sc.exe; config upnphost start= auto
-6.2; \Microsoft\Windows\WS\License Validation; %SystemRoot%\System32\rundll32.exe; WSClient.dll,WSpTLR licensing
-6.2; \Microsoft\Windows\WS\WSRefreshBannedAppsListTask; %SystemRoot%\System32\rundll32.exe; WSClient.dll,RefreshBannedAppsList
 6.2; \Microsoft\Windows\Windows Defender\Windows Defender Cache Maintenance; %ProgramFiles%\Windows Defender\MpCmdRun.exe; -IdleTask -TaskName WdCacheMaintenance
 6.2; \Microsoft\Windows\Windows Defender\Windows Defender Cleanup; %ProgramFiles%\Windows Defender\MpCmdRun.exe; -IdleTask -TaskName WdCleanup
 6.2; \Microsoft\Windows\Windows Defender\Windows Defender Scheduled Scan; %ProgramFiles%\Windows Defender\MpCmdRun.exe; Scan -ScheduleJob
@@ -498,6 +513,8 @@ OSver;Dir\Name;RunObj;Args;Note
 6.2; \Microsoft\Windows\Windows Media Sharing\UpdateLibrary; %ProgramFiles%\Windows Media Player\wmpnscfg.exe
 6.2; \Microsoft\Windows\WindowsBackup\ConfigNotification; %systemroot%\System32\sdclt.exe; /CONFIGNOTIFICATION
 6.2; \Microsoft\Windows\WindowsUpdate\Scheduled Start; %systemroot%\System32\sc.exe; start wuauserv
+6.2; \Microsoft\Windows\WS\License Validation; %SystemRoot%\System32\rundll32.exe; WSClient.dll,WSpTLR licensing
+6.2; \Microsoft\Windows\WS\WSRefreshBannedAppsListTask; %SystemRoot%\System32\rundll32.exe; WSClient.dll,RefreshBannedAppsList
 6.3; \Microsoft\Office\Office Automatic Updates 2.0; %ProgramFiles%\Common Files\Microsoft Shared\ClickToRun\OfficeC2RClient.exe; /frequentupdate SCHEDULEDTASK displaylevel=False
 6.3; \Microsoft\Office\Office Automatic Updates; %ProgramFiles%\Microsoft Office 15\ClientX86\OfficeC2RClient.exe; /update SCHEDULEDTASK displaylevel=False
 6.3; \Microsoft\Office\Office ClickToRun Service Monitor; %ProgramFiles%\Common Files\Microsoft Shared\ClickToRun\OfficeC2RClient.exe; /WatchService
@@ -507,8 +524,8 @@ OSver;Dir\Name;RunObj;Args;Note
 6.3; \Microsoft\Office\OfficeBackgroundTaskHandlerLogon; %ProgramFiles(x86)%\Microsoft Office\root\Office16\officebackgroundtaskhandler.exe
 6.3; \Microsoft\Office\OfficeBackgroundTaskHandlerRegistration; %ProgramFiles(x86)%\Microsoft Office\root\Office16\officebackgroundtaskhandler.exe
 6.3; \Microsoft\Office\OfficeOsfInstaller; %ProgramFiles(x86)%\Microsoft Office\root\VFS\ProgramFilesCommonX86\Microsoft Shared\Office16\osfinstaller.exe
-6.3; \Microsoft\VisualStudio\Updates\BackgroundDownload; %ProgramFiles(x86)%\Microsoft Visual Studio\Installer\resources\app\ServiceHub\Services\Microsoft.VisualStudio.Setup.Service\BackgroundDownload.exe
 6.3; \Microsoft\VisualStudio\Updates\BackgroundDownload; %ProgramFiles(x86)%\microsoft visual studio\installer\resources\app\ServiceHub\Services\Microsoft.VisualStudio.Setup.Service\BackgroundDownload.exe
+6.3; \Microsoft\VisualStudio\Updates\BackgroundDownload; %ProgramFiles(x86)%\Microsoft Visual Studio\Installer\resources\app\ServiceHub\Services\Microsoft.VisualStudio.Setup.Service\BackgroundDownload.exe
 6.3; \Microsoft\VisualStudio\VSIX Auto Update 14; E:\Visual Studio 2015\Common7\IDE\VSIXAutoUpdate.exe
 6.3; \Microsoft\VisualStudio\VSIX Auto Update; %ProgramFiles(x86)%\Microsoft Visual Studio\Installer\resources\app\ServiceHub\Services\Microsoft.VisualStudio.Setup.Service\VSIXAutoUpdate.exe
 6.3; \Microsoft\Windows Live\SOXE\Extractor Definitions Update Task; {3519154C-227E-47F3-9CC9-12C3F05817F1}; %ProgramFiles%\Windows Live\SOXE\wlsoxe.dll
@@ -548,21 +565,21 @@ OSver;Dir\Name;RunObj;Args;Note
 6.3; \Microsoft\Windows\FileHistory\File History (maintenance mode); {89917B7C-A1A6-11DF-8BF6-18A90531A85A}; %SystemRoot%\System32\fhtask.dll
 6.3; \Microsoft\Windows\IME\SQM data sender; {ccb1d8cb-d39f-41c9-b793-0196214bdc4e}; %SystemRoot%\System32\IME\shared\imecfm.dll
 6.3; \Microsoft\Windows\Location\Notifications; %SystemRoot%\System32\LocationNotifications.exe
-6.3; \Microsoft\Windows\MUI\LPRemove; %SystemRoot%\system32\lpremove.exe
-6.3; \Microsoft\Windows\MUI\Lpksetup; %SystemRoot%\System32\lpksetup.exe; -v
-6.3; \Microsoft\Windows\MUI\Mcbuilder; %SystemRoot%\System32\mcbuilder.exe
 6.3; \Microsoft\Windows\Maintenance\WinSAT; A9A33436-678B-4c9c-A211-7CC38785E79D; %SystemRoot%\system32\WinSATAPI.dll
 6.3; \Microsoft\Windows\MemoryDiagnostic\ProcessMemoryDiagnosticEvents; {8168e74a-b39f-46d8-adcd-7bed477b80a3},Event; %SystemRoot%\System32\MemoryDiagnostic.dll
 6.3; \Microsoft\Windows\MemoryDiagnostic\RunFullMemoryDiagnostic; {8168e74a-b39f-46d8-adcd-7bed477b80a3},Time; %SystemRoot%\System32\MemoryDiagnostic.dll
 6.3; \Microsoft\Windows\Mobile Broadband Accounts\MNO Metadata Parser; %SystemRoot%\System32\MbaeParserTask.exe
+6.3; \Microsoft\Windows\MUI\Lpksetup; %SystemRoot%\System32\lpksetup.exe; -v
+6.3; \Microsoft\Windows\MUI\LPRemove; %SystemRoot%\system32\lpremove.exe
+6.3; \Microsoft\Windows\MUI\Mcbuilder; %SystemRoot%\System32\mcbuilder.exe
 6.3; \Microsoft\Windows\Multimedia\SystemSoundsService; {2DEA658F-54C1-4227-AF9B-260AB5FC3543}; %SystemRoot%\System32\PlaySndSrv.dll
 6.3; \Microsoft\Windows\NetCfg\BindingWorkItemQueueHandler; {5AA199A0-1CED-43A5-9B85-3226086738A3}; %SystemRoot%\System32\netcfgx.dll
 6.3; \Microsoft\Windows\NetTrace\GatherNetworkInfo; %SystemRoot%\system32\gatherNetworkInfo.vbs
 6.3; \Microsoft\Windows\Offline Files\Background Synchronization; {FA3F3DD9-4C1A-456B-A8FA-C76EF3ED83B8}; %SystemRoot%\System32\cscui.dll
 6.3; \Microsoft\Windows\Offline Files\Logon Synchronization; {FA3F3DD9-4C1A-456B-A8FA-C76EF3ED83B8},Logon; %SystemRoot%\System32\cscui.dll
+6.3; \Microsoft\Windows\PerfTrack\BackgroundConfigSurveyor; {EA9155A3-8A39-40b4-8963-D3C761B18371}; %SystemRoot%\System32\perftrack.dll
 6.3; \Microsoft\Windows\PI\Secure-Boot-Update; {5014B7C8-934E-4262-9816-887FA745A6C4},SBServicing; %SystemRoot%\system32\TpmTasks.dll
 6.3; \Microsoft\Windows\PI\Sqm-Tasks; {5014B7C8-934E-4262-9816-887FA745A6C4},PiSqmTasks; %SystemRoot%\system32\TpmTasks.dll
-6.3; \Microsoft\Windows\PerfTrack\BackgroundConfigSurveyor; {EA9155A3-8A39-40b4-8963-D3C761B18371}; %SystemRoot%\System32\perftrack.dll
 6.3; \Microsoft\Windows\Plug and Play\Device Install Group Policy; {60400283-b242-4fa8-8c25-caf695b88209}; %SystemRoot%\System32\pnppolicy.dll
 6.3; \Microsoft\Windows\Plug and Play\Device Install Reboot Required; {48794782-6a1f-47b9-bd52-1d5f95d49c1b}; %SystemRoot%\System32\pnpui.dll
 6.3; \Microsoft\Windows\Plug and Play\Plug and Play Cleanup; {DEF03232-9688-11E2-BE7F-B4B52FD966FF}; %SystemRoot%\System32\pnpclean.dll
@@ -595,7 +612,6 @@ OSver;Dir\Name;RunObj;Args;Note
 6.3; \Microsoft\Windows\Sysmain\HybridDriveCacheRebalance; {D44377B8-1F2F-4FAA-9C8E-6C4AD2928E47}; %SystemRoot%\system32\sysmain.dll
 6.3; \Microsoft\Windows\Sysmain\WsSwapAssessmentTask; %SystemRoot%\system32\rundll32.exe; sysmain.dll,PfSvWsSwapAssessmentTask
 6.3; \Microsoft\Windows\SystemRestore\SR; %SystemRoot%\system32\srtasks.exe; ExecuteScheduledSPPCreation
-6.3; \Microsoft\Windows\TPM\Tpm-Maintenance; {5014B7C8-934E-4262-9816-887FA745A6C4},TpmTasks; %SystemRoot%\system32\TpmTasks.dll
 6.3; \Microsoft\Windows\Task Manager\Interactive; {855fec53-d2e4-4999-9e87-3414e9cf0ff4},$(Arg0); %SystemRoot%\system32\wdc.dll
 6.3; \Microsoft\Windows\TaskScheduler\Idle Maintenance; {57BFCFDD-EEE4-4DBB-A751-3CDEB169FF44},Idle; %SystemRoot%\system32\msched.dll
 6.3; \Microsoft\Windows\TaskScheduler\Maintenance Configurator; {645E29EA-4B0A-464C-8B7D-1A6B9F9D92A8}; %SystemRoot%\system32\msched.dll
@@ -605,16 +621,10 @@ OSver;Dir\Name;RunObj;Args;Note
 6.3; \Microsoft\Windows\Time Synchronization\ForceSynchronizeTime; {A31AD6C2-FF4C-43D4-8E90-7101023096F9},TimeSyncTask; %SystemRoot%\system32\TimeSyncTask.dll
 6.3; \Microsoft\Windows\Time Synchronization\SynchronizeTime; %SystemRoot%\system32\sc.exe; start w32time task_started
 6.3; \Microsoft\Windows\Time Zone\SynchronizeTimeZone; %SystemRoot%\system32\tzsync.exe
+6.3; \Microsoft\Windows\TPM\Tpm-Maintenance; {5014B7C8-934E-4262-9816-887FA745A6C4},TpmTasks; %SystemRoot%\system32\TpmTasks.dll
 6.3; \Microsoft\Windows\UPnP\UPnPHostConfig; %SystemRoot%\System32\sc.exe; config upnphost start= auto
 6.3; \Microsoft\Windows\User Profile Service\HiveUploadTask; {BA677074-762C-444b-94C8-8C83F93F6605}; %SystemRoot%\system32\profsvc.dll
 6.3; \Microsoft\Windows\WDI\ResolutionHost; {900be39d-6be8-461a-bc4d-b0fa71f5ecb1}; %SystemRoot%\System32\wdi.dll
-6.3; \Microsoft\Windows\WOF\WIM-Hash-Management; {B7BFFB5A-EFA8-4D8C-BBDE-C8D5FAAF54A1},WimHashManagement; %SystemRoot%\system32\WofTasks.dll
-6.3; \Microsoft\Windows\WOF\WIM-Hash-Validation; {B7BFFB5A-EFA8-4D8C-BBDE-C8D5FAAF54A1},WimHashValidation; %SystemRoot%\system32\WofTasks.dll
-6.3; \Microsoft\Windows\WS\Badge Update; {00CCDDF6-5107-424D-853D-3907AE5502DC}; %SystemRoot%\winstore\WinStoreUI.dll
-6.3; \Microsoft\Windows\WS\License Validation; %SystemRoot%\System32\rundll32.exe; WSClient.dll,WSpTLR licensing
-6.3; \Microsoft\Windows\WS\Sync Licenses; {10F591BE-3C84-418A-86DD-BAA002E2F36E}; %SystemRoot%\winstore\WinStoreUI.dll
-6.3; \Microsoft\Windows\WS\WSRefreshBannedAppsListTask; %SystemRoot%\System32\rundll32.exe; WSClient.dll,RefreshBannedAppsList
-6.3; \Microsoft\Windows\WS\WSTask; {E52C9A25-F3E8-49E4-BAA7-FAD0EF620129},$(Arg0)\;$(Arg1); %SystemRoot%\System32\WSService.dll
 6.3; \Microsoft\Windows\Windows Defender\Windows Defender Cache Maintenance; %ProgramFiles%\Windows Defender\MpCmdRun.exe; -IdleTask -TaskName WdCacheMaintenance
 6.3; \Microsoft\Windows\Windows Defender\Windows Defender Cleanup; %ProgramFiles%\Windows Defender\MpCmdRun.exe; -IdleTask -TaskName WdCleanup
 6.3; \Microsoft\Windows\Windows Defender\Windows Defender Scheduled Scan; %ProgramFiles%\Windows Defender\MpCmdRun.exe; Scan -ScheduleJob
@@ -630,9 +640,16 @@ OSver;Dir\Name;RunObj;Args;Note
 6.3; \Microsoft\Windows\WindowsUpdate\Scheduled Start With Network; %SystemRoot%\system32\sc.exe; start wuauserv
 6.3; \Microsoft\Windows\WindowsUpdate\Scheduled Start; %SystemRoot%\system32\sc.exe; start wuauserv
 6.3; \Microsoft\Windows\Wininet\CacheTask; {0358b920-0ac7-461f-98f4-58e32cd89148}; %SystemRoot%\system32\wininet.dll
+6.3; \Microsoft\Windows\WOF\WIM-Hash-Management; {B7BFFB5A-EFA8-4D8C-BBDE-C8D5FAAF54A1},WimHashManagement; %SystemRoot%\system32\WofTasks.dll
+6.3; \Microsoft\Windows\WOF\WIM-Hash-Validation; {B7BFFB5A-EFA8-4D8C-BBDE-C8D5FAAF54A1},WimHashValidation; %SystemRoot%\system32\WofTasks.dll
 6.3; \Microsoft\Windows\Work Folders\Work Folders Logon Synchronization; {97d47d56-3777-49fb-8e8f-90d7e30e1a1e},Logon; %SystemRoot%\System32\WorkFoldersShell.dll
 6.3; \Microsoft\Windows\Work Folders\Work Folders Maintenance Work; {63260bce-a3fb-4a34-aa51-d4d8e877b62b}; %SystemRoot%\System32\WorkFoldersShell.dll
 6.3; \Microsoft\Windows\Workplace Join\Automatic-Workplace-Join; %SystemRoot%\System32\AutoWorkplace.exe; join
+6.3; \Microsoft\Windows\WS\Badge Update; {00CCDDF6-5107-424D-853D-3907AE5502DC}; %SystemRoot%\winstore\WinStoreUI.dll
+6.3; \Microsoft\Windows\WS\License Validation; %SystemRoot%\System32\rundll32.exe; WSClient.dll,WSpTLR licensing
+6.3; \Microsoft\Windows\WS\Sync Licenses; {10F591BE-3C84-418A-86DD-BAA002E2F36E}; %SystemRoot%\winstore\WinStoreUI.dll
+6.3; \Microsoft\Windows\WS\WSRefreshBannedAppsListTask; %SystemRoot%\System32\rundll32.exe; WSClient.dll,RefreshBannedAppsList
+6.3; \Microsoft\Windows\WS\WSTask; {E52C9A25-F3E8-49E4-BAA7-FAD0EF620129},$(Arg0)\;$(Arg1); %SystemRoot%\System32\WSService.dll
 6.3; \OfficeSoftwareProtectionPlatform\SvcRestartTask; %SystemRoot%\system32\sc.exe; start osppsvc
 6.3; {root}\Optimize Start Menu Cache Files-S-1-5-21-1333781570-1927269499-15187587-1001; {2D3F8A1B-6DCD-4ED5-BDBA-A096594B98EF},$(Arg0); %SystemRoot%\System32\twinapi.dll
 6.3; {root}\Optimize Start Menu Cache Files-S-1-5-21-1333781570-1927269499-15187587-1002; {2D3F8A1B-6DCD-4ED5-BDBA-A096594B98EF},$(Arg0); %SystemRoot%\System32\twinapi.dll
@@ -648,14 +665,14 @@ OSver;Dir\Name;RunObj;Args;Note
 6; \Microsoft\Windows\Defrag\ScheduledDefrag; %SystemRoot%\system32\defrag.exe; -c -i
 6; \Microsoft\Windows\DiskDiagnostic\Microsoft-Windows-DiskDiagnosticDataCollector; %SystemRoot%\system32\rundll32.exe; dfdts.dll,DfdGetDefaultPolicyAndSMART
 6; \Microsoft\Windows\DiskDiagnostic\Microsoft-Windows-DiskDiagnosticResolver; %SystemRoot%\system32\DFDWiz.exe
-6; \Microsoft\Windows\MUI\LPRemove; %SystemRoot%\system32\lpremove.exe
+6; \Microsoft\Windows\Media Center\ehDRMInit; %SystemRoot%\ehome\ehPrivJob.exe; /DRMInit
+6; \Microsoft\Windows\Media Center\mcupdate; %SystemRoot%\ehome\mcupdate.exe; $(Arg0) -gc
 6; \Microsoft\Windows\Media Center\OCURActivate; %SystemRoot%\ehome\ehPrivJob.exe; /OCURActivate
 6; \Microsoft\Windows\Media Center\OCURDiscovery; %SystemRoot%\ehome\ehPrivJob.exe; /OCURDiscovery
 6; \Microsoft\Windows\Media Center\UpdateRecordPath; %SystemRoot%\ehome\ehPrivJob.exe; /DoUpdateRecordPath $(Arg0)
-6; \Microsoft\Windows\Media Center\ehDRMInit; %SystemRoot%\ehome\ehPrivJob.exe; /DRMInit
-6; \Microsoft\Windows\Media Center\mcupdate; %SystemRoot%\ehome\mcupdate.exe; $(Arg0) -gc
 6; \Microsoft\Windows\MobilePC\HotStart; {06DA0625-9701-43da-BFD7-FBEEA2180A1E}; %SystemRoot%\System32\HotStartUserAgent.dll
 6; \Microsoft\Windows\MobilePC\TMM; {35EF4182-F900-4632-B072-8639E4478A61}; %SystemRoot%\System32\TMM.dll
+6; \Microsoft\Windows\MUI\LPRemove; %SystemRoot%\system32\lpremove.exe
 6; \Microsoft\Windows\Multimedia\SystemSoundsService; {2DEA658F-54C1-4227-AF9B-260AB5FC3543}; %SystemRoot%\System32\PlaySndSrv.dll
 6; \Microsoft\Windows\NetworkAccessProtection\NAPStatus UI; {f09878a1-4652-4292-aa63-8c7d4fd7648f},/b; %SystemRoot%\System32\QAgent.dll
 6; \Microsoft\Windows\PLA\System\ConvertLogEntries; %SystemRoot%\system32\rundll32.exe; %SystemRoot%\system32\pla.dll,PlaConvertLogEntries

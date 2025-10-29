@@ -681,7 +681,7 @@ Private Sub GetKeyInfo(KeyInfo As REG_KEY_INFO, ByVal sKey As String, bView32 As
     KeyInfo.SecurityDescriptor = GetKeyStringSD(hHive, sKey, bView32)
     
     lret = Reg.WrapNtOpenKeyEx(hHive, sKey, WRITE_OWNER, hKey, , bView32)
-    If STATUS_SUCCESS = lret Then
+    If NT_SUCCESS(lret) Then
         Dim reqSize As Long
     
         KeyInfo.NativeKeyName = Reg.RegGetKeyInfoNameEx(hKey)
@@ -799,7 +799,7 @@ Private Sub AddLogHeader(sb As clsStringBuilder, bCSV As Boolean)
         sb.AppendLine s
     Else
         sb.AppendLine ChrW$(-257) & "Logfile of Registry Key Type Analyzer (HJT+ v." & AppVerString & ")" & vbCrLf & vbCrLf & _
-            MakeLogHeader() & vbCrLf & _
+            MakeLogHeader() & vbCrLf & vbCrLf & _
             s & vbCrLf
     End If
 End Sub
@@ -896,7 +896,7 @@ Private Sub cmdGo_Click()
     aPathes = Split(sPathes, vbLf)
     RegPathNormalizeArray aPathes
     
-    ReportPath = BuildPath(App.Path(), "RegKeyType") & IIf(bCSV, ".csv", ".log")
+    ReportPath = BuildPath(App.path(), "RegKeyType") & IIf(bCSV, ".csv", ".log")
     If FileExists(ReportPath) Then Call DeleteFileW(StrPtr(ReportPath))
     
     AddLogHeader sb, bCSV
@@ -1161,28 +1161,10 @@ Private Sub cmdClear_Click()
     txtKeys.Text = vbNullString
 End Sub
 
-Private Function RegPathNormalize(sPath As String) As String
-    Dim pos As Long
-    sPath = Trim$(sPath)
-    If Left$(sPath, 1) = """" Then
-        pos = InStr(2, sPath, """")
-        If pos <> 0 Then
-            sPath = mid$(sPath, 2, pos - 2)
-        Else
-            sPath = mid$(sPath, 2)
-        End If
-    End If
-    If InStr(sPath, "/") <> 0 Then
-        sPath = Replace$(sPath, "/", "\")      'path altered by / chars instead of \
-    End If
-    sPath = Replace$(sPath, "\\", "\")
-    RegPathNormalize = sPath
-End Function
-
 Private Sub RegPathNormalizeArray(aPathes() As String)
     Dim i As Long
     For i = 0 To UBound(aPathes)
-        aPathes(i) = RegPathNormalize(aPathes(i))
+        aPathes(i) = Reg.Normalize(aPathes(i))
     Next
 End Sub
 

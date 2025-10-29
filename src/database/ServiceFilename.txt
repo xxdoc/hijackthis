@@ -5,3 +5,4 @@ MpCmdRun.exe
 WPFFontCache_v0400.exe
 elevation_service.exe
 mscorsvw.exe
+MpDefenderCoreService.exe

@@ -979,7 +979,7 @@ Private Sub EnumADSInFile(sFilePath$, Optional bIsFolder As Boolean = False)
                 sStreamName = mid$(sStreamName, 2)
                 sStreamName = Left$(sStreamName, InStr(sStreamName, ":") - 1)
                 If bCalcHash Then
-                    lstADSFound.AddItem sFilePath & " : " & sStreamName & "  (" & uFSI.StreamSize & " bytes, CheckSum: " & GetFileCheckSum(sFilePath & ":" & sStreamName, uFSI.StreamSize, True) & ")"
+                    lstADSFound.AddItem sFilePath & " : " & sStreamName & "  (" & uFSI.StreamSize & " bytes, CheckSum: " & GetFileCheckSum(sFilePath & ":" & sStreamName, , True) & ")"
                 Else
                     lstADSFound.AddItem sFilePath & " : " & sStreamName & "  (" & uFSI.StreamSize & " bytes)"
                 End If
@@ -1046,7 +1046,7 @@ Private Sub mnuPopupSave_Click()
     
     'Header
     sList.Append ChrW$(-257)
-    sList.AppendLine "Logfile of ADS Spy v." & ADSspyVer & " (HijackThis+ v." & AppVerString & ")"
+    sList.AppendLine "Logfile of ADS Spy v." & ADSspyVer & " (HiJackThis+ v." & AppVerString & ")"
     sList.AppendLine
     sList.Append MakeLogHeader()
     sList.AppendLine

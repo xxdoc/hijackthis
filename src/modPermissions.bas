@@ -963,7 +963,10 @@ Public Function RegKeyResetDACL(lHive&, ByVal KeyName$, Optional bUseWow64 As Bo
                                         
                                             sSubKeyName = Left$(sSubKeyName, lstrlen(StrPtr(sSubKeyName)))
                                             
-                                            RegKeyResetDACL lHive, KeyName & IIf(0 <> Len(KeyName), "\", vbNullString) & sSubKeyName, bUseWow64, True
+                                            'RegKeyResetDACL lHive, KeyName & IIf(0 <> Len(KeyName), "\", vbNullString) & sSubKeyName, bUseWow64, True
+                                            
+                                            RegKeyResetDACL = RegKeyResetDACL And _
+                                                RegKeySetInheritedSD(lHive, KeyName & IIf(0 <> Len(KeyName), "\", vbNullString) & sSubKeyName, bUseWow64, True)
                                             
                                             sSubKeyName = String$(MAX_KEYNAME, vbNullChar)
                                             i = i + 1
@@ -1036,6 +1039,13 @@ Function CreateEmptyACL(Ace_Explicit() As EXPLICIT_ACCESS) As Long
     End If
 End Function
 
+Function CreateNullDacl() As ACL
+    With CreateNullDacl
+        .AclRevision = 2
+        .AclSize = LenB(CreateNullDacl)
+    End With
+End Function
+
 Private Function GetHKey(ByVal HKeyName As String) As Long 'Get handle of main hive
     On Error GoTo ErrorHandler:
     Dim pos As Long
@@ -1078,32 +1088,35 @@ Private Function ConvertHiveHandleToSeObjectName(hHive As Long) As String
     ConvertHiveHandleToSeObjectName = SeObj
 End Function
 
+'https://learn.microsoft.com/en-us/archive/msdn-magazine/2005/march/using-net-making-privileges-reliable-secure-and-efficient
 Public Function SetCurrentProcessPrivileges(PrivilegeName As String) As Boolean
     
-    Dim tp As TOKEN_PRIVILEGES, hToken&
+    Dim tp As TOKEN_PRIVILEGES, hToken&, errCode&
     
     If LookupPrivilegeValue(0&, StrPtr(PrivilegeName), tp.LuidLowPart) Then   'i.e. "SeDebugPrivilege"
     
-        If 0 = OpenThreadToken(GetCurrentThread(), TOKEN_ADJUST_PRIVILEGES Or TOKEN_QUERY, 1&, hToken) Then
-        
-            If Err.LastDllError = ERROR_NO_TOKEN Then
-            
-                If 0 = OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES Or TOKEN_QUERY, hToken) Then
-                    Exit Function
-                End If
-            Else
-                Exit Function
-            End If
+        If 0 = OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES Or TOKEN_QUERY, hToken) Then
+            Dbg "Failed to open process token. Code: " & Err.LastDllError
+            Exit Function
         End If
         
         If hToken <> 0 Then
             tp.PrivilegeCount = 1
             tp.Attributes = SE_PRIVILEGE_ENABLED
-            SetCurrentProcessPrivileges = AdjustTokenPrivileges(hToken, 0&, tp, 0&, 0&, 0&)
+            If AdjustTokenPrivileges(hToken, 0&, tp, 0&, 0&, 0&) Then
+                errCode = Err.LastDllError
+                If errCode = ERROR_SUCCESS Then
+                    Dbg "PRIVILEGE: " & PrivilegeName & " - Granted"
+                    SetCurrentProcessPrivileges = True
+                End If
+            End If
+            
             CloseHandle hToken
         End If
         
-        Dbg "PRIVILEGE: " & PrivilegeName & " - " & IIf(SetCurrentProcessPrivileges, "Granted", "FAILURE !!!")
+        If Not SetCurrentProcessPrivileges Then
+            Dbg "PRIVILEGE: " & PrivilegeName & " - FAILURE. Code: " & errCode
+        End If
     End If
 End Function
 
@@ -1114,12 +1127,14 @@ Function IsWin64() As Boolean
     If si(0) And PROCESSOR_ARCHITECTURE_AMD64 Then IsWin64 = True
 End Function
 
-Public Function CheckAccessWrite(sFilePath As String, Optional bDeleteFile As Boolean) As Boolean
+'Check access through physical write
+'
+Public Function CheckFileAccessWrite_Physically(sFilePath As String, Optional bDeleteFile As Boolean) As Boolean
     On Error GoTo ErrorHandler:
     Dim hFile As Long
     Dim bRedirect As Boolean
     Dim bOldStatus As Boolean
-
+    
     bRedirect = ToggleWow64FSRedirection(False, sFilePath, bOldStatus)
 
     If FileExists(sFilePath, , True) Then
@@ -1130,16 +1145,16 @@ Public Function CheckAccessWrite(sFilePath As String, Optional bDeleteFile As Bo
 
     If hFile > 0 Then
         CloseHandle hFile
-        CheckAccessWrite = True
+        CheckFileAccessWrite_Physically = True
     End If
-
-    If bRedirect Then Call ToggleWow64FSRedirection(bOldStatus)
-
+    
     If bDeleteFile Then
-        If FileExists(sFilePath, , True) Then
-            DeleteFilePtr StrPtr(sFilePath), , True
+        If hFile > 0 Then
+            DeleteFileEx sFilePath
         End If
     End If
+    
+    If bRedirect Then Call ToggleWow64FSRedirection(bOldStatus)
     Exit Function
 ErrorHandler:
     ErrorMsg Err, "CheckAccessWrite"
@@ -1192,7 +1207,7 @@ Public Function CheckFileAccess(sFileOrFolder As String, AccessMask As Long) As 
     End If
 End Function
 
-Public Function CheckAccess(hObject As Long, ObjType As SE_OBJECT_TYPE, AccessMask As Long) As Boolean
+Public Function CheckAccess(hObject As Long, ObjType As SE_OBJECT_TYPE, in_out_AccessMask As Long) As Boolean
     
     Dim SD() As Byte
     Dim hToken As Long
@@ -1220,7 +1235,7 @@ Public Function CheckAccess(hObject As Long, ObjType As SE_OBJECT_TYPE, AccessMa
     End If
 
     'map generic rights to user-defined specific rights
-    MapGenericMask AccessMask, mapping
+    MapGenericMask in_out_AccessMask, mapping
     
     If GetObjectSD(hObject, OWNER_SECURITY_INFORMATION Or DACL_SECURITY_INFORMATION Or GROUP_SECURITY_INFORMATION, SD) Then
     
@@ -1235,11 +1250,11 @@ Public Function CheckAccess(hObject As Long, ObjType As SE_OBJECT_TYPE, AccessMa
                 
                 PrivSetLength = LenB(PrivSet)
                 
-                If AccessCheck(SD(0), hImpersonatedToken, AccessMask, mapping, PrivSet, PrivSetLength, GrantedAccess, result) Then
+                If AccessCheck(SD(0), hImpersonatedToken, in_out_AccessMask, mapping, PrivSet, PrivSetLength, GrantedAccess, result) Then
                     If result Then
                         CheckAccess = True
                     End If
-                    AccessMask = GrantedAccess
+                    in_out_AccessMask = GrantedAccess
                 End If
                 
                 CloseHandle hImpersonatedToken
@@ -1367,7 +1382,7 @@ Public Function GetObjectSD(hObject As Long, reqInfoType As SECURITY_INFORMATION
     End If
 End Function
 
-Public Function SetFileStringSD(sObject As String, StrSD As String, Optional bRecursive As Boolean) As Boolean
+Public Function SetFileStringSD(sObject As String, StrSD As String, Optional bRecursive As Boolean, Optional bInherit As Boolean) As Boolean
     
     Dim SD() As Byte
     Dim bOldRedir As Boolean
@@ -1375,19 +1390,74 @@ Public Function SetFileStringSD(sObject As String, StrSD As String, Optional bRe
     Dim i As Long
     Dim iAttr As Long
     
-    SD = ConvertStringSDToSD(StrSD)
+    If bInherit Then
     
-    If AryPtr(SD) Then
-        ToggleWow64FSRedirection False, sObject, bOldRedir
-        
-        hFile = CreateFile(StrPtr(sObject), READ_CONTROL Or WRITE_OWNER Or WRITE_DAC Or ACCESS_SYSTEM_SECURITY, _
-            FILE_SHARE_READ Or FILE_SHARE_WRITE Or FILE_SHARE_DELETE, ByVal 0, OPEN_EXISTING, g_FileBackupFlag, 0)
-        
-        If hFile <> INVALID_HANDLE_VALUE Then
-            SetFileStringSD = SetSecurityDescriptor(hFile, SE_FILE_OBJECT, SD)
-            CloseHandle hFile
+        SetFileStringSD = SetFileInheritedSD(sObject, True)
+    
+    Else
+    
+        SD = ConvertStringSDToSD(StrSD)
+    
+        If AryPtr(SD) Then
+            ToggleWow64FSRedirection False, sObject, bOldRedir
+            
+            hFile = CreateFile(StrPtr(sObject), READ_CONTROL Or WRITE_OWNER Or WRITE_DAC Or ACCESS_SYSTEM_SECURITY, _
+                FILE_SHARE_READ Or FILE_SHARE_WRITE Or FILE_SHARE_DELETE, ByVal 0, OPEN_EXISTING, g_FileBackupFlag, 0)
+            
+            If hFile <> INVALID_HANDLE_VALUE Then
+                SetFileStringSD = SetSecurityDescriptor(hFile, SE_FILE_OBJECT, SD)
+                CloseHandle hFile
+            End If
+            
+            iAttr = GetFileAttributes(StrPtr(sObject))
+            
+            If (iAttr <> INVALID_FILE_ATTRIBUTES) Then
+                If (iAttr And FILE_ATTRIBUTE_READONLY) Then
+                    iAttr = iAttr - FILE_ATTRIBUTE_READONLY
+                    SetFileAttributes StrPtr(sObject), iAttr
+                End If
+            End If
+            
+            ToggleWow64FSRedirection bOldRedir
         End If
+    End If
+    
+    If bRecursive Then
+    
+        If FolderExists(sObject) Then
+            Dim aFiles() As String
+            
+            aFiles = ListFiles(sObject)
+            
+            For i = 0 To UBoundSafe(aFiles)
+                'SetFileStringSD = SetFileStringSD And SetFileStringSD(aFiles(i), StrSD, False)
+                SetFileStringSD = SetFileStringSD And SetFileInheritedSD(aFiles(i), True)
+                
+                iAttr = GetFileAttributes(StrPtr(sObject))
+            Next
         
+            Dim aFolders() As String
+            
+            aFolders = ListSubfolders(sObject)
+            
+            For i = 0 To UBoundSafe(aFolders)
+                SetFileStringSD = SetFileStringSD And SetFileStringSD(aFolders(i), StrSD, True, bInherit:=True)
+            Next
+            
+        End If
+    End If
+    
+End Function
+
+Public Function SetFileInheritedSD(sObject As String, bResetReadOnly As Boolean) As Boolean
+    Dim bOldRedir As Boolean
+    Dim iAttr As Long
+    Dim hFile As Long
+    Dim dacl As ACL
+    
+    ToggleWow64FSRedirection False, sObject, bOldRedir
+    
+    If bResetReadOnly Then
         iAttr = GetFileAttributes(StrPtr(sObject))
         
         If (iAttr <> INVALID_FILE_ATTRIBUTES) Then
@@ -1396,29 +1466,85 @@ Public Function SetFileStringSD(sObject As String, StrSD As String, Optional bRe
                 SetFileAttributes StrPtr(sObject), iAttr
             End If
         End If
+    End If
+    
+    hFile = CreateFile(StrPtr(sObject), READ_CONTROL Or WRITE_OWNER Or WRITE_DAC, _
+            FILE_SHARE_READ Or FILE_SHARE_WRITE Or FILE_SHARE_DELETE, ByVal 0, OPEN_EXISTING, g_FileBackupFlag, 0)
+    
+    If hFile <> INVALID_HANDLE_VALUE Then
         
-        ToggleWow64FSRedirection bOldRedir
+        dacl = CreateNullDacl()
         
-        If FolderExists(sObject) Then
-            Dim aFiles() As String
+        If ERROR_SUCCESS = SetSecurityInfo(hFile, SE_FILE_OBJECT, _
+            DACL_SECURITY_INFORMATION Or UNPROTECTED_DACL_SECURITY_INFORMATION, _
+            0&, 0&, VarPtr(dacl), 0&) Then
             
-            aFiles = ListFiles(sObject)
-            
-            For i = 0 To UBoundSafe(aFiles)
-                SetFileStringSD = SetFileStringSD And SetFileStringSD(aFiles(i), StrSD, False)
-            Next
+            SetFileInheritedSD = True
+        
         End If
         
-        If bRecursive Then
-            Dim aFolders() As String
+        CloseHandle hFile
+    End If
+    
+    ToggleWow64FSRedirection bOldRedir
+
+End Function
+
+Public Function RegKeySetInheritedSD(lHive&, ByVal KeyName$, Optional bUseWow64 As Boolean, Optional Recursive As Boolean = False) As Boolean
+    
+    Dim flagDisposition As Long
+    Dim hKey As Long, hKeyEnum As Long
+    Dim i As Long
+    Dim dacl As ACL
+    Dim sSubKeyName As String
+    
+    Call Reg.NormalizeKeyNameAndHiveHandle(lHive, KeyName)
+    
+    'Note: by using REG_OPTION_BACKUP_RESTORE privilege, unlike "File" object, it is not allowed to bypass privilages for the "Registry key" object
+    'e.g. When the SID of caller token is not the owner, it's not possible to open the Key with WRITE_DAC access directly (however, it's possible for the File).
+    'So, firstly, changing object's owner is required.
+    '
+    RegKeySetOwnerShip lHive, KeyName, "S-1-5-32-544", bUseWow64
+    
+    If ERROR_SUCCESS = RegCreateKeyEx(lHive, StrPtr(KeyName), 0&, 0&, _
+        0, _
+        READ_CONTROL Or WRITE_DAC Or (bIsWOW64 And KEY_WOW64_64KEY And Not bUseWow64), _
+        ByVal 0&, hKey, flagDisposition) Then
+
+        dacl = CreateNullDacl()
+        
+        If ERROR_SUCCESS = SetSecurityInfo(hKey, SE_REGISTRY_KEY, _
+            DACL_SECURITY_INFORMATION Or UNPROTECTED_DACL_SECURITY_INFORMATION, _
+            0&, 0&, VarPtr(dacl), 0&) Then
             
-            aFolders = ListSubfolders(sObject)
+            RegKeySetInheritedSD = True
+        
+        End If
+
+        RegCloseKey hKey
+    End If
+    
+    If Recursive Then
+    
+        If RegOpenKeyEx(lHive, StrPtr(KeyName), 0&, KEY_ENUMERATE_SUB_KEYS Or (bIsWOW64 And KEY_WOW64_64KEY And Not bUseWow64), hKeyEnum) = ERROR_SUCCESS Then
+    
+            sSubKeyName = String$(MAX_KEYNAME, vbNullChar)
             
-            For i = 0 To UBoundSafe(aFolders)
-                SetFileStringSD = SetFileStringSD And SetFileStringSD(aFolders(i), StrSD, True)
-            Next
+            i = 0
+            Do While RegEnumKeyEx(hKeyEnum, i, StrPtr(sSubKeyName), MAX_KEYNAME, 0&, 0&, 0&, ByVal 0&) = ERROR_SUCCESS
+            
+                sSubKeyName = Left$(sSubKeyName, lstrlen(StrPtr(sSubKeyName)))
+                
+                RegKeySetInheritedSD = RegKeySetInheritedSD And _
+                    RegKeySetInheritedSD(lHive, KeyName & IIf(0 <> Len(KeyName), "\", vbNullString) & sSubKeyName, bUseWow64, True)
+                
+                sSubKeyName = String$(MAX_KEYNAME, vbNullChar)
+                i = i + 1
+            Loop
+            RegCloseKey hKeyEnum
         End If
     End If
+    
 End Function
 
 Public Function ConvertStringSDToSD(StrSD As String) As Byte()
@@ -1552,42 +1678,69 @@ ErrorHandler:
     If inIDE Then Stop: Resume Next
 End Function
 
-Public Function SetRegKeyStringSD(lHive As ENUM_REG_HIVE, ByVal KeyName As String, StringSD As String, Optional bUseWow64 As Boolean) As Boolean
+Public Function SetRegKeyStringSD(lHive As ENUM_REG_HIVE, ByVal KeyName As String, StringSD As String, Optional bUseWow64 As Boolean, _
+    Optional bRecursive As Boolean) As Boolean
+    
     On Error GoTo ErrorHandler:
     
-    Dim hKey As Long
+    Dim hKey As Long, hKeyEnum As Long
     Dim SD() As Byte
     Dim ObjType As SE_OBJECT_TYPE
+    Dim sSubKeyName As String
+    Dim i As Long
+    
+    SD = ConvertStringSDToSD(StringSD)
+    If AryPtr(SD) = 0 Then Exit Function
     
     Call Reg.NormalizeKeyNameAndHiveHandle(lHive, KeyName)
     
-    SD = ConvertStringSDToSD(StringSD)
+    RegKeySetOwnerShip lHive, KeyName, "S-1-5-32-544", bUseWow64
     
-    If AryPtr(SD) Then
-    
-        'Note: Although, READ_CONTROL is not necessary
-    
-        If ERROR_SUCCESS <> RegOpenKeyEx(lHive, StrPtr(KeyName), REG_OPTION_BACKUP_RESTORE, _
-            READ_CONTROL Or WRITE_OWNER Or WRITE_DAC Or ACCESS_SYSTEM_SECURITY Or (bIsWOW64 And KEY_WOW64_64KEY And Not bUseWow64), hKey) Then Exit Function
+    'Note: Although, READ_CONTROL is not necessary
 
-'        If OSver.IsWin32 Then
-'            ObjType = SE_REGISTRY_KEY
+    If ERROR_SUCCESS <> RegOpenKeyEx(lHive, StrPtr(KeyName), REG_OPTION_BACKUP_RESTORE, _
+        READ_CONTROL Or WRITE_OWNER Or WRITE_DAC Or ACCESS_SYSTEM_SECURITY Or (bIsWOW64 And KEY_WOW64_64KEY And Not bUseWow64), hKey) Then Exit Function
+        
+    If hKey = 0 Then Exit Function
+    
+'   'Doesn't matter. SE_REGISTRY_KEY work even for x64 reg. keys
+'   'Contrariwise, using SE_REGISTRY_WOW64_64KEY, SetSecurityInfo returns error 87.
+'
+'    If OSver.IsWin32 Then
+'        ObjType = SE_REGISTRY_KEY
+'    Else
+'        If bUseWow64 Then
+'            ObjType = SE_REGISTRY_WOW64_32KEY
 '        Else
-'            If bUseWow64 Then
-'                ObjType = SE_REGISTRY_WOW64_32KEY
-'            Else
-'                ObjType = SE_REGISTRY_WOW64_64KEY
-'            End If
+'            ObjType = SE_REGISTRY_WOW64_64KEY
 '        End If
-        
-        'Doesn't matter. SE_REGISTRY_KEY work even for x64 reg. keys
-        'Contrariwise, using SE_REGISTRY_WOW64_64KEY, SetSecurityInfo returns error 87.
-        
-        ObjType = SE_REGISTRY_KEY
-        
-        SetRegKeyStringSD = SetSecurityDescriptor(hKey, ObjType, SD)
-        
-        RegCloseKey hKey
+'    End If
+    
+    ObjType = SE_REGISTRY_KEY
+    
+    SetRegKeyStringSD = SetSecurityDescriptor(hKey, ObjType, SD)
+    
+    RegCloseKey hKey
+    
+    If bRecursive Then
+
+        If RegOpenKeyEx(lHive, StrPtr(KeyName), 0&, KEY_ENUMERATE_SUB_KEYS Or (bIsWOW64 And KEY_WOW64_64KEY And Not bUseWow64), hKeyEnum) = ERROR_SUCCESS Then
+    
+            sSubKeyName = String$(MAX_KEYNAME, vbNullChar)
+            
+            i = 0
+            Do While RegEnumKeyEx(hKeyEnum, i, StrPtr(sSubKeyName), MAX_KEYNAME, 0&, 0&, 0&, ByVal 0&) = ERROR_SUCCESS
+            
+                sSubKeyName = Left$(sSubKeyName, lstrlen(StrPtr(sSubKeyName)))
+                
+                SetRegKeyStringSD = SetRegKeyStringSD And _
+                    RegKeySetInheritedSD(lHive, KeyName & IIf(0 <> Len(KeyName), "\", vbNullString) & sSubKeyName, bUseWow64, True)
+                
+                sSubKeyName = String$(MAX_KEYNAME, vbNullChar)
+                i = i + 1
+            Loop
+            RegCloseKey hKeyEnum
+        End If
     End If
     
     Exit Function
@@ -1606,7 +1759,7 @@ Public Function RegGetKeyFlags(hHive As ENUM_REG_HIVE, ByVal sKey As String, Opt
     
     lret = Reg.WrapNtOpenKeyEx(hHive, sKey, WRITE_OWNER, hKey, , bUseWow64)
     
-    If STATUS_SUCCESS = lret Then
+    If NT_SUCCESS(lret) Then
 
         Dim reqSize As Long
         lret = NtQueryKey(hKey, KeyFlagsInformation, ByVal VarPtr(RegGetKeyFlags), LenB(RegGetKeyFlags), reqSize)
@@ -1629,7 +1782,7 @@ Public Function RegGetKeyVirtualizationInfo(hHive As ENUM_REG_HIVE, ByVal sKey A
     
     lret = Reg.WrapNtOpenKeyEx(hHive, sKey, WRITE_OWNER, hKey, , bUseWow64)
     
-    If STATUS_SUCCESS = lret Then
+    If NT_SUCCESS(lret) Then
 
         Dim reqSize As Long
         lret = NtQueryKey(hKey, KeyVirtualizationInformation, ByVal VarPtr(RegGetKeyVirtualizationInfo), LenB(RegGetKeyVirtualizationInfo), reqSize)
@@ -1720,17 +1873,17 @@ Public Function GetDefaultFileSDDL() As String
     Dim SDDL As String
     
     SDDL = "O:BAG:BAD:PAI" ' Owner - Administrators / Group - Administrators / Disabled inheritance from parent
-    SDDL = SDDL & "(A;OICIID;FA;;;SY)" ' LocalSystem
-    SDDL = SDDL & "(A;OICIID;FA;;;BA)" ' Administrators
-    SDDL = SDDL & "(A;OICIID;FA;;;BU)" ' Users
-    SDDL = SDDL & "(A;OICIID;FA;;;S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464)" ' TrustedInstaller
+    SDDL = SDDL & "(A;OICI;FA;;;SY)" ' LocalSystem
+    SDDL = SDDL & "(A;OICI;FA;;;BA)" ' Administrators
+    SDDL = SDDL & "(A;OICI;FA;;;BU)" ' Users
+    SDDL = SDDL & "(A;OICI;FA;;;S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464)" ' TrustedInstaller
     
     If Not (OSver Is Nothing) Then
         If OSver.IsWindows8OrGreater Then
-            SDDL = SDDL & "(A;OICIID;FA;;;S-1-15-2-1)" 'AppX
+            SDDL = SDDL & "(A;OICI;FA;;;S-1-15-2-1)" 'AppX
         End If
         If OSver.IsWindows10OrGreater Then
-            SDDL = SDDL & "(A;OICIID;FA;;;S-1-15-2-2)" 'AppX restricted
+            SDDL = SDDL & "(A;OICI;FA;;;S-1-15-2-2)" 'AppX restricted
         End If
     End If
     

@@ -31,6 +31,7 @@ Public Enum SETTINGS_SECTION
     SETTINGS_SECTION_REGUNLOCKER
     SETTINGS_SECTION_FILEUNLOCKER
     SETTINGS_SECTION_REGKEYTYPECHECKER
+    SETTINGS_SECTION_HOSTSMAN
 End Enum
 
 Public hLibPcre2        As Long
@@ -264,7 +265,7 @@ Private Function Callback_WndTextbox(ByVal hWnd As Long, ByVal uMsg As Long, ByV
     
     Case WM_COPY
         Callback_WndTextbox = DefSubclassProc(hWnd, uMsg, wParam, lParam)
-        If OpenClipboard(hWnd) Then
+        If OpenClipboardEx(hWnd) Then
             Dim hMem As Long
             Dim ptr As Long
             hMem = GlobalAlloc(GMEM_MOVEABLE, 4)
@@ -273,9 +274,10 @@ Private Function Callback_WndTextbox(ByVal hWnd As Long, ByVal uMsg As Long, ByV
                 If ptr <> 0 Then
                     GetMem4 OSver.LangNonUnicodeCode, ByVal ptr
                     GlobalUnlock hMem
-                    SetClipboardData CF_LOCALE, hMem
+                    If SetClipboardData(CF_LOCALE, hMem) = 0 Then
+                        GlobalFree hMem
+                    End If
                 End If
-                'GlobalFree hMem
             End If
             CloseClipboard
         End If
@@ -414,13 +416,13 @@ Public Function GetBrowsersInfo() As BROWSERS_VERSION_INFO
     
     Dim Cmd As String
     Dim FriendlyName As String
-    Dim Path As String
+    Dim path As String
     Dim Arguments As String
     Cmd = GetDefaultApp("http", FriendlyName)
     If Len(Cmd) = 0 Then
         Cmd = "Program is not associated"
     Else
-        SplitIntoPathAndArgs Cmd, Path, Arguments
+        SplitIntoPathAndArgs Cmd, path, Arguments
     End If
     
     With GetBrowsersInfo
@@ -429,7 +431,7 @@ Public Function GetBrowsersInfo() As BROWSERS_VERSION_INFO
         .Chrome.Version = GetChromeVersion()
         .Firefox.Version = GetFirefoxVersion()
         .Opera.Version = GetOperaVersion()
-        .Default = Cmd & IIf(Path = "(AppID)", " " & FriendlyName, IIf(Len(FriendlyName) <> 0, " (" & FriendlyName & ")", vbNullString))
+        .Default = Cmd & IIf(path = "(AppID)", " " & FriendlyName, IIf(Len(FriendlyName) <> 0, " (" & FriendlyName & ")", vbNullString))
     End With
     AppendErrorLogCustom "GetBrowsersInfo - End"
 End Function
@@ -612,67 +614,6 @@ ErrorHandler:
     If inIDE Then Stop: Resume Next
 End Function
 
-' Особая процедура удаления файла (с разблокировкой NTFS привилегий)
-Public Function DeleteFileForce(File As String, Optional bForceMicrosoft As Boolean) As Long
-    On Error GoTo ErrorHandler:
-    AppendErrorLogCustom "DeleteFileForce - Begin", "File: " & File
-    
-    Const FILE_ATTRIBUTE_NORMAL     As Long = &H80&
-    Const FILE_ATTRIBUTE_READONLY   As Long = 1&
-    
-    Dim lr          As Long
-    Dim Attrib      As Long
-    Dim isDeleted   As Boolean
-    Dim Redirect As Boolean, bOldStatus As Boolean
-
-    If Not bForceMicrosoft Then
-        If IsMicrosoftFile(File, True) Then Exit Function
-    End If
-
-    Redirect = ToggleWow64FSRedirection(False, File, bOldStatus)
-
-    Attrib = GetFileAttributes(StrPtr(File))
-    
-    If Attrib <> INVALID_FILE_ATTRIBUTES Then
-        If Attrib And FILE_ATTRIBUTE_READONLY Then
-            SetFileAttributes StrPtr(File), Attrib And Not FILE_ATTRIBUTE_READONLY
-        End If
-    End If
-    
-    lr = DeleteFileW(StrPtr(File))  'not 0 - success
-    If lr = 0 Then
-        If inIDE Then Debug.Print "Error " & Err.LastDllError & " when deleting file: " & File
-    End If
-
-    ' -> в случае неудачи, попытка получения прав NTFS + смена владельца на локальную группу "Администраторы"
-    ' цель и аргументы передаются только для включение в отчет
-
-    isDeleted = Not FileExists(File)
-    
-    If Not isDeleted Then
-        TryUnlock File
-        SetFileAttributes StrPtr(File), FILE_ATTRIBUTE_NORMAL
-        
-        Call DeleteFileW(StrPtr(File))
-        'lr = Err.LastDllError
-        
-        isDeleted = Not FileExists(File)
-    End If
-    
-    If isDeleted Then SHChangeNotify SHCNE_DELETE, SHCNF_PATH Or SHCNF_FLUSHNOWAIT, StrPtr(File), ByVal 0&
-
-    DeleteFileForce = isDeleted 'lr
-
-    If Redirect Then Call ToggleWow64FSRedirection(bOldStatus)
-    
-    AppendErrorLogCustom "DeleteFileForce - End"
-    Exit Function
-ErrorHandler:
-    ErrorMsg Err, "DeleteFileEx", "File:", File
-    If Redirect Then Call ToggleWow64FSRedirection(bOldStatus)
-    If inIDE Then Stop: Resume Next
-End Function
-
 Public Function TryUnlock(ByVal FS_Object As String, Optional bRecursive As Boolean) As Boolean
 
     AppendErrorLogCustom "TryUnlock - Begin", "File: " & FS_Object
@@ -707,10 +648,10 @@ Public Function AppPath(Optional bGetFullPath As Boolean) As String
     
     If inIDE Then
         If bGetFullPath Then
-            AppPath = GetDOSFilename(App.Path, bReverse:=True) & "\" & GetValueFromVBP(BuildPath(App.Path, App.ExeName & ".vbp"), "ExeName32")
+            AppPath = GetDOSFilename(App.path, bReverse:=True) & "\" & GetValueFromVBP(BuildPath(App.path, App.ExeName & ".vbp"), "ExeName32")
             ProcPathFull = AppPath
         Else
-            AppPath = GetDOSFilename(App.Path, bReverse:=True)
+            AppPath = GetDOSFilename(App.path, bReverse:=True)
             ProcPathShort = AppPath
         End If
         Exit Function
@@ -728,7 +669,7 @@ Public Function AppPath(Optional bGetFullPath As Boolean) As String
     End If
     
     If cnt = 0 Then                          'clear path
-        ProcPath = App.Path
+        ProcPath = App.path
     Else
         ProcPath = Left$(ProcPath, cnt)
         If StrComp("\SystemRoot\", Left$(ProcPath, 12), 1) = 0 Then ProcPath = sWinDir & mid$(ProcPath, 12)
@@ -832,7 +773,9 @@ Public Function ParseCommandLine(Line As String, argc As Long, argv() As String,
   If Len(St) > 0 Then ParseCommandLine = True
   Lex = Split(St) 'Разбиваем по пробелам на лексемы для анализа знаков
   ReDim argv(0 To UBound(Lex) + 1) As String 'Определяем выходной массив до максимально возможного числа параметров
-  argv(0) = AppPath(True)
+  If Not bFirstArgIncomedAsAppExe Then
+    argv(0) = AppPath(True)
+  End If
   If Len(St) <> 0 Then
     Do While nL <= UBound(Lex)
       Unit = Lex(nL) 'Записысаем текущую лексему как начало нового аргумента
@@ -851,6 +794,8 @@ Public Function ParseCommandLine(Line As String, argc As Long, argv() As String,
         If bFirstArgIncomedAsAppExe Then
           If nA > 1 Then
             argv(nA - 1) = Unit
+          Else
+            argv(0) = Unit
           End If
         Else
           argv(nA) = Unit
@@ -890,93 +835,100 @@ Function ExtractFilesFromCommandLine(sCmdLine As String) As String()
     ExtractFilesFromCommandLine = aPath
 End Function
 
-'Delete File with unlock access rights on failure. Return non 0 on success.
-Public Function DeleteFilePtr(lpSTR As Long, Optional ForceDeleteMicrosoft As Boolean, Optional DisallowRemoveOnReboot As Boolean) As Long
+'By default allowing remove file on reboot
+'
+Public Function DeleteFileForce(sPath As String, Optional bForceMicrosoft As Boolean, Optional DisallowRemoveOnReboot As Boolean = False) As Boolean
+    DeleteFileForce = DeleteFileEx(sPath, bForceMicrosoft, DisallowRemoveOnReboot)
+End Function
+
+'Delete File with unlocking DACL on failure
+'
+Public Function DeleteFileEx(sPath As String, Optional ForceDeleteMicrosoft As Boolean, Optional DisallowRemoveOnReboot As Boolean = True) As Boolean
     On Error GoTo ErrorHandler:
-    AppendErrorLogCustom "DeleteFilePtr - Begin"
-
-    Dim iAttr As Long, lr As Long, sExt As String, sNewName As String
-    Dim Redirect As Boolean, bOldStatus As Boolean
-
-    Dim FileName$
-    FileName = String$(lstrlen(lpSTR), vbNullChar)
-    If Len(FileName) <> 0 Then
-        lstrcpy StrPtr(FileName), lpSTR
-    Else
-        Exit Function
-    End If
+    AppendErrorLogCustom "DeleteFileEx - Begin"
     
-    ' prevent removing parent process
-    If StrComp(FileName, MyParentProc.Path, vbTextCompare) = 0 Then
-        DeleteFilePtr = True
-        Exit Function
-    End If
+    Dim iAttr As Long, lr As Long, sExt As String, sNewPath As String, lpSTR As Long
+    Dim Redirect As Boolean, bOldStatus As Boolean, bMicrosoft As Boolean
     
-    sExt = GetExtensionName(FileName)
+    If Len(sPath) = 0 Then Exit Function
+    
+    lpSTR = StrPtr(sPath)
+    
+    sExt = GetExtensionName(sPath)
     
     If Not ForceDeleteMicrosoft Then
         If Not StrInParamArray(sExt, ".txt", ".log", ".tmp", ".ini") Then
-            If IsMicrosoftFile(FileName, True) Then
-                SFC_RestoreFile FileName
-                Exit Function
-            ElseIf IsFileSFC(FileName) Then
-                SFC_RestoreFile FileName
+            bMicrosoft = IsLolBin_ProtectedList(sPath)
+            If Not bMicrosoft Then
+                bMicrosoft = IsMicrosoftFile(sPath, True)
+            End If
+            If Not bMicrosoft Then
+                bMicrosoft = IsFileSFC(sPath)
+            End If
+            If bMicrosoft Then
+                SFC_RestoreFile sPath
                 Exit Function
             End If
         End If
     End If
     
     If g_bDelModePending Then
-        DeleteFileOnReboot FileName, bNoReboot:=True
+        DeleteFileOnReboot sPath, bNoReboot:=True
         Exit Function
     End If
     
-    Redirect = ToggleWow64FSRedirection(False, FileName, bOldStatus)
+    Redirect = ToggleWow64FSRedirection(False, sPath, bOldStatus)
     
     iAttr = GetFileAttributes(lpSTR)
     If iAttr <> INVALID_FILE_ATTRIBUTES Then
-        If (iAttr And FILE_ATTRIBUTE_COMPRESSED) Then iAttr = iAttr - FILE_ATTRIBUTE_COMPRESSED
-        If iAttr And FILE_ATTRIBUTE_READONLY Then SetFileAttributes lpSTR, iAttr And Not FILE_ATTRIBUTE_READONLY
+        If (iAttr And (FILE_ATTRIBUTE_COMPRESSED Or FILE_ATTRIBUTE_READONLY)) Then
+            iAttr = iAttr And Not (FILE_ATTRIBUTE_COMPRESSED Or FILE_ATTRIBUTE_READONLY)
+            SetFileAttributes lpSTR, iAttr
+        End If
     End If
     
     lr = DeleteFileW(lpSTR)
     
     If lr <> 0 Then 'success
-        DeleteFilePtr = lr
+        DeleteFileEx = True
         GoTo Finalize
     End If
     
     If Err.LastDllError = ERROR_FILE_NOT_FOUND Then
-        DeleteFilePtr = 1
+        DeleteFileEx = True
         GoTo Finalize
     End If
     
     If Err.LastDllError = ERROR_ACCESS_DENIED Then
-        TryUnlock FileName
+        TryUnlock sPath
         SetFileAttributes lpSTR, FILE_ATTRIBUTE_NORMAL
         lr = DeleteFileW(lpSTR)
     End If
     
     If lr = 0 Then 'if process still run, try rename file
-        sNewName = GetEmptyName(FileName & ".bak")
+        sNewPath = GetEmptyName(sPath & ".bak")
         
         'if failed
-        If 0 = MoveFile(StrPtr(FileName), StrPtr(sNewName)) Then
+        If 0 = MoveFile(StrPtr(sPath), StrPtr(sNewPath)) Then
             'plan to delete on reboot
             If Not DisallowRemoveOnReboot Then
-                DeleteFileOnReboot FileName, bNoReboot:=True
+                DeleteFileOnReboot sPath, bNoReboot:=True
                 bRebootRequired = True
             End If
+        Else
+            DeleteFileEx = True
         End If
+    Else
+        DeleteFileEx = True
     End If
     
 Finalize:
     If Redirect Then Call ToggleWow64FSRedirection(bOldStatus)
     
-    AppendErrorLogCustom "DeleteFilePtr - End"
+    AppendErrorLogCustom "DeleteFileEx - End"
     Exit Function
 ErrorHandler:
-    ErrorMsg Err, "Parser.DeleteFilePtr", "File:", FileName
+    ErrorMsg Err, "DeleteFileEx", "File:", sPath
     If inIDE Then Stop: Resume Next
 End Function
 
@@ -1331,7 +1283,7 @@ End Sub
 Public Sub GetFileByCLSID(ByVal sCLSID As String, out_sFile As String, Optional out_sTitle As Variant, Optional bRedirected As Boolean, Optional bShared As Boolean)
     On Error GoTo ErrorHandler:
     
-    'Note: if 'bShared' = true, function will query for both WOW states,
+    'Note: if 'bShared' = false, function will query for both WOW states,
     'but firstly it will query for redir. state defined in 'bRedirected' argument.
     
     '++ VersionIndependentProgID ?
@@ -1371,15 +1323,20 @@ Public Sub GetFileByCLSID(ByVal sCLSID As String, out_sFile As String, Optional 
             bRedirState = bRedirected
         Else
             If Len(out_sFile) <> 0 Then Exit For
-            If Not bShared Then Exit For
+            If bShared Then Exit For
             bRedirState = Not bRedirected
         End If
-    
+        
         out_sFile = Reg.GetString(HKEY_CLASSES_ROOT, "CLSID\" & sCLSID & "\InProcServer32", vbNullString, bRedirState)
-    
+        
+        If StrComp(GetFileName(out_sFile, True), "mscoree.dll", vbTextCompare) = 0 Then
+            out_sFile = Reg.GetString(HKEY_CLASSES_ROOT, "CLSID\" & sCLSID & "\InProcServer32", "CodeBase", bRedirState)
+        End If
+        
         If 0 = Len(out_sFile) Then
             sAppID = Reg.GetString(HKEY_CLASSES_ROOT, "CLSID\" & sCLSID, "AppID", bRedirState)
             If 0 <> Len(sAppID) Then
+                'out_sTitle ???
                 If IsMissing(out_sTitle) Then
                     GetFileByAppID sAppID, out_sFile, , bRedirState, False
                 Else
@@ -1445,7 +1402,10 @@ End Sub
 
 Public Sub GetFileByAppID(sAppID As String, out_sFile As String, Optional out_sTitle As Variant, Optional bRedirected As Boolean, Optional bShared As Boolean)
     On Error GoTo ErrorHandler:
-
+    
+    'https://learn.microsoft.com/en-us/windows/win32/com/appid-clsid
+    'https://learn.microsoft.com/en-us/windows/win32/com/appid-key
+    
     Dim sBuf As String
     Dim sServiceName As String
     Dim bRedirState As Boolean
@@ -1500,7 +1460,7 @@ End Sub
 
 '// Expand env. variable, unquote, normalize 8.3 path, search file on %PATH$ and append postfix "(no file)" or "(file missing)" if need.
 '// Pass "sArgs" in case you want to check if argument missing for rundll32.exe process
-Public Function FormatFileMissing(ByVal sFile As String, Optional sArgs As String) As String
+Public Function FormatFileMissing(ByVal sFile As String, Optional sArgs As String, Optional out_bMissing As Boolean) As String
     On Error GoTo ErrorHandler:
     
     Dim pos As Long
@@ -1509,8 +1469,10 @@ Public Function FormatFileMissing(ByVal sFile As String, Optional sArgs As Strin
     
     If Len(sFile) = 0 Then
         FormatFileMissing = STR_NO_FILE
+        out_bMissing = True
     ElseIf sFile = STR_NO_FILE Then
         FormatFileMissing = sFile
+        out_bMissing = True
         Exit Function
     Else
         '8.3 -> Full
@@ -1521,6 +1483,7 @@ Public Function FormatFileMissing(ByVal sFile As String, Optional sArgs As Strin
                 FormatFileMissing = sFile
             Else
                 FormatFileMissing = sFile & " (folder missing)"
+                out_bMissing = True
             End If
             Exit Function
         End If
@@ -1531,6 +1494,7 @@ Public Function FormatFileMissing(ByVal sFile As String, Optional sArgs As Strin
             If InStr(sFile, "\") <> 0 Then
                 
                 FormatFileMissing = sFile & " " & STR_FILE_MISSING
+                out_bMissing = True
                 
             Else 'relative path?
                 Dim bFound As Boolean
@@ -1540,6 +1504,7 @@ Public Function FormatFileMissing(ByVal sFile As String, Optional sArgs As Strin
                     FormatFileMissing = sFile
                 Else
                     FormatFileMissing = sFile & " " & STR_FILE_MISSING
+                    out_bMissing = True
                 End If
             End If
         End If
@@ -1554,6 +1519,7 @@ Public Function FormatFileMissing(ByVal sFile As String, Optional sArgs As Strin
             sDll = GetRundllFile(sArgs)
             If Not FileExists(sDll) Then
                 FormatFileMissing = sDll & " " & STR_FILE_MISSING
+                out_bMissing = True
             End If
         End If
     End If
@@ -1722,13 +1688,6 @@ Public Sub CreateUninstallKey(bCreate As Boolean, Optional EXE_Location As Strin
     On Error GoTo ErrorHandler:
     AppendErrorLogCustom "CreateUninstallKey - Begin"
     Dim Setup_Key$:   Setup_Key = "Software\Microsoft\Windows\CurrentVersion\Uninstall\HiJackThis Fork"
-    Dim sHelpURL$
-    
-    If IsRussianLangCode(OSver.LangSystemCode) Or IsRussianLangCode(OSver.LangDisplayCode) Then
-        sHelpURL = "https://regist.safezone.cc/hijackthis_help/hijackthis.html"
-    Else
-        sHelpURL = "https://github.com/dragokas/hijackthis/wiki/HJT:-Tutorial"
-    End If
     
     If bCreate Then
         If Len(EXE_Location) = 0 Then EXE_Location = AppPath(True)
@@ -1743,12 +1702,12 @@ Public Sub CreateUninstallKey(bCreate As Boolean, Optional EXE_Location As Strin
         'Reg.SetStringVal HKEY_LOCAL_MACHINE, Setup_Key, "URLInfoAbout", "http://www.spywareinfo.com/~merijn/"
         'Reg.SetStringVal HKEY_LOCAL_MACHINE, Setup_Key, "URLInfoAbout", "https://sourceforge.net/projects/hjt/"
         Reg.SetStringVal HKEY_LOCAL_MACHINE, Setup_Key, "URLInfoAbout", "https://github.com/dragokas/hijackthis"
-        Reg.SetStringVal HKEY_LOCAL_MACHINE, Setup_Key, "HelpLink", sHelpURL
+        Reg.SetStringVal HKEY_LOCAL_MACHINE, Setup_Key, "HelpLink", "https://github.com/dragokas/hijackthis/wiki/HJT:-Tutorial"
         Reg.SetStringVal HKEY_LOCAL_MACHINE, Setup_Key, "InstallLocation", GetParentDir(EXE_Location)
         Reg.SetDwordVal HKEY_LOCAL_MACHINE, Setup_Key, "NoModify", 1
         Reg.SetDwordVal HKEY_LOCAL_MACHINE, Setup_Key, "NoRepair", 1
         Reg.SetDwordVal HKEY_LOCAL_MACHINE, Setup_Key, "EstimatedSize", FileLenW(EXE_Location) \ 1024 'KB
-        Reg.SetDwordVal HKEY_LOCAL_MACHINE, Setup_Key, "Language", IIf(g_CurrentLang = "Russian", &H419&, &H409&)
+        Reg.SetDwordVal HKEY_LOCAL_MACHINE, Setup_Key, "Language", IIf(g_CurrentLangEnum = Lang_Russian Or g_CurrentLangEnum = Lang_Ukrainian, &H419&, &H409&)
         Reg.SetStringVal HKEY_LOCAL_MACHINE, Setup_Key, "InstallDate", Format$(Date, "yyyymmdd", vbMonday)
         Reg.SetStringVal HKEY_LOCAL_MACHINE, Setup_Key, "Contact", "admin@dragokas.com"
         Reg.SetStringVal HKEY_LOCAL_MACHINE, Setup_Key, "Comments", "Creates a report of non-standard parameters of registry " & _
@@ -1765,13 +1724,13 @@ ErrorHandler:
     If inIDE Then Stop: Resume Next
 End Sub
 
-Public Function RegSaveHJT(sName$, sData$, Optional IdSection As SETTINGS_SECTION) As Boolean
+Public Function RegSaveHJT(sName$, sData$, Optional idSection As SETTINGS_SECTION) As Boolean
     On Error GoTo ErrorHandler:
     
     If Not OSver.IsElevated Then Exit Function
     
     Dim sSubSection As String
-    sSubSection = SectionNameById(IdSection)
+    sSubSection = SectionNameById(idSection)
     
     If Len(sSubSection) <> 0 Then sSubSection = "\" & sSubSection
     
@@ -1794,12 +1753,12 @@ End Function
 Public Function RegReadHJT( _
     sName$, _
     Optional sDefault$, _
-    Optional IdSection As SETTINGS_SECTION) As String
+    Optional idSection As SETTINGS_SECTION) As String
     
     On Error GoTo ErrorHandler:
     
     Dim sSubSection As String
-    sSubSection = SectionNameById(IdSection)
+    sSubSection = SectionNameById(idSection)
     
     If Len(sSubSection) <> 0 Then sSubSection = "\" & sSubSection
     
@@ -1822,12 +1781,12 @@ ErrorHandler:
     If inIDE Then Stop: Resume Next
 End Function
 
-Public Function RegDelHJT(sName$, Optional IdSection As SETTINGS_SECTION) As Boolean
+Public Function RegDelHJT(sName$, Optional idSection As SETTINGS_SECTION) As Boolean
 
     If Not OSver.IsElevated Then Exit Function
 
     Dim sSubSection As String
-    sSubSection = SectionNameById(IdSection)
+    sSubSection = SectionNameById(idSection)
     
     If Len(sSubSection) <> 0 Then sSubSection = "\" & sSubSection
     
@@ -2390,18 +2349,27 @@ Public Function BStrFromLPWStr(lpWStr As Long, Optional ByVal CleanupLPWStr As B
     If CleanupLPWStr Then CoTaskMemFree lpWStr
 End Function
 
-Public Sub ProcessHotkey(KeyCode As Integer, frm As Form)
+Public Function ProcessHotkey(KeyCode As Integer, frm As Form) As Boolean
     If KeyCode = Asc("F") Then                    'Ctrl + F
         If Not (cMath Is Nothing) Then
-            If cMath.HIWORD(GetKeyState(VK_CONTROL)) Then LoadSearchEngine frm
+            If cMath.HIWORD(GetKeyState(VK_CONTROL)) Then LoadSearchEngine frm: ProcessHotkey = True
         End If
-    End If
-    If KeyCode = Asc("A") Then                    'Ctrl + A
+    ElseIf KeyCode = Asc("A") Then                    'Ctrl + A
         If Not (cMath Is Nothing) Then
-            If cMath.HIWORD(GetKeyState(VK_CONTROL)) Then ControlSelectAll frm
+            If cMath.HIWORD(GetKeyState(VK_CONTROL)) Then ControlSelectAll frm: ProcessHotkey = True
         End If
     End If
-End Sub
+End Function
+
+Public Function ProcessDelayedHotkey(hotkey As clsHotkey, frm As Form) As Boolean
+    If hotkey.IsControlHotkey(VK_F) Then
+        LoadSearchEngine frm
+        ProcessDelayedHotkey = True
+    ElseIf hotkey.IsControlHotkey(VK_A) Then
+        ControlSelectAll frm
+        ProcessDelayedHotkey = True
+    End If
+End Function
 
 Public Sub LoadSearchEngine(frm As Form)
     If IsFormInit(frmSearch) Then
@@ -2435,10 +2403,6 @@ Sub ControlSelectAll(Optional frmExplicit As Form)
         Case FRAME_ALIAS_BACKUPS
             bCanSearch = True
             Set out_Control = frmMain.lstBackups
-            
-        Case FRAME_ALIAS_HOSTS
-            bCanSearch = True
-            Set out_Control = frmMain.lstHostsMan
             
         Case FRAME_ALIAS_HELP_SECTIONS, FRAME_ALIAS_HELP_KEYS, FRAME_ALIAS_HELP_PURPOSE, FRAME_ALIAS_HELP_HISTORY
             bCanSearch = True
@@ -2478,7 +2442,11 @@ Sub ControlSelectAll(Optional frmExplicit As Form)
     Case "frmRegTypeChecker"
         bCanSearch = True
         Set out_Control = frmRegTypeChecker.txtKeys
-        
+    
+    Case "frmHostsMan"
+        bCanSearch = True
+        Set out_Control = frmHostsMan.lstHostsMan
+    
     End Select
     
     If bCanSearch Then
@@ -2530,11 +2498,11 @@ Public Function HasCommandLineKey(ByVal sKey As String) As Boolean
     End If
 End Function
 
-Public Function SectionNameById(IdSection As SETTINGS_SECTION) As String
+Public Function SectionNameById(idSection As SETTINGS_SECTION) As String
 
     Dim sName As String
 
-    Select Case IdSection
+    Select Case idSection
         Case SETTINGS_SECTION_MAIN:                 sName = vbNullString
         Case SETTINGS_SECTION_ADSSPY:               sName = "Tools\ADSSpy"
         Case SETTINGS_SECTION_SIGNCHECKER:          sName = "Tools\SignChecker"
@@ -2555,7 +2523,7 @@ Public Sub ArrayAdd(arr(), Value)
     If 0 = AryPtr(arr) Then
         ReDim arr(0)
     Else
-        ReDim Preserve arr(UBound(arr) + 1)
+        ReDim Preserve arr(LBound(arr) To UBound(arr) + 1)
     End If
     
     arr(UBound(arr)) = Value
@@ -2566,7 +2534,7 @@ Public Sub ArrayAddStr(arr() As String, Value As String)
     If 0 = AryPtr(arr) Then
         ReDim arr(0)
     Else
-        ReDim Preserve arr(UBound(arr) + 1)
+        ReDim Preserve arr(LBound(arr) To UBound(arr) + 1)
     End If
     
     arr(UBound(arr)) = Value
@@ -2577,7 +2545,7 @@ Public Sub ArrayAddLong(arr() As Long, Value As Long)
     If 0 = AryPtr(arr) Then
         ReDim arr(0)
     Else
-        ReDim Preserve arr(UBound(arr) + 1)
+        ReDim Preserve arr(LBound(arr) To UBound(arr) + 1)
     End If
     
     arr(UBound(arr)) = Value
@@ -2692,16 +2660,16 @@ End Sub
 
 Public Function IsValidBuildInUserName(sUsername As String) As Boolean
     
-    Static names() As String
+    Static Names() As String
     Static bInit As Boolean
     
     If Not bInit Then
         bInit = True
-        ArrayAddStr names, "System" ' OS uses localized name, however, Tasks xml is not
-        ArrayAddStr names, "LocalSystem"
-        ArrayAddStr names, MapSIDToUsername("S-1-5-18")
-        ArrayAddStr names, MapSIDToUsername("S-1-5-19")
-        ArrayAddStr names, MapSIDToUsername("S-1-5-20")
+        ArrayAddStr Names, "System" ' OS uses localized name, however, Tasks xml is not
+        ArrayAddStr Names, "LocalSystem"
+        ArrayAddStr Names, MapSIDToUsername("S-1-5-18")
+        ArrayAddStr Names, MapSIDToUsername("S-1-5-19")
+        ArrayAddStr Names, MapSIDToUsername("S-1-5-20")
     End If
     
     ' TODO: append with everything in Well-Known SIDs:
@@ -2713,7 +2681,7 @@ Public Function IsValidBuildInUserName(sUsername As String) As Boolean
     ' BUILTIN\Administrators
     ' etc.
     
-    IsValidBuildInUserName = InArray(sUsername, names, , , vbTextCompare)
+    IsValidBuildInUserName = InArray(sUsername, Names, , , vbTextCompare)
     
 End Function
 
@@ -2817,13 +2785,13 @@ Public Function HexStringToNumber(str As String) As Long
     End If
 End Function
 
-Public Function PathRemoveLastSlash(Path As String) As String
+Public Function PathRemoveLastSlash(path As String) As String
     Dim ch As String
-    ch = Right$(Path, 1)
+    ch = Right$(path, 1)
     If ch = "\" Or ch = "/" Then
-        PathRemoveLastSlash = Left$(Path, Len(Path) - 1)
+        PathRemoveLastSlash = Left$(path, Len(path) - 1)
     Else
-        PathRemoveLastSlash = Path
+        PathRemoveLastSlash = path
     End If
 End Function
 
@@ -2835,14 +2803,14 @@ Public Sub PathRemoveLastSlashInArray(arr() As String)
 End Sub
 
 Public Function GetDefaultTextEditorPath() As String
-    Dim Cmd As String, Path As String
+    Dim Cmd As String, path As String
     Cmd = GetDefaultApp(".txt")
-    SplitIntoPathAndArgs Cmd, Path
-    Path = EnvironW(Path)
-    If Not FileExists(Path) Then
-        Path = "rundll32.exe shell32,ShellExec_RunDLL"
+    SplitIntoPathAndArgs Cmd, path
+    path = EnvironW(path)
+    If Not FileExists(path) Then
+        path = "rundll32.exe shell32,ShellExec_RunDLL"
     End If
-    GetDefaultTextEditorPath = Path
+    GetDefaultTextEditorPath = path
 End Function
 
 Public Sub OpenInTextEditor(sTextFile As String)
@@ -2888,7 +2856,7 @@ Public Function ConvertCollectionToArray(col As Collection) As String()
     ConvertCollectionToArray = a
 End Function
 
-Public Function ScreenLogLine(ByVal sLine As String) As String
+Public Function ScreenHitLine(ByVal sLine As String) As String
     Dim i As Long
     Dim Code As Long
     Dim nStart As Long
@@ -2902,5 +2870,48 @@ begin:
             GoTo begin
         End If
     Next
-    ScreenLogLine = sLine
+    ScreenHitLine = doSafeURLPrefix(sLine)
+End Function
+
+Private Function GetLastCharPosWithMaxDistReverse(str As String, ch As String, iMaxDist As Long) As Long
+    Dim pos As Long
+    Dim prevPos As Long
+    prevPos = 0
+    Do
+        pos = InStrRev(str, ch, prevPos - 1)
+        If pos = 0 Or (Len(str) - pos) > iMaxDist Then Exit Do
+        prevPos = pos
+        If pos = 1 Then Exit Do
+    Loop
+    If prevPos > 0 Then GetLastCharPosWithMaxDistReverse = prevPos
+End Function
+
+Public Function LimitHitLineLength(sLine As String, ByVal iLimit As Long) As String
+    If Len(sLine) > iLimit Then
+        Dim posMark As Long
+        Dim lastPart As String
+        'Preserve special marks at the end of the line
+        posMark = GetLastCharPosWithMaxDistReverse(sLine, "(", 150)
+        If posMark <> 0 Then
+            iLimit = iLimit - (Len(sLine) - posMark)
+            If iLimit < 1 Then iLimit = 1
+        End If
+        If posMark <> 0 Then
+            lastPart = " " & mid$(sLine, posMark)
+        End If
+        
+        LimitHitLineLength = Left$(sLine, iLimit) & "... (" & (Len(sLine) - iLimit) & " more chars" & ")" & lastPart
+    Else
+        LimitHitLineLength = sLine
+    End If
+End Function
+
+Public Function IsScriptExtension(sPath As String) As Boolean
+    Dim sExt As String
+    sExt = GetExtensionName(sPath)
+    IsScriptExtension = StrInParamArray(sExt, ".BAT", ".CMD", ".VBS", ".JS", ".PY")
+End Function
+
+Public Function IsValidSDDL(SDDL As String) As Boolean
+    If UBoundSafe(ConvertStringSDToSD(SDDL)) > 0 Then IsValidSDDL = True
 End Function
